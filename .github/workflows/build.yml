@@ -12,7 +12,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Setup Java (Required for Android Build)
         uses: actions/setup-java@v4
@@ -23,19 +23,15 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install EAS CLI and Dependencies
-        run: |
-          npm install -g eas-cli
-          npm install
+      - name: Install Dependencies
+        run: npm install
 
-      - name: Build APK Locally
-        run: npx eas-cli build --platform android --profile preview --local --non-interactive
+      - name: Build Android Release APK
+        run: |
+          cd android && ./gradlew assembleRelease
 
       - name: Upload APK to GitHub Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: tabulka-app-apk
-          path: |
-            android/app/build/outputs/apk/preview/*.apk
-            *.apk
-            **/*.apk
+          path: android/app/build/outputs/apk/release/*.apk
