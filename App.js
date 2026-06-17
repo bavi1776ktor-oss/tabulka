@@ -26,7 +26,6 @@ export default function App() {
   const [rate, setRate] = useState('');
   const [hours, setHours] = useState('');
 
-  // Массив для верхней полоски дней недели
   const weekDays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
   useEffect(() => {
@@ -93,19 +92,34 @@ export default function App() {
     setModalVisible(false);
   };
 
+  // --- ОБНОВЛЕННАЯ СТАТИСТИКА ---
   const getStatistics = () => {
     const days = getDaysInMonth(currentMonth);
     let workDays = 0;
+    let weekendDays = 0;
     let totalSum = 0;
 
+    // Получаем текущую дату (сегодня) без учета времени
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     days.forEach(day => {
+      // Превращаем строчку даты (ГГГГ-ММ-ДД) в объект даты для сравнения
+      const [year, month, dateNum] = day.split('-').map(Number);
+      const checkDate = new Date(year, month - 1, dateNum);
+      checkDate.setHours(0, 0, 0, 0);
+
       if (workData[day]) {
         workDays++;
         totalSum += workData[day].rate * workData[day].hours;
+      } else {
+        // Если день пустой И он уже наступил (меньше или равен сегодняшнему) -> это выходной
+        if (checkDate <= today) {
+          weekendDays++;
+        }
       }
     });
 
-    const weekendDays = days.length - workDays;
     return { workDays, weekendDays, totalSum };
   };
 
@@ -166,7 +180,6 @@ export default function App() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         
-        {/* Верхняя панель: дата/время и кнопка Архива */}
         <View style={styles.header}>
           <View>
             <Text style={styles.dateText}>{currentTime.toLocaleDateString('ru-RU')}</Text>
@@ -181,7 +194,6 @@ export default function App() {
           {currentMonth.toLocaleString('ru-RU', { month: 'long', year: 'numeric' }).toUpperCase()}
         </Text>
 
-        {/* НАША НОВАЯ ПОЛОСКА С ДНЯМИ НЕДЕЛИ НАД СЕТКОЙ */}
         <View style={styles.weekDaysRow}>
           {weekDays.map((day, index) => (
             <Text 
@@ -196,7 +208,6 @@ export default function App() {
           ))}
         </View>
 
-        {/* Календарная сетка */}
         <ScrollView contentContainerStyle={styles.calendarGrid}>
           {getDaysInMonth(currentMonth).map((dateStr) => {
             const isWorkDay = !!workData[dateStr];
@@ -213,19 +224,16 @@ export default function App() {
           })}
         </ScrollView>
 
-        {/* Статистика внизу экрана */}
         <View style={styles.statsContainer}>
           <Text style={styles.statsText}>Отработано дней: <Text style={styles.bold}>{stats.workDays}</Text></Text>
           <Text style={styles.statsText}>Выходных дней: <Text style={styles.bold}>{stats.weekendDays}</Text></Text>
           <Text style={styles.totalText}>Сумма: <Text style={styles.bold}>{stats.totalSum}</Text></Text>
         </View>
 
-        {/* Кнопка Поделиться PDF */}
         <TouchableOpacity style={styles.pdfButton} onPress={exportToPDF}>
           <Text style={styles.pdfButtonText}>Сохранить PDF и поделиться</Text>
         </TouchableOpacity>
 
-        {/* Всплывающее окно (Модалка) */}
         <Modal visible={modalVisible} transparent={true} animationType="fade">
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
@@ -279,7 +287,6 @@ const styles = StyleSheet.create({
   archiveText: { color: '#374151', fontWeight: '600' },
   monthTitle: { fontSize: 18, fontWeight: '700', color: '#374151', marginBottom: 15, textAlign: 'center' },
   
-  // Новые стили для строчки дней недели
   weekDaysRow: { 
     flexDirection: 'row', 
     justifyContent: 'flex-start', 
@@ -295,7 +302,7 @@ const styles = StyleSheet.create({
     color: '#9CA3AF' 
   },
   weekendText: { 
-    color: '#EF4444' // Красный цвет для Сб и Вс
+    color: '#EF4444'
   },
 
   calendarGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start' },
