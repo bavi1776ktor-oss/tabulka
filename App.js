@@ -22,12 +22,11 @@ import { getDatabase, ref, onValue, set, off } from 'firebase/database';
 
 const { width } = Dimensions.get('window');
 
-// КОНФИГУРАЦИЯ FIREBASE (Твоя база данных)
+// КОНФИГУРАЦИЯ FIREBASE
 const firebaseConfig = {
   databaseURL: "https://familyshoppinglist-3193b-default-rtdb.firebaseio.com/"
 };
 
-// Инициализируем Firebase
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 const db = getDatabase(app);
 
@@ -42,7 +41,7 @@ export default function App() {
   const [workData, setWorkData] = useState({}); 
   const [selectedDate, setSelectedDate] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const [archiveModalVisible, setArchiveModalVisible] = useState(false); // Модалка архива
+  const [archiveModalVisible, setArchiveModalVisible] = useState(false); 
   const [rate, setRate] = useState('');
   const [hours, setHours] = useState('');
 
@@ -153,7 +152,6 @@ export default function App() {
     });
   };
 
-  // Функция генерации дней для любого переданного месяца (используется для архива)
   const getDaysForSpecificMonth = (year, month) => {
     const days = new Date(year, month + 1, 0).getDate();
     return Array.from({ length: days }, (_, i) => {
@@ -164,7 +162,7 @@ export default function App() {
 
   const handleDayPress = (dateStr) => {
     setSelectedDate(dateStr);
-    if (workData[dateStr]) {
+    if (workData[dateStr] && (workData[dateStr].rate > 0 || workData[dateStr].hours > 0)) {
       setRate(workData[dateStr].rate.toString());
       setHours(workData[dateStr].hours.toString());
     } else {
@@ -178,17 +176,32 @@ export default function App() {
     const numRate = parseFloat(rate);
     const numHours = parseFloat(hours);
 
+    if (rate === '0' && hours === '0') {
+      saveDayToFirebase(selectedDate, null);
+      setModalVisible(false);
+      return;
+    }
+
     if (!rate || !hours || isNaN(numRate) || isNaN(numHours)) {
       Alert.alert("Ошибка", "Введите корректные числа");
       return;
     }
 
-    saveDayToFirebase(selectedDate, { rate: numRate, hours: numHours });
+    if (numRate === 0 && numHours === 0) {
+      saveDayToFirebase(selectedDate, null);
+    } else {
+      saveDayToFirebase(selectedDate, { rate: numRate, hours: numHours });
+    }
     setModalVisible(false);
   };
 
-  const getStatistics = () => {
-    const days = getDaysInMonth(currentMonth);
+  const handleDeleteDayDirect = () => {
+    saveDayToFirebase(selectedDate, null);
+    setModalVisible(false);
+  };
+
+  // ИСПРАВЛЕННЫЙ АЛГОРИТМ ПОДДСЧЁТА СТАТИСТИКИ КАНДЕНДАРЯ
+  const calculateStatsForPeriod = (daysList, isCurrentMonthView) => {
     let workDays = 0;
     let weekendDays = 0;
     let totalSum = 0;
@@ -196,16 +209,22 @@ export default function App() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    days.forEach(day => {
+    daysList.forEach(day => {
       const [year, month, dateNum] = day.split('-').map(Number);
       const checkDate = new Date(year, month - 1, dateNum);
       checkDate.setHours(0, 0, 0, 0);
 
-      if (workData[day]) {
+      const hasData = workData[day] && (workData[day].rate > 0 && workData[day].hours > 0);
+
+      if (hasData) {
         workDays++;
         totalSum += workData[day].rate * workData[day].hours;
       } else {
-        if (checkDate <= today) {
+        if (isCurrentMonthView) {
+          if (checkDate <= today) {
+            weekendDays++;
+          }
+        } else {
           weekendDays++;
         }
       }
@@ -214,9 +233,8 @@ export default function App() {
     return { workDays, weekendDays, totalSum };
   };
 
-  const stats = getStatistics();
+  const stats = calculateStatsForPeriod(getDaysInMonth(currentMonth), true);
 
-  // Расчет статистики для архивных месяцев
   const getArchiveStatsForMonth = (backMonthsCount) => {
     const targetDate = new Date();
     targetDate.setMonth(targetDate.getMonth() - backMonthsCount);
@@ -229,7 +247,8 @@ export default function App() {
     let totalSum = 0;
 
     days.forEach(day => {
-      if (workData[day]) {
+      const hasData = workData[day] && (workData[day].rate > 0 && workData[day].hours > 0);
+      if (hasData) {
         workDays++;
         totalSum += workData[day].rate * workData[day].hours;
       }
@@ -246,8 +265,9 @@ export default function App() {
     let tableRows = '';
     days.forEach(day => {
       const data = workData[day];
+      const hasData = data && (data.rate > 0 && data.hours > 0);
       const dayNum = day.split('-')[2];
-      if (data) {
+      if (hasData) {
         const daySum = data.rate * data.hours;
         tableRows += `<tr><td>${dayNum}</td><td>Рабочий</td><td>${data.rate}</td><td>${data.hours}</td><td>${daySum}</td></tr>`;
       } else {
@@ -361,7 +381,7 @@ export default function App() {
         ) : (
           <ScrollView contentContainerStyle={styles.calendarGrid}>
             {getDaysInMonth(currentMonth).map((dateStr) => {
-              const isWorkDay = !!workData[dateStr];
+              const isWorkDay = workData[dateStr] && (workData[dateStr].rate > 0 && workData[dateStr].hours > 0);
               const dayNum = dateStr.split('-')[2];
               return (
                 <TouchableOpacity
@@ -382,7 +402,6 @@ export default function App() {
           <Text style={styles.totalText}>Сумма: <Text style={styles.bold}>{stats.totalSum}</Text></Text>
         </View>
 
-        {/* НОВАЯ КНОПКА АРХИВА НАД КНОПКОЙ PDF */}
         <TouchableOpacity style={styles.archiveButton} onPress={() => setArchiveModalVisible(true)}>
           <Text style={styles.archiveButtonText}>Архив за 4 месяца</Text>
         </TouchableOpacity>
@@ -391,7 +410,6 @@ export default function App() {
           <Text style={styles.pdfButtonText}>Сохранить PDF и поделиться</Text>
         </TouchableOpacity>
 
-        {/* МОДАЛКА ДЛЯ ПРОСМОТРА АРХИВА */}
         <Modal visible={archiveModalVisible} transparent={true} animationType="slide">
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
@@ -417,13 +435,12 @@ export default function App() {
           </View>
         </Modal>
 
-        {/* Модалка редактирования дня */}
         <Modal visible={modalVisible} transparent={true} animationType="fade">
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>День: {selectedDate ? selectedDate.split('-')[2] : ''}</Text>
               
-              {workData[selectedDate] && (
+              {workData[selectedDate] && (workData[selectedDate].rate > 0 && workData[selectedDate].hours > 0) && (
                 <Text style={styles.historyHint}>
                   В этот день отработано часов: {workData[selectedDate].hours}, ставка: {workData[selectedDate].rate}. Итого за день: {workData[selectedDate].rate * workData[selectedDate].hours}
                 </Text>
@@ -448,6 +465,13 @@ export default function App() {
                 <TouchableOpacity style={[styles.btn, styles.btnSave]} onPress={handleSaveDay}>
                   <Text style={styles.btnText}>Добавить</Text>
                 </TouchableOpacity>
+                
+                {workData[selectedDate] && (workData[selectedDate].rate > 0 && workData[selectedDate].hours > 0) && (
+                  <TouchableOpacity style={[styles.btn, { backgroundColor: '#EF4444' }]} onPress={handleDeleteDayDirect}>
+                    <Text style={styles.btnText}>Сбросить</Text>
+                  </TouchableOpacity>
+                )}
+                
                 <TouchableOpacity style={[styles.btn, styles.btnCancel]} onPress={() => setModalVisible(false)}>
                   <Text style={styles.btnText}>Отмена</Text>
                 </TouchableOpacity>
@@ -491,34 +515,4 @@ const styles = StyleSheet.create({
   dayCell: { width: (width - 32) / 7 - 8, height: 45, margin: 4, justifyContent: 'center', alignItems: 'center', borderRadius: 8, borderWidth: 1 },
   weekendCell: { backgroundColor: '#FFF', borderColor: '#E5E7EB' },
   workDayCell: { backgroundColor: '#0052CC', borderColor: '#0052CC' },
-  dayText: { fontSize: 16, fontWeight: '600', color: '#374151' },
-  workDayText: { color: '#FFF' },
-  statsContainer: { backgroundColor: '#FFF', padding: 16, borderRadius: 12, marginTop: 15, borderWidth: 1, borderColor: '#E5E7EB', marginBottom: 10 },
-  statsText: { fontSize: 14, color: '#4B5563', marginBottom: 4 },
-  totalText: { fontSize: 18, fontWeight: 'bold', color: '#111827', marginTop: 8 },
-  bold: { fontWeight: 'bold', color: '#111827' },
-  
-  // Стили кнопок внизу экрана
-  archiveButton: { backgroundColor: '#0052CC', padding: 14, borderRadius: 12, alignItems: 'center', marginTop: 5, marginBottom: 5 },
-  archiveButtonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
-  pdfButton: { backgroundColor: '#10B981', padding: 14, borderRadius: 12, alignItems: 'center', marginBottom: 10 },
-  pdfButtonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
-  
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
-  modalContent: { width: width * 0.85, backgroundColor: '#FFF', padding: 20, borderRadius: 16, elevation: 5 },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
-  
-  // Элементы списка архива
-  archiveItem: { padding: 12, backgroundColor: '#F3F4F6', borderRadius: 10, marginBottom: 8, borderWidth: 1, borderColor: '#E5E7EB' },
-  archiveMonthName: { fontSize: 14, fontWeight: 'bold', color: '#0052CC', marginBottom: 4 },
-  archiveItemText: { fontSize: 13, color: '#4B5563' },
-  archiveItemTotal: { fontSize: 14, fontWeight: 'bold', color: '#111827', marginTop: 4 },
-
-  historyHint: { fontSize: 13, color: '#0052CC', marginBottom: 15, fontWeight: '500', lineHeight: 18 },
-  input: { borderBottomWidth: 1, borderColor: '#D1D5DB', paddingVertical: 8, marginBottom: 15, fontSize: 16 },
-  modalButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
-  btn: { flex: 0.48, padding: 12, borderRadius: 8, alignItems: 'center' },
-  btnSave: { backgroundColor: '#0052CC' },
-  btnCancel: { backgroundColor: '#9CA3AF' },
-  btnText: { color: '#FFF', fontWeight: 'bold' }
-});
+  dayText: { fontSize: 16, fontWeight: '600', color: '#374
