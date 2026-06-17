@@ -200,7 +200,6 @@ export default function App() {
     setModalVisible(false);
   };
 
-  // ИСПРАВЛЕННЫЙ АЛГОРИТМ ПОДДСЧЁТА СТАТИСТИКИ КАНДЕНДАРЯ
   const calculateStatsForPeriod = (daysList, isCurrentMonthView) => {
     let workDays = 0;
     let weekendDays = 0;
@@ -515,4 +514,32 @@ const styles = StyleSheet.create({
   dayCell: { width: (width - 32) / 7 - 8, height: 45, margin: 4, justifyContent: 'center', alignItems: 'center', borderRadius: 8, borderWidth: 1 },
   weekendCell: { backgroundColor: '#FFF', borderColor: '#E5E7EB' },
   workDayCell: { backgroundColor: '#0052CC', borderColor: '#0052CC' },
-  dayText: { fontSize: 16, fontWeight: '600', color: '#374
+  dayText: { fontSize: 16, fontWeight: '600', color: '#374151' },
+  workDayText: { color: '#FFF' },
+  statsContainer: { backgroundColor: '#FFF', padding: 16, borderRadius: 12, marginTop: 15, borderWidth: 1, borderColor: '#E5E7EB', marginBottom: 10 },
+  statsText: { fontSize: 14, color: '#4B5563', marginBottom: 4 },
+  totalText: { fontSize: 18, fontWeight: 'bold', color: '#111827', marginTop: 8 },
+  bold: { fontWeight: 'bold', color: '#111827' },
+  
+  archiveButton: { backgroundColor: '#0052CC', padding: 14, borderRadius: 12, alignItems: 'center', marginTop: 5, marginBottom: 5 },
+  archiveButtonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
+  pdfButton: { backgroundColor: '#10B981', padding: 14, borderRadius: 12, alignItems: 'center', marginBottom: 10 },
+  pdfButtonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
+  
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
+  modalContent: { width: width * 0.85, backgroundColor: '#FFF', padding: 20, borderRadius: 16, elevation: 5 },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
+  
+  archiveItem: { padding: 12, backgroundColor: '#F3F4F6', borderRadius: 10, marginBottom: 8, borderWidth: 1, borderColor: '#E5E7EB' },
+  archiveMonthName: { fontSize: 14, fontWeight: 'bold', color: '#0052CC', marginBottom: 4 },
+  archiveItemText: { fontSize: 13, color: '#4B5563' },
+  archiveItemTotal: { fontSize: 14, fontWeight: 'bold', color: '#111827', marginTop: 4 },
+
+  historyHint: { fontSize: 13, color: '#0052CC', marginBottom: 15, fontWeight: '500', lineHeight: 18 },
+  input: { borderBottomWidth: 1, borderColor: '#D1D5DB', paddingVertical: 8, marginBottom: 15, fontSize: 16 },
+  modalButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
+  btn: { padding: 10, borderRadius: 8, alignItems: 'center', justifyContent: 'center', minWidth: 75 },
+  btnSave: { backgroundColor: '#0052CC', flex: 1, marginRight: 5 },
+  btnCancel: { backgroundColor: '#9CA3AF', marginLeft: 5 },
+  btnText: { color: '#FFF', fontWeight: 'bold', fontSize: 13 }
+});
