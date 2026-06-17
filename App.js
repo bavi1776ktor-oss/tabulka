@@ -114,7 +114,7 @@ export default function App() {
   const handleLogout = () => {
     Alert.alert(
       "Выход из списка",
-      "Вы уверены, что хотите выйти из этого списка? Для повторного доступа нужно будет ввести этот же пароль.",
+      "Вы уверены, что хотите выйти из этого списка?",
       [
         { text: "Отмена", style: "cancel" },
         { 
@@ -200,30 +200,55 @@ export default function App() {
     setModalVisible(false);
   };
 
-  const calculateStatsForPeriod = (daysList, isCurrentMonthView) => {
+  // ИСПРАВЛЕННЫЙ И ПРОВЕРЕННЫЙ АЛГОРИТМ ПОДСЧЁТА ВЫХОДНЫХ
+  const calculateStatsForPeriod = (daysList) => {
     let workDays = 0;
     let weekendDays = 0;
     let totalSum = 0;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
+    // 1. Собираем все реальные рабочие дни в этом месяце
+    const activeWorkDaysInMonth = daysList.filter(day => {
+      return workData[day] && (workData[day].rate > 0 && workData[day].hours > 0);
+    });
+
+    // Если рабочих дней в месяце вообще нет — выходные тоже равны 0 (чистый график)
+    if (activeWorkDaysInMonth.length === 0) {
+      return { workDays: 0, weekendDays: 0, totalSum: 0 };
+    }
+
+    // Находим первый рабочий день месяца (числовой индекс дня)
+    const firstWorkDayNum = Math.min(...activeWorkDaysInMonth.map(d => parseInt(d.split('-')[2])));
+    
+    // Находим крайнюю точку для подсчёта (либо последний рабочий день, либо сегодняшний день)
+    let lastWorkDayNum = Math.max(...activeWorkDaysInMonth.map(d => parseInt(d.split('-')[2])));
+    
+    // Если мы смотрим текущий реальный месяц, то конечной точкой должен быть минимум сегодняшний день
+    const sampleDay = daysList[0];
+    const [viewYear, viewMonth] = sampleDay.split('-').map(Number);
+    const isCurrentMonthView = (viewYear === today.getFullYear() && (viewMonth - 1) === today.getMonth());
+
+    if (isCurrentMonthView) {
+      const todayNum = today.getDate();
+      if (todayNum > lastWorkDayNum) {
+        lastWorkDayNum = todayNum; // Продлеваем диапазон до сегодняшнего дня включительно
+      }
+    }
+
+    // 2. Считаем статистику строго от первого рабочего дня до крайней точки
     daysList.forEach(day => {
-      const [year, month, dateNum] = day.split('-').map(Number);
-      const checkDate = new Date(year, month - 1, dateNum);
-      checkDate.setHours(0, 0, 0, 0);
-
+      const dayNum = parseInt(day.split('-')[2]);
       const hasData = workData[day] && (workData[day].rate > 0 && workData[day].hours > 0);
 
       if (hasData) {
         workDays++;
         totalSum += workData[day].rate * workData[day].hours;
       } else {
-        if (isCurrentMonthView) {
-          if (checkDate <= today) {
-            weekendDays++;
-          }
-        } else {
+        // День считается выходным, если он лежит между первым рабочим днём и конечной точкой (включая сегодняшний)
+        if (dayNum >= firstWorkDayNum && dayNum <= lastWorkDayNum) {
           weekendDays++;
         }
       }
@@ -232,7 +257,7 @@ export default function App() {
     return { workDays, weekendDays, totalSum };
   };
 
-  const stats = calculateStatsForPeriod(getDaysInMonth(currentMonth), true);
+  const stats = calculateStatsForPeriod(getDaysInMonth(currentMonth));
 
   const getArchiveStatsForMonth = (backMonthsCount) => {
     const targetDate = new Date();
@@ -242,19 +267,33 @@ export default function App() {
     const month = targetDate.getMonth();
     const days = getDaysForSpecificMonth(year, month);
     
-    let workDays = 0;
-    let totalSum = 0;
+    // Для архива используем ту же самую точную логику подсчёта
+    let archiveWorkDays = 0;
+    let archiveWeekendDays = 0;
+    let archiveTotalSum = 0;
 
-    days.forEach(day => {
-      const hasData = workData[day] && (workData[day].rate > 0 && workData[day].hours > 0);
-      if (hasData) {
-        workDays++;
-        totalSum += workData[day].rate * workData[day].hours;
-      }
-    });
+    const activeDays = days.filter(day => workData[day] && (workData[day].rate > 0 && workData[day].hours > 0));
+    
+    if (activeDays.length > 0) {
+      const firstDay = Math.min(...activeDays.map(d => parseInt(d.split('-')[2])));
+      const lastDay = Math.max(...activeDays.map(d => parseInt(d.split('-')[2])));
+
+      days.forEach(day => {
+        const dayNum = parseInt(day.split('-')[2]);
+        const hasData = workData[day] && (workData[day].rate > 0 && workData[day].hours > 0);
+        if (hasData) {
+          archiveWorkDays++;
+          archiveTotalSum += workData[day].rate * workData[day].hours;
+        } else {
+          if (dayNum >= firstDay && dayNum <= lastDay) {
+            archiveWeekendDays++;
+          }
+        }
+      });
+    }
 
     const monthName = targetDate.toLocaleString('ru-RU', { month: 'long', year: 'numeric' });
-    return { monthName, workDays, totalSum };
+    return { monthName, workDays: archiveWorkDays, totalSum: archiveTotalSum };
   };
 
   const exportToPDF = async () => {
