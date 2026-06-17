@@ -5,6 +5,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true" # Разрешаем стабильную работу окружения
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -12,7 +14,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 20 # Возвращаем проверенную и стабильную версию для Expo 51
 
       - name: Setup Java (Required for Android Build)
         uses: actions/setup-java@v4
