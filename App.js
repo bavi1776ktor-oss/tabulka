@@ -16,20 +16,25 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 
-// 1. ИМПОРТИРУЕМ КЛИЕНТ FIRESTORE (Вместо старой Realtime Database)
+// 1. ИМПОРТИРУЕМ КОМПОНЕНТЫ REALTIME DATABASE
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import { getDatabase, ref, onValue, set, get, child, off } from 'firebase/database';
 
 const { width } = Dimensions.get('window');
 
-// 2. НАСТРАИВАЕМ КОНФИГ НА ТВОЙ ПРОЕКТ my-apk-protection
-// Обязательно зайди в Console Firebase -> Project Settings и скопируй оттуда ПОЛНЫЙ объект конфига (с apiKey, appId и т.д.)
+// 2. ТВОЙ КОНФИГ ИЗ КОНСОЛИ (ПОЛНЫЙ)
 const firebaseConfig = {
+  apiKey: "AIzaSyCJl5iCX9N0k8hFIdzVrfWORzo54VqNQLc",
+  authDomain: "my-apk-protection.firebaseapp.com",
+  databaseURL: "https://my-apk-protection-default-rtdb.firebaseio.com",
   projectId: "my-apk-protection",
+  storageBucket: "my-apk-protection.firebasestorage.app",
+  messagingSenderId: "686147592915",
+  appId: "1:686147592915:web:9aecdcddc12cdcc1306a26"
 };
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-const db = getFirestore(app); // Теперь здесь Firestore
+const db = getDatabase(app); // Подключаем Realtime Database
 
 export default function App() {
   const [password, setPassword] = useState(null); 
@@ -54,7 +59,7 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
-  // 3. СЛУШАЕМ ИЗМЕНЕНИЯ ТАБЛИЦЫ ИЗ FIRESTORE
+  // 3. СИНХРОНИЗАЦИЯ ТАБЛИЦЫ ИЗ REALTIME DATABASE
   useEffect(() => {
     if (!password) {
       setWorkData({});
@@ -62,22 +67,22 @@ export default function App() {
     }
 
     setIsLoadingData(true);
-    // Данные календаря пользователя будут лежать в коллекции tabulka_lists, а имя документа — это его ключ активации
-    const docRef = doc(db, "tabulka_lists", password);
+    const listRef = ref(db, `tabulka_lists/${password}`);
 
-    const unsubscribe = onSnapshot(docRef, (docSnap) => {
-      if (docSnap.exists()) {
-        setWorkData(docSnap.data());
+    const unsubscribe = onValue(listRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        setWorkData(data);
       } else {
         setWorkData({});
       }
       setIsLoadingData(false);
     }, (error) => {
-      Alert.alert("Ошибка БД", "Проверьте правила доступа Cloud Firestore в консоли");
+      Alert.alert("Ошибка БД", "Проверьте правила доступа в консоли Realtime Database");
       setIsLoadingData(false);
     });
 
-    return () => unsubscribe();
+    return () => off(listRef);
   }, [password]);
 
   const checkSavedPassword = async () => {
@@ -93,38 +98,37 @@ export default function App() {
     }
   };
 
-  // 4. ПРОВЕРКА КЛЮЧА ИЗ ТВОЕЙ ССЫЛКИ FIRESTORE (Коллекция activation_keys)
+  // 4. ПРОВЕРКА КЛЮЧА В REALTIME DATABASE
   const handleLogin = async () => {
     const trimmed = inputPassword.trim();
-    
     if (trimmed.length < 3) {
-      Alert.alert("Ошибка", "Слишком короткий ключ активации.");
+      Alert.alert("Неверный формат", "Слишком короткий ключ активации.");
       return;
     }
 
     setIsAuthChecking(true);
 
     try {
-      // Идём строго по адресу: коллекция activation_keys -> документ (например TEST-123)
-      const keyDocRef = doc(db, "activation_keys", trimmed);
-      const docSnap = await getDoc(keyDocRef);
-
-      if (docSnap.exists()) {
-        const keyData = docSnap.data();
+      const dbRef = ref(db);
+      // Стучимся по пути: activation_keys / НАЗВАНИЕ_КЛЮЧА
+      const snapshot = await get(child(dbRef, `activation_keys/${trimmed}`));
+      
+      if (snapshot.exists()) {
+        const keyData = snapshot.val();
         
-        // Проверяем поле status внутри документа в Firestore
-        if (keyData.status === "active") {
+        // Проверяем статус ключа
+        if (keyData && keyData.status === "active") {
           await AsyncStorage.setItem('@tabulka_password', trimmed);
           setPassword(trimmed);
           setInputPassword('');
         } else {
-          Alert.alert("Доступ заблокирован", "Этот ключ активации деактивирован в панели управления.");
+          Alert.alert("Доступ заблокирован", "Этот ключ деактивирован администратором.");
         }
       } else {
-        Alert.alert("Ошибка активации", "Такого ключа не существует в системе my-apk-protection.");
+        Alert.alert("Ошибка активации", "Такого ключа не существует в системе.");
       }
     } catch (e) {
-      Alert.alert("Ошибка сети", "Не удалось связаться с сервером Firestore. Проверьте подключение.");
+      Alert.alert("Ошибка сети", "Не удалось связаться с базой данных. Проверьте правила Rules.");
       console.error(e);
     } finally {
       setIsAuthChecking(false);
@@ -153,21 +157,13 @@ export default function App() {
     );
   };
 
-  // 5. СОХРАНЕНИЕ ДНЕЙ В FIRESTORE
+  // 5. СОХРАНЕНИЕ ДНЯ В REALTIME DATABASE
   const saveDayToFirebase = async (dateStr, dayData) => {
     try {
-      const docRef = doc(db, "tabulka_lists", password);
-      const updatedData = { ...workData };
-      
-      if (dayData === null) {
-        delete updatedData[dateStr];
-      } else {
-        updatedData[dateStr] = dayData;
-      }
-      
-      await setDoc(docRef, updatedData);
+      const dayRef = ref(db, `tabulka_lists/${password}/${dateStr}`);
+      await set(dayRef, dayData);
     } catch (e) {
-      Alert.alert("Ошибка сети", "Не удалось отправить данные в Firestore");
+      Alert.alert("Ошибка сети", "Не удалось отправить данные в облако");
     }
   };
 
