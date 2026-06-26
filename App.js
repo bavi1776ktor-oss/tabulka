@@ -15,14 +15,15 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import * as Application from 'expo-application'; // Модуль для получения ID телефона
 
 // 1. ИМПОРТИРУЕМ КОМПОНЕНТЫ REALTIME DATABASE
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getDatabase, ref, onValue, set, get, child, off } from 'firebase/database';
+import { getDatabase, ref, onValue, set, get, child, off, update } from 'firebase/database';
 
 const { width } = Dimensions.get('window');
 
-// 2. ТВОЙ КОНФИГ ИЗ КОНСОЛИ (ПОЛНЫЙ)
+// 2. ТВОЙ КОНФИГ ИЗ КОНСОЛИ
 const firebaseConfig = {
   apiKey: "AIzaSyCJl5iCX9N0k8hFIdzVrfWORzo54VqNQLc",
   authDomain: "my-apk-protection.firebaseapp.com",
@@ -34,7 +35,7 @@ const firebaseConfig = {
 };
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-const db = getDatabase(app); // Подключаем Realtime Database
+const db = getDatabase(app);
 
 export default function App() {
   const [password, setPassword] = useState(null); 
@@ -98,7 +99,7 @@ export default function App() {
     }
   };
 
-  // 4. ПРОВЕРКА КЛЮЧА В REALTIME DATABASE
+  // 4. КОММЕРЧЕСКАЯ ПРОВЕРКА И ОДНОРАЗОВАЯ АКТИВАЦИЯ КЛЮЧА
   const handleLogin = async () => {
     const trimmed = inputPassword.trim();
     if (trimmed.length < 3) {
@@ -109,26 +110,49 @@ export default function App() {
     setIsAuthChecking(true);
 
     try {
+      const deviceId = Application.androidId; // Берем уникальный ID текущего телефона
       const dbRef = ref(db);
-      // Стучимся по пути: activation_keys / НАЗВАНИЕ_КЛЮЧА
       const snapshot = await get(child(dbRef, `activation_keys/${trimmed}`));
       
       if (snapshot.exists()) {
         const keyData = snapshot.val();
         
-        // Проверяем статус ключа
-        if (keyData && keyData.status === "active") {
+        // СЦЕНАРИЙ 1: Ключ новый и еще никем не активирован
+        if (keyData && keyData.status === "free") {
+          const keyRef = ref(db, `activation_keys/${trimmed}`);
+          // Намертво привязываем этот телефон к ключу в базе данных
+          await update(keyRef, {
+            status: "used",
+            deviceId: deviceId
+          });
+
           await AsyncStorage.setItem('@tabulka_password', trimmed);
           setPassword(trimmed);
           setInputPassword('');
+          Alert.alert("Успешно", "Приложение успешно активировано на этом устройстве!");
+
+        // СЦЕНАРИЙ 2: Ключ уже использован
+        } else if (keyData && keyData.status === "used") {
+          // Проверяем, тот ли самый телефон заходит заново
+          if (keyData.deviceId === deviceId) {
+            await AsyncStorage.setItem('@tabulka_password', trimmed);
+            setPassword(trimmed);
+            setInputPassword('');
+          } else {
+            // МЕРТВАЯ БЛОКИРОВКА: Телефон чужой! Ключ передали другому человеку
+            Alert.alert(
+              "Ошибка активации", 
+              "Этот ключ уже активирован на другом устройстве! Использование на двух телефонах запрещено."
+            );
+          }
         } else {
-          Alert.alert("Доступ заблокирован", "Этот ключ деактивирован администратором.");
+          Alert.alert("Доступ заблокирован", "Этот ключ заблокирован администратором.");
         }
       } else {
         Alert.alert("Ошибка активации", "Такого ключа не существует в системе.");
       }
     } catch (e) {
-      Alert.alert("Ошибка сети", "Не удалось связаться с базой данных. Проверьте правила Rules.");
+      Alert.alert("Ошибка сети", "Не удалось связаться с базой данных.");
       console.error(e);
     } finally {
       setIsAuthChecking(false);
@@ -137,8 +161,8 @@ export default function App() {
 
   const handleLogout = () => {
     Alert.alert(
-      "Выход из списка",
-      "Вы уверены, что хотите выйти из этого списка?",
+      "Выход",
+      "Вы уверены, что хотите выйти из профиля? При следующем входе потребуется ввести ваш ключ.",
       [
         { text: "Отмена", style: "cancel" },
         { 
@@ -377,7 +401,7 @@ export default function App() {
           <Text style={styles.authTitle}>Вход в «Табульку»</Text>
           <Text style={styles.authSubtitle}>Введите ваш ключ активации для доступа к системе</Text>
           <TextInput
-            placeholder="Введите ключ (например: TEST-123)"
+            placeholder="Введите ключ (например: KEY-777)"
             secureTextEntry={false}
             autoCapitalize="characters"
             style={styles.authInput}
