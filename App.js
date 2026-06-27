@@ -102,8 +102,6 @@ export default function App() {
     setIsAuthChecking(true);
 
     try {
-      // Генерируем случайный хвост, если физический ID устройства недоступен, 
-      // чтобы предотвратить одинаковые ID на разных девайсах
       const deviceId = Application.androidId || "DEVICE_" + Math.random().toString(36).substring(2, 10).toUpperCase(); 
       const dbRef = ref(db);
       
@@ -114,11 +112,9 @@ export default function App() {
         const currentStatus = keyData.status || "free";
         const currentDeviceId = keyData.deviceId || "";
 
-        // СЛУЧАЙ 1: Ключ еще не использован (свободен)
         if (currentStatus === "free" && currentDeviceId === "") {
           const keyRef = ref(db, `activation_keys/${trimmed}`);
           
-          // Записываем статус "used" и жестко привязываем сгенерированный ID устройства
           await update(keyRef, {
             status: "used",
             deviceId: deviceId
@@ -129,9 +125,7 @@ export default function App() {
           setInputPassword('');
           Alert.alert("Успешно", "Приложение успешно активировано!");
 
-        // СЛУЧАЙ 2: Ключ уже активирован ранее
         } else if (currentStatus === "used") {
-          // Пускаем внутрь только если ID в базе не пустой и строго совпадает с текущим девайсом
           if (currentDeviceId !== "" && currentDeviceId === deviceId) {
             await AsyncStorage.setItem('@tabulka_password', trimmed);
             setPassword(trimmed);
@@ -197,7 +191,7 @@ export default function App() {
   const handleDayPress = (dateStr) => {
     setSelectedDate(dateStr);
     if (workData[dateStr] && (workData[dateStr].rate > 0 || workData[dateStr].hours > 0)) {
-      setRate(workData[dateStr].rate.toString());
+      setRate(workData[workData[dateStr].rate.toString()]);
       setHours(workData[dateStr].hours.toString());
     } else {
       setRate('');
@@ -332,15 +326,40 @@ export default function App() {
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" color="#0052CC" /></View>
         ) : (
           <ScrollView contentContainerStyle={styles.calendarGrid}>
-            {getDaysInMonth(currentMonth).map((dateStr) => {
-              const isWorkDay = workData[dateStr] && (workData[dateStr].rate > 0 && workData[dateStr].hours > 0);
-              const dayNum = dateStr.split('-')[2];
-              return (
-                <TouchableOpacity key={dateStr} style={[styles.dayCell, isWorkDay ? styles.workDayCell : styles.weekendCell]} onPress={() => handleDayPress(dateStr)}>
-                  <Text style={[styles.dayText, isWorkDay && styles.workDayText]}>{parseInt(dayNum)}</Text>
-                </TouchableOpacity>
-              );
-            })}
+            {(() => {
+              const days = getDaysInMonth(currentMonth);
+              if (days.length === 0) return null;
+
+              const firstDayDate = new Date(days[0]);
+              let startOfWeekOffset = firstDayDate.getDay(); 
+              startOfWeekOffset = startOfWeekOffset === 0 ? 6 : startOfWeekOffset - 1;
+
+              const gridCells = [];
+              for (let i = 0; i < startOfWeekOffset; i++) {
+                gridCells.push(<View key={`empty-${i}`} style={[styles.dayCell, { borderColor: 'transparent', backgroundColor: 'transparent' }]} />);
+              }
+
+              days.forEach((dateStr) => {
+                const isWorkDay = workData[dateStr] && (workData[dateStr].rate > 0 && workData[dateStr].hours > 0);
+                const dayNum = dateStr.split('-')[2];
+                gridCells.push(
+                  <TouchableOpacity key={dateStr} style={[styles.dayCell, isWorkDay ? styles.workDayCell : styles.weekendCell]} onPress={() => handleDayPress(dateStr)}>
+                    <Text style={[styles.dayText, isWorkDay && styles.workDayText]}>{parseInt(dayNum)}</Text>
+                  </TouchableOpacity>
+                );
+              });
+
+              const rows = [];
+              for (let i = 0; i < gridCells.length; i += 7) {
+                rows.push(
+                  <View key={`row-${i}`} style={{ flexDirection: 'row', justifyContent: 'flex-start', width: '100%' }}>
+                    {gridCells.slice(i, i + 7)}
+                  </View>
+                );
+              }
+
+              return rows;
+            })()}
           </ScrollView>
         )}
 
