@@ -18,11 +18,11 @@ import * as Sharing from 'expo-sharing';
 import * as Application from 'expo-application';
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getDatabase, ref, onValue, set, get, child, off, update } from 'firebase/database';
+import { getDatabase, ref, onValue, set, get, child, off, update, remove } from 'firebase/database';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
-// Константа времени триала (ИЗМЕНЕНО: 7 дней в секундах)
+// Срок пробного периода: 7 дней в секундах
 const TRIAL_DURATION_SECONDS = 7 * 24 * 60 * 60;
 
 // Конфигурация Firebase
@@ -54,9 +54,13 @@ export default function App() {
   const [rate, setRate] = useState('');
   const [hours, setHours] = useState('');
 
-  // --- СОСТОЯНИЯ ДЛЯ ТЕСТОВОГО РЕЖИМА ---
+  // --- СОСТОЯНИЯ ТРИАЛА И ПОДДЕРЖКИ ---
   const [trialNotice, setTrialNotice] = useState(false); 
   const [isTrialExpired, setIsTrialExpired] = useState(false); 
+  const [daysLeft, setDaysLeft] = useState(7);
+  const [requestModalVisible, setRequestModalVisible] = useState(false);
+  const [clientName, setClientName] = useState('');
+  const [clientPhone, setClientPhone] = useState('+38 (');
 
   const weekDays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
@@ -90,33 +94,56 @@ export default function App() {
 
   const checkSavedPassword = async () => {
     try {
+      const deviceId = Application.androidId || "DEVICE_GENERIC";
+      const dbRef = ref(db);
+      
+      // 1. Проверяем, есть ли сохраненный вечный ключ локально
       const savedPass = await AsyncStorage.getItem('@tabulka_password');
       if (savedPass) {
-        const deviceId = Application.androidId || "DEVICE_GENERIC";
-        const dbRef = ref(db);
-        const snapshot = await get(child(dbRef, `activation_keys/${savedPass}`));
-        
-        if (snapshot.exists()) {
-          const keyData = snapshot.val();
-          
-          if (keyData.type === 'trial' && keyData.activatedAt) {
-            const currentTimeSeconds = Math.floor(Date.now() / 1000);
-            const timePassed = currentTimeSeconds - keyData.activatedAt;
-
-            if (timePassed > TRIAL_DURATION_SECONDS) {
-              setIsTrialExpired(true);
-              setIsAuthChecking(false);
-              return; 
-            } else {
-              setTrialNotice(true);
-              setTimeout(() => setTrialNotice(false), 3000);
-            }
+        const keySnapshot = await get(child(dbRef, `activation_keys/${savedPass}`));
+        if (keySnapshot.exists()) {
+          const keyData = keySnapshot.val();
+          if (keyData.status === "used" && keyData.deviceId === deviceId) {
+            setPassword(savedPass);
+            setIsAuthChecking(false);
+            return; 
           }
         }
-        setPassword(savedPass);
       }
+
+      // 2. Если вечного ключа нет, проверяем триал в Firebase по устройству
+      const trialSnapshot = await get(child(dbRef, `trial_devices/${deviceId}`));
+      const currentTimeSeconds = Math.floor(Date.now() / 1000);
+
+      if (trialSnapshot.exists()) {
+        const trialData = trialSnapshot.val();
+        const timePassed = currentTimeSeconds - trialData.startedAt;
+        const remainingSeconds = TRIAL_DURATION_SECONDS - timePassed;
+
+        if (remainingSeconds <= 0) {
+          setIsTrialExpired(true);
+        } else {
+          const calculatedDays = Math.ceil(remainingSeconds / (24 * 60 * 60));
+          setDaysLeft(calculatedDays);
+          setPassword("TRIAL_MODE_" + deviceId); // Временный пароль для структуры базы
+          setTrialNotice(true);
+          setTimeout(() => setTrialNotice(false), 3000);
+        }
+      } else {
+        // Первый запуск вообще: создаем триал запись в Firebase
+        const trialRef = ref(db, `trial_devices/${deviceId}`);
+        await set(trialRef, {
+          startedAt: currentTimeSeconds,
+          deviceId: deviceId
+        });
+        setDaysLeft(7);
+        setPassword("TRIAL_MODE_" + deviceId);
+        setTrialNotice(true);
+        setTimeout(() => setTrialNotice(false), 3000);
+      }
+
     } catch (e) {
-      Alert.alert("Ошибка", "Не удалось прочитать локальную память");
+      Alert.alert("Ошибка", "Не удалось проверить статус авторизации");
     } finally {
       setIsAuthChecking(false);
     }
@@ -132,7 +159,7 @@ export default function App() {
     setIsAuthChecking(true);
 
     try {
-      const deviceId = Application.androidId || "DEVICE_" + Math.random().toString(36).substring(2, 10).toUpperCase(); 
+      const deviceId = Application.androidId || "DEVICE_GENERIC"; 
       const dbRef = ref(db);
       
       const snapshot = await get(child(dbRef, `activation_keys/${trimmed}`));
@@ -141,47 +168,31 @@ export default function App() {
         const keyData = snapshot.val();
         const currentStatus = keyData.status || "free";
         const currentDeviceId = keyData.deviceId || "";
-        const isTrialKey = keyData.type === "trial";
 
         if (currentStatus === "free" && currentDeviceId === "") {
           const keyRef = ref(db, `activation_keys/${trimmed}`);
           
-          const updateFields = {
+          await update(keyRef, {
             status: "used",
             deviceId: deviceId
-          };
+          });
 
-          if (isTrialKey) {
-            updateFields.activatedAt = Math.floor(Date.now() / 1000);
-            setTrialNotice(true);
-            setTimeout(() => setTrialNotice(false), 3000);
-          }
-
-          await update(keyRef, updateFields);
+          // ОЧИСТКА БАЗЫ: Удаляем запрос пользователя из support_requests, если он там был
+          const requestRef = ref(db, `support_requests/${deviceId}`);
+          await remove(requestRef);
 
           await AsyncStorage.setItem('@tabulka_password', trimmed);
           setIsTrialExpired(false); 
           setPassword(trimmed);
           setInputPassword('');
-          
-          // ИЗМЕНЕНО: Крупный текст в алерте при первой активации ключа
-          Alert.alert("Успешно", isTrialKey ? "АКТИВИРОВАН ТЕСТОВЫЙ ПЕРИОД НА 7 ДНЕЙ!" : "Приложение успешно активировано!");
+          Alert.alert("Успешно", "Приложение успешно активировано!");
 
         } else if (currentStatus === "used") {
           if (currentDeviceId !== "" && currentDeviceId === deviceId) {
             
-            if (isTrialKey && keyData.activatedAt) {
-              const currentTimeSeconds = Math.floor(Date.now() / 1000);
-              if (currentTimeSeconds - keyData.activatedAt > TRIAL_DURATION_SECONDS) {
-                setIsTrialExpired(true);
-                Alert.alert("Тестирование завершено", "Срок действия тестового ключа истек.");
-                setIsAuthChecking(false);
-                return;
-              } else {
-                setTrialNotice(true);
-                setTimeout(() => setTrialNotice(false), 3000);
-              }
-            }
+            // Если этот ключ уже успешно привязан к этому телефону
+            const requestRef = ref(db, `support_requests/${deviceId}`);
+            await remove(requestRef);
 
             await AsyncStorage.setItem('@tabulka_password', trimmed);
             setIsTrialExpired(false);
@@ -204,6 +215,30 @@ export default function App() {
     }
   };
 
+  const handleSendSupportRequest = async () => {
+    if (!clientName.trim() || clientPhone.trim() === '+38 (' || clientPhone.trim().length < 8) {
+      Alert.alert("Ошибка", "Пожалуйста, заполните Имя и Телефон для связи");
+      return;
+    }
+
+    try {
+      const deviceId = Application.androidId || "DEVICE_GENERIC";
+      const requestRef = ref(db, `support_requests/${deviceId}`);
+      
+      await set(requestRef, {
+        name: clientName.trim(),
+        phone: clientPhone.trim(),
+        deviceId: deviceId,
+        createdAt: Math.floor(Date.now() / 1000)
+      });
+
+      setRequestModalVisible(false);
+      Alert.alert("Отправлено", "Запрос отправлен! Разработчик с Вами свяжется, ожидайте.");
+    } catch (e) {
+      Alert.alert("Ошибка", "Не удалось отправить запрос. Проверьте интернет.");
+    }
+  };
+
   const handleLogout = () => {
     Alert.alert("Выход", "Выйти из профиля?", [
       { text: "Отмена", style: "cancel" },
@@ -212,8 +247,9 @@ export default function App() {
         style: "destructive",
         onPress: async () => {
           await AsyncStorage.removeItem('@tabulka_password');
-          setPassword(null);
           setIsTrialExpired(false);
+          setPassword(null);
+          checkSavedPassword(); // Перепроверит триал режим устройства
         }
       }
     ]);
@@ -340,45 +376,29 @@ export default function App() {
     return <View style={styles.loadingContainer}><ActivityIndicator size="large" color="#0052CC" /></View>;
   }
 
-  // --- ЭКРАН БЛОКИРОВКИ: СРОК ТЕСТИРОВАНИЯ ИСТЕК (ИЗМЕНЕНО: Написано 7 дней) ---
+  // --- ЭКРАН БЛОКИРОВКИ: СРОК ТРИАЛА ИСТЕК ---
   if (isTrialExpired) {
     return (
       <SafeAreaView style={styles.authContainer}>
         <View style={[styles.authCard, { borderColor: '#EF4444', borderWidth: 1.5 }]}>
-          <Text style={[styles.authTitle, { color: '#EF4444' }]}>Тестирование закончилось</Text>
-          <Text style={styles.authSubtitle}>
-            Срок действия вашего тестового ключа (7 дней) исчерпан. Пожалуйста, введите постоянный ключ для продолжения работы.
-          </Text>
-          <TextInput
-            placeholder="Введите постоянный ключ"
-            autoCapitalize="characters"
-            style={styles.authInput}
-            value={inputPassword}
-            onChangeText={setInputPassword}
-          />
-          <TouchableOpacity style={[styles.authButton, { backgroundColor: '#EF4444' }]} onPress={handleLogin}>
-            <Text style={styles.authButtonText}>Активировать постоянно</Text>
+          <Text style={[styles.authTitle, { color: '#EF4444' }]}>Срок пробного тестирования (7 дней) окончен</Text>
+          
+          <Text style={[styles.authSubtitle, { marginBottom: 10, fontWeight: 'bold' }]}>Запросить полную версию:</Text>
+          <TextInput placeholder="Ваше Имя" style={[styles.authInput, { marginBottom: 10 }]} value={clientName} onChangeText={setClientName} />
+          <TextInput placeholder="Телефон" keyboardType="phone-pad" style={[styles.authInput, { marginBottom: 15 }]} value={clientPhone} onChangeText={setClientPhone} />
+          <TouchableOpacity style={[styles.authButton, { backgroundColor: '#10B981', marginBottom: 25 }]} onPress={handleSendSupportRequest}>
+            <Text style={styles.authButtonText}>Отправить запрос</Text>
           </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
-  // --- ЭКРАН АВТОРИЗАЦИИ (ЕСЛИ КЛЮЧ ЕЩЕ НЕ ВВЕДЕН) ---
-  if (!password) {
-    return (
-      <SafeAreaView style={styles.authContainer}>
-        <View style={styles.authCard}>
-          <Text style={styles.authTitle}>Вход в «Табульку»</Text>
-          <Text style={styles.authSubtitle}>Введите ключ активации</Text>
+          <Text style={[styles.authSubtitle, { marginBottom: 10, fontWeight: 'bold' }]}>Ввести постоянный ключ:</Text>
           <TextInput
-            placeholder="TAB-XXXX-XXXX"
+            placeholder="Постоянный ключ активации"
             autoCapitalize="characters"
             style={styles.authInput}
             value={inputPassword}
             onChangeText={setInputPassword}
           />
-          <TouchableOpacity style={styles.authButton} onPress={handleLogin}>
+          <TouchableOpacity style={[styles.authButton, { backgroundColor: '#0052CC' }]} onPress={handleLogin}>
             <Text style={styles.authButtonText}>Активировать</Text>
           </TouchableOpacity>
         </View>
@@ -386,17 +406,27 @@ export default function App() {
     );
   }
 
+  const isCurrentModeTrial = password && password.startsWith("TRIAL_MODE_");
+
   // --- ГЛАВНЫЙ ЭКРАН ПРИЛОЖЕНИЯ ---
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1.2 }}>
             <Text style={styles.dateText}>{currentTime.toLocaleDateString('ru-RU')}</Text>
             <Text style={styles.timeText}>{currentTime.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</Text>
           </View>
+          
+          {/* КНОПКА ЗАПРОСА В ШАПКЕ (ЕСЛИ ЭТО ТРИАЛ) */}
+          {isCurrentModeTrial && (
+            <TouchableOpacity style={styles.requestHeaderButton} onPress={() => setRequestModalVisible(true)}>
+              <Text style={styles.requestHeaderButtonText}>Запросить полную версию</Text>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Text style={styles.logoutText}>Выйти</Text>
+            <Text style={styles.logoutText}>Выход</Text>
           </TouchableOpacity>
         </View>
 
@@ -461,6 +491,21 @@ export default function App() {
           <Text style={styles.pdfButtonText}>Сохранить PDF</Text>
         </TouchableOpacity>
 
+        {/* МОДАЛКА ЗАПРОСА ПОЛНОЙ ВЕРСИИ ИЗ ШАПКИ */}
+        <Modal visible={requestModalVisible} transparent={true} animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Введите Имя и Телефон для связи</Text>
+              <TextInput placeholder="Ваше Имя" style={styles.input} value={clientName} onChangeText={setClientName} />
+              <TextInput placeholder="Телефон" keyboardType="phone-pad" style={styles.input} value={clientPhone} onChangeText={setClientPhone} />
+              <View style={styles.modalButtons}>
+                <TouchableOpacity style={[styles.btn, styles.btnSave, { backgroundColor: '#10B981' }]} onPress={handleSendSupportRequest}><Text style={styles.btnText}>Отправить</Text></TouchableOpacity>
+                <TouchableOpacity style={[styles.btn, styles.btnCancel]} onPress={() => setRequestModalVisible(false)}><Text style={styles.btnText}>Отмена</Text></TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
         <Modal visible={archiveModalVisible} transparent={true} animationType="slide">
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
@@ -498,11 +543,11 @@ export default function App() {
         </Modal>
       </View>
 
-      {/* ИЗМЕНЕНО: ВСПЛЫВАЮЩЕЕ УВЕДОМЛЕНИЕ НА 3 СЕКУНДЫ СТРОГО ПОСЕРЕДИНЕ ЭКРАНА И С КРУПНЫМ ТЕКСТОМ */}
+      {/* КРУПНАЯ ЦЕНТРИРОВАННАЯ ПЛАШКА НА 3 СЕКУНДЫ */}
       {trialNotice && (
         <View style={styles.trialToastContainer} pointerEvents="none">
           <View style={styles.trialToast}>
-            <Text style={styles.trialToastText}>⏱ АКТИВЕН ТЕСТОВЫЙ ПЕРИОД (7 ДНЕЙ)</Text>
+            <Text style={styles.trialToastText}>⏱ АКТИВЕН ТЕСТОВЫЙ ПЕРИОД (ОСТАЛОСЬ {daysLeft} ДН.)</Text>
           </View>
         </View>
       )}
@@ -513,77 +558,24 @@ export default function App() {
 const styles = StyleSheet.create({
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F9FAFB' },
   authContainer: { flex: 1, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' },
-  authCard: { width: width * 0.88, backgroundColor: '#FFF', padding: 24, borderRadius: 16, borderWidth: 1, borderColor: '#E5E7EB' },
-  authTitle: { fontSize: 22, fontWeight: 'bold', color: '#111827', marginBottom: 8, textAlign: 'center' },
-  authSubtitle: { fontSize: 14, color: '#4B5563', marginBottom: 20, textAlign: 'center' },
-  authInput: { borderBottomWidth: 1, borderColor: '#D1D5DB', paddingVertical: 10, fontSize: 16, marginBottom: 20, textAlign: 'center' },
-  authButton: { backgroundColor: '#0052CC', padding: 14, borderRadius: 10, alignItems: 'center' },
+  authCard: { width: width * 0.9, backgroundColor: '#FFF', padding: 22, borderRadius: 16, borderWidth: 1, borderColor: '#E5E7EB' },
+  authTitle: { fontSize: 20, fontWeight: 'bold', color: '#111827', marginBottom: 15, textAlign: 'center' },
+  authSubtitle: { fontSize: 14, color: '#4B5563', marginBottom: 8, textAlign: 'left' },
+  authInput: { borderBottomWidth: 1, borderColor: '#D1D5DB', paddingVertical: 6, fontSize: 16, marginBottom: 16, textAlign: 'center' },
+  authButton: { padding: 13, borderRadius: 10, alignItems: 'center' },
   authButtonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
   safeArea: { flex: 1, backgroundColor: '#F9FAFB', paddingTop: 30 },
   container: { flex: 1, paddingHorizontal: 16 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-  dateText: { fontSize: 15, color: '#6B7280' },
-  timeText: { fontSize: 24, fontWeight: 'bold', color: '#111827' },
-  logoutButton: { paddingVertical: 6, paddingHorizontal: 12, backgroundColor: '#EF4444', borderRadius: 8 },
-  logoutText: { color: '#FFF', fontWeight: 'bold' },
-  monthTitle: { fontSize: 18, fontWeight: '700', color: '#374151', marginBottom: 10, textAlign: 'center' },
-  weekDaysRow: { flexDirection: 'row', marginBottom: 8 },
-  weekDayText: { width: (width - 32) / 7 - 8, marginHorizontal: 4, textAlign: 'center', fontWeight: '700', color: '#9CA3AF' },
-  weekendText: { color: '#EF4444' },
-  calendarGrid: { flexDirection: 'row', flexWrap: 'wrap' },
-  dayCell: { width: (width - 32) / 7 - 8, height: 42, margin: 4, justifyContent: 'center', alignItems: 'center', borderRadius: 8, borderWidth: 1 },
-  weekendCell: { backgroundColor: '#FFF', borderColor: '#E5E7EB' },
-  workDayCell: { backgroundColor: '#0052CC', borderColor: '#0052CC' },
-  dayText: { fontSize: 16, fontWeight: '600', color: '#374151' },
-  workDayText: { color: '#FFF' },
-  statsContainer: { backgroundColor: '#FFF', padding: 14, borderRadius: 12, marginTop: 10, borderWidth: 1, borderColor: '#E5E7EB' },
-  statsText: { fontSize: 14, color: '#4B5563' },
-  totalText: { fontSize: 16, fontWeight: 'bold', marginTop: 4 },
-  archiveButton: { backgroundColor: '#0052CC', padding: 12, borderRadius: 12, alignItems: 'center', marginTop: 10 },
-  archiveButtonText: { color: '#FFF', fontWeight: 'bold' },
-  pdfButton: { backgroundColor: '#10B981', padding: 12, borderRadius: 12, alignItems: 'center', marginTop: 8 },
-  pdfButtonText: { color: '#FFF', fontWeight: 'bold' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
-  modalContent: { width: width * 0.85, backgroundColor: '#FFF', padding: 20, borderRadius: 16 },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
-  archiveItem: { padding: 10, backgroundColor: '#F3F4F6', borderRadius: 8, marginBottom: 6 },
-  archiveMonthName: { fontWeight: 'bold', color: '#0052CC' },
-  archiveItemTotal: { fontWeight: 'bold' },
-  input: { borderBottomWidth: 1, borderColor: '#D1D5DB', paddingVertical: 6, marginBottom: 10 },
-  modalButtons: { flexDirection: 'row', justifyContent: 'space-between' },
-  btn: { padding: 10, borderRadius: 8, minWidth: 80, alignItems: 'center' },
-  btnSave: { backgroundColor: '#0052CC', flex: 1, marginRight: 5 },
-  btnCancel: { backgroundColor: '#9CA3AF' },
-  btnText: { color: '#FFF', fontWeight: 'bold' },
+  dateText: { fontSize: 14, color: '#6B7280' },
+  timeText: { fontSize: 22, fontWeight: 'bold', color: '#111827' },
   
-  /* ИЗМЕНЕНО: Новые стили для центрирования и увеличения плашки */
-  trialToastContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 9999
-  },
-  trialToast: {
-    backgroundColor: 'rgba(0, 0, 0, 0.88)',
-    paddingVertical: 18,
-    paddingHorizontal: 26,
-    borderRadius: 14,
-    maxWidth: width * 0.9,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-  },
-  trialToastText: {
-    color: '#FFF',
-    fontSize: 16,        // Текст стал крупнее (был 14)
-    fontWeight: 'bold',  // Стал жирнее
-    textAlign: 'center',
-    letterSpacing: 0.5
-  }
-});
+  /* МАЛЕНЬКАЯ КНОПКА ВЫХОД */
+  logoutButton: { paddingVertical: 4, paddingHorizontal: 8, backgroundColor: '#EF4444', borderRadius: 6 },
+  logoutText: { color: '#FFF', fontSize: 12, fontWeight: 'bold' },
+  
+  /* КНОПКА «ЗАПРОСИТЬ ПОЛНУЮ ВЕРСИЮ» В ШАПКЕ */
+  requestHeaderButton: { flex: 1, marginHorizontal: 6, paddingVertical: 6, paddingHorizontal: 4, backgroundColor: '#10B981', borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+  requestHeaderButtonText: { color: '#FFF', fontSize: 11, fontWeight: 'bold', textAlign: 'center' },
+
+  monthTitle: { fontSize: 18, fontWeight: '700', color: '#374151', marginBottom
