@@ -249,7 +249,7 @@ export default function App() {
           await AsyncStorage.removeItem('@tabulka_password');
           setIsTrialExpired(false);
           setPassword(null);
-          checkSavedPassword(); // Перепроверит триал режим устройства
+          checkSavedPassword(); 
         }
       }
     ]);
@@ -419,11 +419,11 @@ export default function App() {
           </View>
           
           {/* КНОПКА ЗАПРОСА В ШАПКЕ (ЕСЛИ ЭТО ТРИАЛ) */}
-          {isCurrentModeTrial && (
+          {isCurrentModeTrial ? (
             <TouchableOpacity style={styles.requestHeaderButton} onPress={() => setRequestModalVisible(true)}>
               <Text style={styles.requestHeaderButtonText}>Запросить полную версию</Text>
             </TouchableOpacity>
-          )}
+          ) : null}
 
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <Text style={styles.logoutText}>Выход</Text>
@@ -578,4 +578,38 @@ const styles = StyleSheet.create({
   requestHeaderButton: { flex: 1, marginHorizontal: 6, paddingVertical: 6, paddingHorizontal: 4, backgroundColor: '#10B981', borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
   requestHeaderButtonText: { color: '#FFF', fontSize: 11, fontWeight: 'bold', textAlign: 'center' },
 
-  monthTitle: { fontSize: 18, fontWeight: '700', color: '#374151', marginBottom
+  monthTitle: { fontSize: 18, fontWeight: '700', color: '#374151', marginBottom: 10, textAlign: 'center' },
+  weekDaysRow: { flexDirection: 'row', marginBottom: 8 },
+  weekDayText: { width: (width - 32) / 7 - 8, marginHorizontal: 4, textAlign: 'center', fontWeight: '700', color: '#9CA3AF' },
+  weekendText: { color: '#EF4444' },
+  calendarGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  dayCell: { width: (width - 32) / 7 - 8, height: 42, margin: 4, justifyContent: 'center', alignItems: 'center', borderRadius: 8, borderWidth: 1 },
+  weekendCell: { backgroundColor: '#FFF', borderColor: '#E5E7EB' },
+  workDayCell: { backgroundColor: '#0052CC', borderColor: '#0052CC' },
+  dayText: { fontSize: 16, fontWeight: '600', color: '#374151' },
+  workDayText: { color: '#FFF' },
+  statsContainer: { backgroundColor: '#FFF', padding: 14, borderRadius: 12, marginTop: 10, borderWidth: 1, borderColor: '#E5E7EB' },
+  statsText: { fontSize: 14, color: '#4B5563' },
+  totalText: { fontSize: 16, fontWeight: 'bold', marginTop: 4 },
+  archiveButton: { backgroundColor: '#0052CC', padding: 12, borderRadius: 12, alignItems: 'center', marginTop: 10 },
+  archiveButtonText: { color: '#FFF', fontWeight: 'bold' },
+  pdfButton: { backgroundColor: '#10B981', padding: 12, borderRadius: 12, alignItems: 'center', marginTop: 8 },
+  pdfButtonText: { color: '#FFF', fontWeight: 'bold' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
+  modalContent: { width: width * 0.85, backgroundColor: '#FFF', padding: 20, borderRadius: 16 },
+  modalTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
+  archiveItem: { padding: 10, backgroundColor: '#F3F4F6', borderRadius: 8, marginBottom: 6 },
+  archiveMonthName: { fontWeight: 'bold', color: '#0052CC' },
+  archiveItemTotal: { fontWeight: 'bold' },
+  input: { borderBottomWidth: 1, borderColor: '#D1D5DB', paddingVertical: 6, marginBottom: 10 },
+  modalButtons: { flexDirection: 'row', justifyContent: 'space-between' },
+  btn: { padding: 10, borderRadius: 8, minWidth: 80, alignItems: 'center' },
+  btnSave: { backgroundColor: '#0052CC', flex: 1, marginRight: 5 },
+  btnCancel: { backgroundColor: '#9CA3AF' },
+  btnText: { color: '#FFF', fontWeight: 'bold' },
+  
+  /* СТИЛИ КРУПНОГО ЦЕНТРИРОВАННОГО БАННЕРА */
+  trialToastContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 9999 },
+  trialToast: { backgroundColor: 'rgba(0, 0, 0, 0.88)', paddingVertical: 18, paddingHorizontal: 26, borderRadius: 14, maxWidth: width * 0.9, elevation: 8 },
+  trialToastText: { color: '#FFF', fontSize: 16, fontWeight: 'bold', textAlign: 'center', letterSpacing: 0.5 }
+});
