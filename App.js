@@ -140,7 +140,7 @@ const translations = {
     alertInputError: "Введіть коректні числа",
     alertPdfError: "Не вдалося створити PDF",
     alertRequestSaved: "Дані записані в базу. На вашому пристрої не знайдено налаштованого поштового додатка для прямої відправки.",
-    alertMailError: "Запит успешно збережено в Firebase, но не вдалося запустити поштовий додаток.",
+    alertMailError: "Запит успішно збережено в Firebase, но не вдалося запустити поштовий додаток.",
     alertFillFields: "Будь ласка, заповніть Ім'я та Телефон для зв'язку"
   }
 };
@@ -284,7 +284,7 @@ export default function App() {
 
     } catch (e) {
       Alert.alert("Ошибка", "Не удалось проверить статус авторизации");
-    } finally {
+    } fill {
       setIsAuthChecking(false);
     }
   };
@@ -466,16 +466,21 @@ export default function App() {
     const today = new Date(); 
     today.setHours(0, 0, 0, 0);
     
-    const activeWorkDaysInMonth = daysList.filter(day => workData[day] && (workData[day].rate > 0 && workData[day].hours > 0));
+    const activeWorkDaysInMonth = daysList.filter(day => {
+      return workData[day] && workData[day].rate > 0 && workData[day].hours > 0;
+    });
+
     if (activeWorkDaysInMonth.length === 0) {
       return { workDays: 0, weekendDays: 0, totalSum: 0 };
     }
     
-    const firstWorkDayNum = Math.min(...activeWorkDaysInMonth.map(d => parseInt(d.split('-')[2])));
-    let lastWorkDayNum = Math.max(...activeWorkDaysInMonth.map(d => parseInt(d.split('-')[2])));
+    const firstWorkDayNum = Math.min(...activeWorkDaysInMonth.map(d => parseInt(d.split('-')[2], 10)));
+    let lastWorkDayNum = Math.max(...activeWorkDaysInMonth.map(d => parseInt(d.split('-')[2], 10)));
     
     const sampleDay = daysList[0]; 
-    const [viewYear, viewMonth] = sampleDay.split('-').map(Number);
+    const dateParts = sampleDay.split('-');
+    const viewYear = parseInt(dateParts[0], 10);
+    const viewMonth = parseInt(dateParts[1], 10);
     
     if (viewYear === today.getFullYear() && (viewMonth - 1) === today.getMonth()) {
       if (today.getDate() > lastWorkDayNum) {
@@ -484,11 +489,11 @@ export default function App() {
     }
     
     daysList.forEach(day => {
-      const dayNum = parseInt(day.split('-')[2]);
-      const hasData = workData[day] && (workData[day].rate > 0 && workData[day].hours > 0);
+      const dayNum = parseInt(day.split('-')[2], 10);
+      const hasData = workData[day] && workData[day].rate > 0 && workData[day].hours > 0;
       if (hasData) { 
         workDays++; 
-        totalSum += workData[day].rate * workData[day].hours; 
+        totalSum += (workData[day].rate * workData[day].hours); 
       } else { 
         if (dayNum >= firstWorkDayNum && dayNum <= lastWorkDayNum) {
           weekendDays++; 
@@ -565,43 +570,4 @@ export default function App() {
     return (
       <SafeAreaView style={styles.authContainer}>
         <View style={styles.authCard}>
-          <Text style={styles.authTitle}>{t.trialExpiredTitle}</Text>
-          
-          <Text style={[styles.authSubtitle, { marginBottom: 10, fontWeight: 'bold' }]}>{t.requestFullVersion}</Text>
-          <TextInput placeholder={t.placeholderName} style={[styles.authInput, { marginBottom: 10 }]} value={clientName} onChangeText={setClientName} />
-          <TextInput placeholder={t.placeholderPhone} keyboardType="phone-pad" style={[styles.authInput, { marginBottom: 15 }]} value={clientPhone} onChangeText={setClientPhone} />
-          <TouchableOpacity style={[styles.authButton, { backgroundColor: '#10B981', marginBottom: 10 }]} onPress={handleSendSupportRequest}>
-            <Text style={styles.authButtonText}>{t.btnSendRequest}</Text>
-          </TouchableOpacity>
-          
-          <View style={styles.noticeContainer}>
-            <Text style={styles.noticeSubText}>{t.noticeText}</Text>
-          </View>
-
-          <View style={{ marginVertical: 15, borderBottomWidth: 1, borderColor: '#E5E7EB' }} />
-
-          <Text style={[styles.authSubtitle, { marginBottom: 10, fontWeight: 'bold' }]}>{t.enterKeyTitle}</Text>
-          <TextInput
-            placeholder={t.placeholderKey}
-            autoCapitalize="characters"
-            style={styles.authInput}
-            value={inputPassword}
-            onChangeText={setInputPassword}
-          />
-          <TouchableOpacity style={[styles.authButton, { backgroundColor: '#0052CC' }]} onPress={handleLogin}>
-            <Text style={styles.authButtonText}>{t.btnActivate}</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  const isCurrentModeTrial = password && password.startsWith("TRIAL_MODE_");
-  const currentLangLocale = lang === 'uk' ? 'uk-UA' : 'ru-RU';
-
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <View style={{ flex: 1.2 }}>
-            <Text style={styles.dateText}>{currentTime.toLocaleDateString(
+          <Text style={styles.authTitle}>{t.trialExpiredTitle}</
