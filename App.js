@@ -43,7 +43,112 @@ const firebaseConfig = {
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 const db = getDatabase(app);
 
+// Словарь локализации приложения
+const translations = {
+  ru: {
+    trialExpiredTitle: "Срок пробного тестирования (7 дней) окончен",
+    requestFullVersion: "Запросить полную версию:",
+    placeholderName: "Ваше Имя",
+    placeholderPhone: "Телефон",
+    btnSendRequest: "Отправить запрос",
+    noticeText: "Введите Ваше имя и телефон. Ожидайте, Вам перезвонят.",
+    enterKeyTitle: "Ввести постоянный ключ:",
+    placeholderKey: "Постоянный ключ активации",
+    btnActivate: "Активировать",
+    btnExit: "Выход",
+    weekDays: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'],
+    statsWorkDays: "Рабочих дней",
+    statsWeekendDays: "Выходных дней",
+    statsTotalSum: "Сумма",
+    btnArchive: "Архив",
+    btnSavePdf: "Сохранить PDF",
+    modalDayTitle: "День",
+    placeholderRate: "Ставка",
+    placeholderHours: "Часы",
+    btnSave: "Сохранить",
+    btnCancel: "Отмена",
+    btnClose: "Закрыть",
+    archiveEarnings: "Заработок",
+    toastTrialActive: "⏱ АКТИВЕН ТЕСТОВЫЙ ПЕРИОД (ОСТАЛОСЬ {days} ДН.)",
+    pdfTitle: "Отчет — {month}",
+    pdfStatusWork: "Рабочий",
+    pdfStatusWeekend: "Выходной",
+    pdfColDay: "День",
+    pdfColStatus: "Статус",
+    pdfColRate: "Ставка",
+    pdfColHours: "Часы",
+    pdfColSum: "Сумма",
+    alertExitTitle: "Выход",
+    alertExitMessage: "Выйти из профиля?",
+    alertExitCancel: "Отмена",
+    alertFormatError: "Неверный формат",
+    alertFormatShort: "Слишком короткий ключ активации.",
+    alertSuccessTitle: "Успешно",
+    alertSuccessMessage: "Приложение успешно активировано!",
+    alertKeyUsed: "Этот ключ уже закреплен за другим устройством!",
+    alertKeyBlock: "Этот ключ заблокирован администратором.",
+    alertKeyNotFound: "Ключ не найден в папке activation_keys базы данных.",
+    alertInputError: "Введите корректные числа",
+    alertPdfError: "Немерно создать PDF",
+    alertRequestSaved: "Данные записаны в базу. На вашем устройстве не найдено настроенное приложение почты для прямой отправки.",
+    alertMailError: "Запрос успешно сохранен в Firebase, но не удалось запустить почтовое приложение.",
+    alertFillFields: "Пожалуйста, заполните Имя и Телефон для связи"
+  },
+  uk: {
+    trialExpiredTitle: "Термін пробного тестування (7 днів) закінчився",
+    requestFullVersion: "Запросити повну версію:",
+    placeholderName: "Ваше Ім'я",
+    placeholderPhone: "Телефон",
+    btnSendRequest: "Надіслати запит",
+    noticeText: "Введіть Ваше ім'я та телефон. Очікуйте, Вам зателефонують.",
+    enterKeyTitle: "Ввести постійний ключ:",
+    placeholderKey: "Постійний ключ активації",
+    btnActivate: "Активувати",
+    btnExit: "Вихід",
+    weekDays: ['Пн', 'Вв', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'],
+    statsWorkDays: "Робочих днів",
+    statsWeekendDays: "Вихідних днів",
+    statsTotalSum: "Сума",
+    btnArchive: "Архів",
+    btnSavePdf: "Зберегти PDF",
+    modalDayTitle: "День",
+    placeholderRate: "Ставка",
+    placeholderHours: "Години",
+    btnSave: "Зберегти",
+    btnCancel: "Скасувати",
+    btnClose: "Закрити",
+    archiveEarnings: "Заробіток",
+    toastTrialActive: "⏱ АКТИВНИЙ ТЕСТОВИЙ ПЕРІОД (ЗАЛИШИЛОСЯ {days} ДН.)",
+    pdfTitle: "Звіт — {month}",
+    pdfStatusWork: "Робочий",
+    pdfStatusWeekend: "Вихідний",
+    pdfColDay: "День",
+    pdfColStatus: "Статус",
+    pdfColRate: "Ставка",
+    pdfColHours: "Години",
+    pdfColSum: "Сума",
+    alertExitTitle: "Вихід",
+    alertExitMessage: "Вийти з профілю?",
+    alertExitCancel: "Скасувати",
+    alertFormatError: "Невірний формат",
+    alertFormatShort: "Занадто короткий ключ активації.",
+    alertSuccessTitle: "Успішно",
+    alertSuccessMessage: "Додаток успішно активовано!",
+    alertKeyUsed: "Цей ключ вже закріплений за іншим пристроєм!",
+    alertKeyBlock: "Цей ключ заблокований адміністратором.",
+    alertKeyNotFound: "Ключ не знайдено в папці activation_keys бази даних.",
+    alertInputError: "Введіть коректні числа",
+    alertPdfError: "Не вдалося створити PDF",
+    alertRequestSaved: "Дані записані в базу. На вашому пристрої не знайдено налаштованого поштового додатка для прямої відправки.",
+    alertMailError: "Запит успішно збережено в Firebase, но не вдалося запустити поштовий додаток.",
+    alertFillFields: "Будь ласка, заповніть Ім'я та Телефон для зв'язку"
+  }
+};
+
 export default function App() {
+  const [lang, setLang] = useState(null); // Текущий язык ('ru' или 'uk')
+  const [langModalVisible, setLangModalVisible] = useState(false); // Модалка первого выбора
+
   const [password, setPassword] = useState(null); 
   const [inputPassword, setInputPassword] = useState(''); 
   const [isAuthChecking, setIsAuthChecking] = useState(true); 
@@ -66,13 +171,41 @@ export default function App() {
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('+38 (');
 
-  const weekDays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+  // Хелпер получения текстов текущего языка (с бэкапом на русский)
+  const t = translations[lang || 'ru'];
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
-    checkSavedPassword();
+    initLanguageAndAuth();
     return () => clearInterval(timer);
   }, []);
+
+  // Инициализация языка и последующая проверка авторизации
+  const initLanguageAndAuth = async () => {
+    try {
+      const savedLang = await AsyncStorage.getItem('@tabulka_lang');
+      if (savedLang === 'ru' || savedLang === 'uk') {
+        setLang(savedLang);
+      } else {
+        // Если язык не выбран, покажем окно выбора перед проверкой триала
+        setLangModalVisible(true);
+      }
+    } catch (e) {
+      setLang('ru');
+    }
+    checkSavedPassword();
+  };
+
+  // Выбор языка пользователем из приветственного окна или кружочков
+  const handleSelectLanguage = async (selectedLang) => {
+    try {
+      await AsyncStorage.setItem('@tabulka_lang', selectedLang);
+      setLang(selectedLang);
+      setLangModalVisible(false);
+    } catch (e) {
+      Alert.alert("Ошибка", "Не удалось сохранить язык");
+    }
+  };
 
   useEffect(() => {
     if (!password) {
@@ -135,7 +268,7 @@ export default function App() {
           setTrialNotice(true);
           setTimeout(() => setTrialNotice(false), 3000);
         }
-        return; // ФИКС БАГА: выходим из функции, чтобы не перезаписывать время старта заново!
+        return; 
       }
 
       // Этот блок сработает только один раз для абсолютно нового устройства
@@ -159,7 +292,7 @@ export default function App() {
   const handleLogin = async () => {
     const trimmed = inputPassword.trim();
     if (trimmed.length < 3) {
-      Alert.alert("Неверный формат", "Слишком короткий ключ активации.");
+      Alert.alert(t.alertFormatError, t.alertFormatShort);
       return;
     }
 
@@ -191,7 +324,7 @@ export default function App() {
           setIsTrialExpired(false); 
           setPassword(trimmed);
           setInputPassword('');
-          Alert.alert("Успешно", "Приложение успешно активировано!");
+          Alert.alert(t.alertSuccessTitle, t.alertSuccessMessage);
 
         } else if (currentStatus === "used") {
           if (currentDeviceId !== "" && currentDeviceId === deviceId) {
@@ -203,13 +336,13 @@ export default function App() {
             setPassword(trimmed);
             setInputPassword('');
           } else {
-            Alert.alert("Ошибка активации", "Этот ключ уже закреплен за другим устройством!");
+            Alert.alert("Ошибка активации", t.alertKeyUsed);
           }
         } else {
-          Alert.alert("Блокировка", "Этот ключ заблокирован администратором.");
+          Alert.alert("Блокировка", t.alertKeyBlock);
         }
       } else {
-        Alert.alert("Уведомление", `Ключ не найден в папке activation_keys базы данных.`);
+        Alert.alert("Уведомление", t.alertKeyNotFound);
       }
     } catch (e) {
       Alert.alert("Ошибка Firebase", "Детали: " + e.message);
@@ -220,7 +353,7 @@ export default function App() {
 
   const handleSendSupportRequest = async () => {
     if (!clientName.trim() || clientPhone.trim() === '+38 (' || clientPhone.trim().length < 8) {
-      Alert.alert("Ошибка", "Пожалуйста, заполните Имя и Телефон для связи");
+      Alert.alert("Ошибка", t.alertFillFields);
       return;
     }
 
@@ -245,20 +378,20 @@ export default function App() {
       if (supported) {
         await Linking.openURL(mailtoUrl);
       } else {
-        Alert.alert("Запрос сохранен", "Данные записаны в базу. На вашем устройстве не найдено настроенное приложение почты для прямой отправки.");
+        Alert.alert("Запрос сохранен", t.alertRequestSaved);
       }
 
     } catch (e) {
       setRequestModalVisible(false);
-      Alert.alert("Внимание", "Запрос успешно сохранен в Firebase, но не удалось запустить почтовое приложение.");
+      Alert.alert("Внимание", t.alertMailError);
     }
   };
 
   const handleLogout = () => {
-    Alert.alert("Выход", "Выйти из профиля?", [
-      { text: "Отмена", style: "cancel" },
+    Alert.alert(t.alertExitTitle, t.alertExitMessage, [
+      { text: t.alertExitCancel, style: "cancel" },
       { 
-        text: "Выйти", 
+        text: t.btnExit, 
         style: "destructive",
         onPress: async () => {
           await AsyncStorage.removeItem('@tabulka_password');
@@ -318,7 +451,7 @@ export default function App() {
       return;
     }
     if (!rate || !hours || isNaN(numRate) || isNaN(numHours)) {
-      Alert.alert("Ошибка", "Введите корректные числа");
+      Alert.alert("Ошибка", t.alertInputError);
       return;
     }
     saveDayToFirebase(selectedDate, { rate: numRate, hours: numHours });
@@ -388,31 +521,35 @@ export default function App() {
         }
       });
     }
-    const monthName = targetDate.toLocaleString('ru-RU', { month: 'long', year: 'numeric' });
+    const currentLangLocale = lang === 'uk' ? 'uk-UA' : 'ru-RU';
+    const monthName = targetDate.toLocaleString(currentLangLocale, { month: 'long', year: 'numeric' });
     return { monthName, workDays: archiveWorkDays, totalSum: archiveTotalSum };
   };
 
   const exportToPDF = async () => {
     const days = getDaysInMonth(currentMonth);
-    const monthStr = currentMonth.toLocaleString('ru-RU', { month: 'long', year: 'numeric' });
+    const currentLangLocale = lang === 'uk' ? 'uk-UA' : 'ru-RU';
+    const monthStr = currentMonth.toLocaleString(currentLangLocale, { month: 'long', year: 'numeric' });
     let tableRows = '';
     days.forEach(day => {
       const data = workData[day];
       const hasData = data && (data.rate > 0 && data.hours > 0);
       const dayNum = day.split('-')[2];
       if (hasData) {
-        tableRows += `<tr><td>${dayNum}</td><td>Рабочий</td><td>${data.rate}</td><td>${data.hours}</td><td>${data.rate * data.hours}</td></tr>`;
+        tableRows += `<tr><td>${dayNum}</td><td>${t.pdfStatusWork}</td><td>${data.rate}</td><td>${data.hours}</td><td>${data.rate * data.hours}</td></tr>`;
       } else {
-        tableRows += `<tr><td>${dayNum}</td><td>Выходной</td><td>-</td><td>-</td><td>-</td></tr>`;
+        tableRows += `<tr><td>${dayNum}</td><td>${t.pdfStatusWeekend}</td><td>-</td><td>-</td><td>-</td></tr>`;
       }
     });
 
-    const htmlContent = `<html><head><style>body{font-family:'Helvetica';padding:20px;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:8px;text-align:center;}</style></head><body><h1>Отчет — ${monthStr}</h1><table><tr><th>День</th><th>Статус</th><th>Ставка</th><th>Часы</th><th>Сумма</th></tr>${tableRows}</table></body></html>`;
+    const formattedTitle = t.pdfTitle.replace('{month}', monthStr);
+
+    const htmlContent = `<html><head><style>body{font-family:'Helvetica';padding:20px;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:8px;text-align:center;}</style></head><body><h1>${formattedTitle}</h1><table><tr><th>${t.pdfColDay}</th><th>${t.pdfColStatus}</th><th>${t.pdfColRate}</th><th>${t.pdfColHours}</th><th>${t.pdfColSum}</th></tr>${tableRows}</table></body></html>`;
     try {
       const { uri } = await Print.printToFileAsync({ html: htmlContent });
       await Sharing.shareAsync(uri);
     } catch (error) {
-      Alert.alert("Ошибка", "Не удалось создать PDF");
+      Alert.alert("Ошибка", t.alertPdfError);
     }
   };
 
@@ -428,31 +565,31 @@ export default function App() {
     return (
       <SafeAreaView style={styles.authContainer}>
         <View style={styles.authCard}>
-          <Text style={styles.authTitle}>Срок пробного тестирования (7 дней) окончен</Text>
+          <Text style={styles.authTitle}>{t.trialExpiredTitle}</Text>
           
-          <Text style={[styles.authSubtitle, { marginBottom: 10, fontWeight: 'bold' }]}>Запросить полную версию:</Text>
-          <TextInput placeholder="Ваше Имя" style={[styles.authInput, { marginBottom: 10 }]} value={clientName} onChangeText={setClientName} />
-          <TextInput placeholder="Телефон" keyboardType="phone-pad" style={[styles.authInput, { marginBottom: 15 }]} value={clientPhone} onChangeText={setClientPhone} />
+          <Text style={[styles.authSubtitle, { marginBottom: 10, fontWeight: 'bold' }]}>{t.requestFullVersion}</Text>
+          <TextInput placeholder={t.placeholderName} style={[styles.authInput, { marginBottom: 10 }]} value={clientName} onChangeText={setClientName} />
+          <TextInput placeholder={t.placeholderPhone} keyboardType="phone-pad" style={[styles.authInput, { marginBottom: 15 }]} value={clientPhone} onChangeText={setClientPhone} />
           <TouchableOpacity style={[styles.authButton, { backgroundColor: '#10B981', marginBottom: 10 }]} onPress={handleSendSupportRequest}>
-            <Text style={styles.authButtonText}>Отправить запрос</Text>
+            <Text style={styles.authButtonText}>{t.btnSendRequest}</Text>
           </TouchableOpacity>
           
           <View style={styles.noticeContainer}>
-            <Text style={styles.noticeSubText}>Введите Ваше имя и телефон. Ожидайте, Вам перезвонят.</Text>
+            <Text style={styles.noticeSubText}>{t.noticeText}</Text>
           </View>
 
           <View style={{ marginVertical: 15, borderBottomWidth: 1, borderColor: '#E5E7EB' }} />
 
-          <Text style={[styles.authSubtitle, { marginBottom: 10, fontWeight: 'bold' }]}>Ввести постоянный ключ:</Text>
+          <Text style={[styles.authSubtitle, { marginBottom: 10, fontWeight: 'bold' }]}>{t.enterKeyTitle}</Text>
           <TextInput
-            placeholder="Постоянный ключ активации"
+            placeholder={t.placeholderKey}
             autoCapitalize="characters"
             style={styles.authInput}
             value={inputPassword}
             onChangeText={setInputPassword}
           />
           <TouchableOpacity style={[styles.authButton, { backgroundColor: '#0052CC' }]} onPress={handleLogin}>
-            <Text style={styles.authButtonText}>Активировать</Text>
+            <Text style={styles.authButtonText}>{t.btnActivate}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -460,32 +597,52 @@ export default function App() {
   }
 
   const isCurrentModeTrial = password && password.startsWith("TRIAL_MODE_");
+  const currentLangLocale = lang === 'uk' ? 'uk-UA' : 'ru-RU';
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
           <View style={{ flex: 1.2 }}>
-            <Text style={styles.dateText}>{currentTime.toLocaleDateString('ru-RU')}</Text>
-            <Text style={styles.timeText}>{currentTime.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</Text>
+            <Text style={styles.dateText}>{currentTime.toLocaleDateString(currentLangLocale)}</Text>
+            <Text style={styles.timeText}>{currentTime.toLocaleTimeString(currentLangLocale, { hour: '2-digit', minute: '2-digit' })}</Text>
           </View>
           
           {isCurrentModeTrial ? (
             <TouchableOpacity style={styles.requestHeaderButton} onPress={() => setRequestModalVisible(true)}>
-              <Text style={styles.requestHeaderButtonText}>Запросить полную версию</Text>
+              <Text style={styles.requestHeaderButtonText}>{t.requestFullVersion.replace(':', '')}</Text>
             </TouchableOpacity>
           ) : null}
 
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Text style={styles.logoutText}>Выход</Text>
+            <Text style={styles.logoutText}>{t.btnExit}</Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.monthTitle}>{currentMonth.toLocaleString('ru-RU', { month: 'long', year: 'numeric' }).toUpperCase()}</Text>
+        {/* Заголовок Месяца с кнопками-кружочками по краям */}
+        <View style={styles.monthSelectorRow}>
+          <TouchableOpacity 
+            style={[styles.langCircle, styles.langCircleRu, lang !== 'ru' && styles.langCircleDimmed]} 
+            onPress={() => handleSelectLanguage('ru')}
+          >
+            <Text style={styles.langCircleText}>Р</Text>
+          </TouchableOpacity>
+
+          <Text style={styles.monthTitle}>
+            {currentMonth.toLocaleString(currentLangLocale, { month: 'long', year: 'numeric' }).toUpperCase()}
+          </Text>
+
+          <TouchableOpacity 
+            style={[styles.langCircle, styles.langCircleUk, lang !== 'uk' && styles.langCircleDimmed]} 
+            onPress={() => handleSelectLanguage('uk')}
+          >
+            <Text style={styles.langCircleText}>У</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.weekDaysRow}>
-          {weekDays.map((day, index) => {
-            const isWeekend = day === 'Сб' || day === 'Вс';
+          {t.weekDays.map((day, index) => {
+            const isWeekend = day === 'Сб' || day === 'Вс' || day === 'Нд';
             return (
               <Text key={index} style={[styles.weekDayText, isWeekend && styles.weekendText]}>
                 {day}
@@ -544,37 +701,57 @@ export default function App() {
         )}
 
         <View style={styles.statsContainer}>
-          <Text style={styles.statsText}>Рабочих дней: {stats.workDays}</Text>
-          <Text style={styles.statsText}>Выходных дней: {stats.weekendDays}</Text>
-          <Text style={styles.totalText}>Сумма: {stats.totalSum}</Text>
+          <Text style={styles.statsText}>{t.statsWorkDays}: {stats.workDays}</Text>
+          <Text style={styles.statsText}>{t.statsWeekendDays}: {stats.weekendDays}</Text>
+          <Text style={styles.totalText}>{t.statsTotalSum}: {stats.totalSum}</Text>
         </View>
 
         <TouchableOpacity style={styles.archiveButton} onPress={() => setArchiveModalVisible(true)}>
-          <Text style={styles.archiveButtonText}>Архив</Text>
+          <Text style={styles.archiveButtonText}>{t.btnArchive}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.pdfButton} onPress={exportToPDF}>
-          <Text style={styles.pdfButtonText}>Сохранить PDF</Text>
+          <Text style={styles.pdfButtonText}>{t.btnSavePdf}</Text>
         </TouchableOpacity>
+
+        {/* Модалка ручного/первого выбора языка */}
+        <Modal visible={langModalVisible} transparent={true} animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { paddingVertical: 25 }]}>
+              <TouchableOpacity 
+                style={[styles.authButton, { backgroundColor: '#10B981', marginBottom: 15, width: '100%' }]} 
+                onPress={() => handleSelectLanguage('uk')}
+              >
+                <Text style={styles.authButtonText}>Виберіть мову (Укр)</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.authButton, { backgroundColor: '#0052CC', width: '100%' }]} 
+                onPress={() => handleSelectLanguage('ru')}
+              >
+                <Text style={styles.authButtonText}>Выберите язык (Рус)</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
         <Modal visible={requestModalVisible} transparent={true} animationType="slide">
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Отправить запрос</Text>
-              <TextInput placeholder="Ваше Имя" style={styles.input} value={clientName} onChangeText={setClientName} />
-              <TextInput placeholder="Телефон" keyboardType="phone-pad" style={styles.input} value={clientPhone} onChangeText={setClientPhone} />
+              <Text style={styles.modalTitle}>{t.btnSendRequest}</Text>
+              <TextInput placeholder={t.placeholderName} style={styles.input} value={clientName} onChangeText={setClientName} />
+              <TextInput placeholder={t.placeholderPhone} keyboardType="phone-pad" style={styles.input} value={clientPhone} onChangeText={setClientPhone} />
               
               <View style={styles.modalButtons}>
                 <TouchableOpacity style={[styles.btn, styles.btnSave, { backgroundColor: '#10B981' }]} onPress={handleSendSupportRequest}>
-                  <Text style={styles.btnText}>Отправить запрос</Text>
+                  <Text style={styles.btnText}>{t.btnSendRequest}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.btn, styles.btnCancel]} onPress={() => setRequestModalVisible(false)}>
-                  <Text style={styles.btnText}>Отмена</Text>
+                  <Text style={styles.btnText}>{t.btnCancel}</Text>
                 </TouchableOpacity>
               </View>
 
               <View style={[styles.noticeContainer, { marginTop: 12 }]}>
-                <Text style={styles.noticeSubText}>Введите Ваше имя и телефон. Ожидайте, Вам перезвонят.</Text>
+                <Text style={styles.noticeSubText}>{t.noticeText}</Text>
               </View>
             </View>
           </View>
@@ -583,20 +760,20 @@ export default function App() {
         <Modal visible={archiveModalVisible} transparent={true} animationType="slide">
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Архив</Text>
+              <Text style={styles.modalTitle}>{t.btnArchive}</Text>
               <ScrollView style={{ maxHeight: 250 }}>
                 {[1, 2, 3, 4].map((m) => {
                   const a = getArchiveStatsForMonth(m);
                   return (
                     <View key={m} style={styles.archiveItem}>
                       <Text style={styles.archiveMonthName}>{a.monthName}</Text>
-                      <Text style={styles.archiveItemTotal}>Заработок: {a.totalSum}</Text>
+                      <Text style={styles.archiveItemTotal}>{t.archiveEarnings}: {a.totalSum}</Text>
                     </View>
                   );
                 })}
               </ScrollView>
               <TouchableOpacity style={[styles.btn, styles.btnCancel, { width: '100%', marginTop: 10 }]} onPress={() => setArchiveModalVisible(false)}>
-                <Text style={styles.btnText}>Закрыть</Text>
+                <Text style={styles.btnText}>{t.btnClose}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -605,12 +782,12 @@ export default function App() {
         <Modal visible={modalVisible} transparent={true} animationType="fade">
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>День: {selectedDate ? selectedDate.split('-')[2] : ''}</Text>
-              <TextInput placeholder="Ставка" style={styles.input} keyboardType="numeric" value={rate} onChangeText={setRate} />
-              <TextInput placeholder="Часы" style={styles.input} keyboardType="numeric" value={hours} onChangeText={setHours} />
+              <Text style={styles.modalTitle}>{t.modalDayTitle}: {selectedDate ? selectedDate.split('-')[2] : ''}</Text>
+              <TextInput placeholder={t.placeholderRate} style={styles.input} keyboardType="numeric" value={rate} onChangeText={setRate} />
+              <TextInput placeholder={t.placeholderHours} style={styles.input} keyboardType="numeric" value={hours} onChangeText={setHours} />
               <View style={styles.modalButtons}>
-                <TouchableOpacity style={[styles.btn, styles.btnSave]} onPress={handleSaveDay}><Text style={styles.btnText}>Сохранить</Text></TouchableOpacity>
-                <TouchableOpacity style={[styles.btn, styles.btnCancel]} onPress={() => setModalVisible(false)}><Text style={styles.btnText}>Отмена</Text></TouchableOpacity>
+                <TouchableOpacity style={[styles.btn, styles.btnSave]} onPress={handleSaveDay}><Text style={styles.btnText}>{t.btnSave}</Text></TouchableOpacity>
+                <TouchableOpacity style={[styles.btn, styles.btnCancel]} onPress={() => setModalVisible(false)}><Text style={styles.btnText}>{t.btnCancel}</Text></TouchableOpacity>
               </View>
             </View>
           </View>
@@ -620,7 +797,9 @@ export default function App() {
       {trialNotice && (
         <View style={styles.trialToastContainer} pointerEvents="none">
           <View style={styles.trialToast}>
-            <Text style={styles.trialToastText}>⏱ АКТИВЕН ТЕСТОВЫЙ ПЕРИОД (ОСТАЛОСЬ {daysLeft} ДН.)</Text>
+            <Text style={styles.trialToastText}>
+              {t.toastTrialActive.replace('{days}', daysLeft)}
+            </Text>
           </View>
         </View>
       )}
@@ -637,52 +816,4 @@ const styles = StyleSheet.create({
   authInput: { borderBottomWidth: 1, borderColor: '#D1D5DB', paddingVertical: 6, fontSize: 16, marginBottom: 16, textAlign: 'center' },
   authButton: { padding: 13, borderRadius: 10, alignItems: 'center' },
   authButtonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
-  safeArea: { flex: 1, backgroundColor: '#F9FAFB', paddingTop: 30 },
-  container: { flex: 1, paddingHorizontal: 16 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-  dateText: { fontSize: 14, color: '#6B7280' },
-  timeText: { fontSize: 22, fontWeight: 'bold', color: '#111827' },
-  
-  logoutButton: { paddingVertical: 4, paddingHorizontal: 8, backgroundColor: '#EF4444', borderRadius: 6 },
-  logoutText: { color: '#FFF', fontSize: 12, fontWeight: 'bold' },
-  
-  requestHeaderButton: { flex: 1, marginHorizontal: 6, paddingVertical: 6, paddingHorizontal: 4, backgroundColor: '#10B981', borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
-  requestHeaderButtonText: { color: '#FFF', fontSize: 11, fontWeight: 'bold', textAlign: 'center' },
-
-  monthTitle: { fontSize: 18, fontWeight: '700', color: '#374151', marginBottom: 10, textAlign: 'center' },
-  weekDaysRow: { flexDirection: 'row', marginBottom: 8 },
-  weekDayText: { width: (width - 32) / 7 - 8, marginHorizontal: 4, textAlign: 'center', fontWeight: '700', color: '#9CA3AF' },
-  weekendText: { color: '#EF4444' },
-  calendarGrid: { flexDirection: 'row', flexWrap: 'wrap' },
-  dayCell: { width: (width - 32) / 7 - 8, height: 42, margin: 4, justifyContent: 'center', alignItems: 'center', borderRadius: 8, borderWidth: 1 },
-  weekendCell: { backgroundColor: '#FFF', borderColor: '#E5E7EB' },
-  workDayCell: { backgroundColor: '#0052CC', borderColor: '#0052CC' },
-  dayText: { fontSize: 16, fontWeight: '600', color: '#374151' },
-  workDayText: { color: '#FFF' },
-  statsContainer: { backgroundColor: '#FFF', padding: 14, borderRadius: 12, marginTop: 10, borderWidth: 1, borderColor: '#E5E7EB' },
-  statsText: { fontSize: 14, color: '#4B5563' },
-  totalText: { fontSize: 16, fontWeight: 'bold', marginTop: 4 },
-  archiveButton: { backgroundColor: '#0052CC', padding: 12, borderRadius: 12, alignItems: 'center', marginTop: 10 },
-  archiveButtonText: { color: '#FFF', fontWeight: 'bold' },
-  pdfButton: { backgroundColor: '#10B981', padding: 12, borderRadius: 12, alignItems: 'center', marginTop: 8 },
-  pdfButtonText: { color: '#FFF', fontWeight: 'bold' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
-  modalContent: { width: width * 0.85, backgroundColor: '#FFF', padding: 20, borderRadius: 16 },
-  modalTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
-  archiveItem: { padding: 10, backgroundColor: '#F3F4F6', borderRadius: 8, marginBottom: 6 },
-  archiveMonthName: { fontWeight: 'bold', color: '#0052CC' },
-  archiveItemTotal: { fontWeight: 'bold' },
-  input: { borderBottomWidth: 1, borderColor: '#D1D5DB', paddingVertical: 6, marginBottom: 10 },
-  modalButtons: { flexDirection: 'row', justifyContent: 'space-between' },
-  btn: { padding: 10, borderRadius: 8, minWidth: 80, alignItems: 'center' },
-  btnSave: { backgroundColor: '#0052CC', flex: 1, marginRight: 5 },
-  btnCancel: { backgroundColor: '#9CA3AF' },
-  btnText: { color: '#FFF', fontWeight: 'bold' },
-  
-  noticeContainer: { backgroundColor: '#0052CC', padding: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  noticeSubText: { fontSize: 16, fontWeight: 'bold', color: '#FFF', textAlign: 'center' },
-
-  trialToastContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 9999 },
-  trialToast: { backgroundColor: 'rgba(0, 0, 0, 0.88)', paddingVertical: 18, paddingHorizontal: 26, borderRadius: 14, maxWidth: width * 0.9, elevation: 8 },
-  trialToastText: { color: '#FFF', fontSize: 16, fontWeight: 'bold', textAlign: 'center', letterSpacing: 0.5 }
-});
+  safeArea: { flex: 1
