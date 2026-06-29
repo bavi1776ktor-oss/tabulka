@@ -43,11 +43,13 @@ const firebaseConfig = {
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 const db = getDatabase(app);
 
-// Словарь локализации приложения
+// Локализация приложения
 const translations = {
   ru: {
+    locale: 'ru-RU',
     trialExpiredTitle: "Срок пробного тестирования (7 дней) окончен",
     requestFullVersion: "Запросить полную версию:",
+    requestFullVersionHeader: "Запросить полную версию",
     placeholderName: "Ваше Имя",
     placeholderPhone: "Телефон",
     btnSendRequest: "Отправить запрос",
@@ -89,14 +91,16 @@ const translations = {
     alertKeyBlock: "Этот ключ заблокирован администратором.",
     alertKeyNotFound: "Ключ не найден в папке activation_keys базы данных.",
     alertInputError: "Введите корректные числа",
-    alertPdfError: "Немерно создать PDF",
+    alertPdfError: "Не удалось создать PDF",
     alertRequestSaved: "Данные записаны в базу. На вашем устройстве не найдено настроенное приложение почты для прямой отправки.",
     alertMailError: "Запрос успешно сохранен в Firebase, но не удалось запустить почтовое приложение.",
     alertFillFields: "Пожалуйста, заполните Имя и Телефон для связи"
   },
   uk: {
+    locale: 'uk-UA',
     trialExpiredTitle: "Термін пробного тестування (7 днів) закінчився",
-    requestFullVersion: "Запросити повну версію:",
+    requestFullVersion: "Запросити полную версію:",
+    requestFullVersionHeader: "Запросити повну версію",
     placeholderName: "Ваше Ім'я",
     placeholderPhone: "Телефон",
     btnSendRequest: "Надіслати запит",
@@ -105,7 +109,7 @@ const translations = {
     placeholderKey: "Постійний ключ активації",
     btnActivate: "Активувати",
     btnExit: "Вихід",
-    weekDays: ['Пн', 'Вв', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'],
+    weekDays: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'],
     statsWorkDays: "Робочих днів",
     statsWeekendDays: "Вихідних днів",
     statsTotalSum: "Сума",
@@ -133,21 +137,21 @@ const translations = {
     alertFormatError: "Невірний формат",
     alertFormatShort: "Занадто короткий ключ активації.",
     alertSuccessTitle: "Успішно",
-    alertSuccessMessage: "Додаток успешно активовано!",
+    alertSuccessMessage: "Додаток успішно активовано!",
     alertKeyUsed: "Цей ключ вже закріплений за іншим пристроєм!",
     alertKeyBlock: "Цей ключ заблокований адміністратором.",
-    alertKeyNotFound: "Ключ не знайдено в папці activation_keys базы даних.",
+    alertKeyNotFound: "Ключ не знайдено в папці activation_keys бази даних.",
     alertInputError: "Введіть коректні числа",
     alertPdfError: "Не вдалося створити PDF",
     alertRequestSaved: "Дані записані в базу. На вашому пристрої не знайдено налаштованого поштового додатка для прямої відправки.",
-    alertMailError: "Запит успішно збережено в Firebase, но не вдалося запустити поштовий додаток.",
+    alertMailError: "Запит успішно збережено в Firebase, але не вдалося запустити поштовий додаток.",
     alertFillFields: "Будь ласка, заповніть Ім'я та Телефон для зв'язку"
   }
 };
 
 export default function App() {
-  const [lang, setLang] = useState(null); // Текущий язык ('ru' или 'uk')
-  const [langModalVisible, setLangModalVisible] = useState(false); // Модалка первого выбора
+  const [lang, setLang] = useState(null); // 'ru' или 'uk'
+  const [langModalVisible, setLangModalVisible] = useState(false); // Выбор при первом старте
 
   const [password, setPassword] = useState(null); 
   const [inputPassword, setInputPassword] = useState(''); 
@@ -171,7 +175,7 @@ export default function App() {
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('+38 (');
 
-  // Хелпер получения текстов текущего языка (с бэкапом на русский)
+  // Активный перевод
   const t = translations[lang || 'ru'];
 
   useEffect(() => {
@@ -180,14 +184,12 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
-  // Инициализация языка и последующая проверка авторизации
   const initLanguageAndAuth = async () => {
     try {
       const savedLang = await AsyncStorage.getItem('@tabulka_lang');
       if (savedLang === 'ru' || savedLang === 'uk') {
         setLang(savedLang);
       } else {
-        // Если язык не выбран, покажем окно выбора перед проверкой триала
         setLangModalVisible(true);
       }
     } catch (e) {
@@ -196,7 +198,6 @@ export default function App() {
     checkSavedPassword();
   };
 
-  // Выбор языка пользователем из приветственного окна или кружочков
   const handleSelectLanguage = async (selectedLang) => {
     try {
       await AsyncStorage.setItem('@tabulka_lang', selectedLang);
@@ -260,7 +261,6 @@ export default function App() {
 
         if (remainingSeconds <= 0) {
           setIsTrialExpired(true);
-          setPassword(null);
         } else {
           const calculatedDays = Math.ceil(remainingSeconds / (24 * 60 * 60));
           setDaysLeft(calculatedDays);
@@ -268,19 +268,17 @@ export default function App() {
           setTrialNotice(true);
           setTimeout(() => setTrialNotice(false), 3000);
         }
-        return; 
+      } else {
+        const trialRef = ref(db, `trial_devices/${deviceId}`);
+        await set(trialRef, {
+          startedAt: currentTimeSeconds,
+          deviceId: deviceId
+        });
+        setDaysLeft(7);
+        setPassword("TRIAL_MODE_" + deviceId);
+        setTrialNotice(true);
+        setTimeout(() => setTrialNotice(false), 3000);
       }
-
-      // Этот блок сработает только один раз для абсолютно нового устройства
-      const trialRef = ref(db, `trial_devices/${deviceId}`);
-      await set(trialRef, {
-        startedAt: currentTimeSeconds,
-        deviceId: deviceId
-      });
-      setDaysLeft(7);
-      setPassword("TRIAL_MODE_" + deviceId);
-      setTrialNotice(true);
-      setTimeout(() => setTrialNotice(false), 3000);
 
     } catch (e) {
       Alert.alert("Ошибка", "Не удалось проверить статус авторизации");
@@ -466,21 +464,16 @@ export default function App() {
     const today = new Date(); 
     today.setHours(0, 0, 0, 0);
     
-    const activeWorkDaysInMonth = daysList.filter(day => {
-      return workData[day] && workData[day].rate > 0 && workData[day].hours > 0;
-    });
-
+    const activeWorkDaysInMonth = daysList.filter(day => workData[day] && (workData[day].rate > 0 && workData[day].hours > 0));
     if (activeWorkDaysInMonth.length === 0) {
       return { workDays: 0, weekendDays: 0, totalSum: 0 };
     }
     
-    const firstWorkDayNum = Math.min(...activeWorkDaysInMonth.map(d => parseInt(d.split('-')[2], 10)));
-    let lastWorkDayNum = Math.max(...activeWorkDaysInMonth.map(d => parseInt(d.split('-')[2], 10)));
+    const firstWorkDayNum = Math.min(...activeWorkDaysInMonth.map(d => parseInt(d.split('-')[2])));
+    let lastWorkDayNum = Math.max(...activeWorkDaysInMonth.map(d => parseInt(d.split('-')[2])));
     
     const sampleDay = daysList[0]; 
-    const dateParts = sampleDay.split('-');
-    const viewYear = parseInt(dateParts[0], 10);
-    const viewMonth = parseInt(dateParts[1], 10);
+    const [viewYear, viewMonth] = sampleDay.split('-').map(Number);
     
     if (viewYear === today.getFullYear() && (viewMonth - 1) === today.getMonth()) {
       if (today.getDate() > lastWorkDayNum) {
@@ -489,11 +482,11 @@ export default function App() {
     }
     
     daysList.forEach(day => {
-      const dayNum = parseInt(day.split('-')[2], 10);
-      const hasData = workData[day] && workData[day].rate > 0 && workData[day].hours > 0;
+      const dayNum = parseInt(day.split('-')[2]);
+      const hasData = workData[day] && (workData[day].rate > 0 && workData[day].hours > 0);
       if (hasData) { 
         workDays++; 
-        totalSum += (workData[day].rate * workData[day].hours); 
+        totalSum += workData[day].rate * workData[day].hours; 
       } else { 
         if (dayNum >= firstWorkDayNum && dayNum <= lastWorkDayNum) {
           weekendDays++; 
@@ -526,15 +519,13 @@ export default function App() {
         }
       });
     }
-    const currentLangLocale = lang === 'uk' ? 'uk-UA' : 'ru-RU';
-    const monthName = targetDate.toLocaleString(currentLangLocale, { month: 'long', year: 'numeric' });
+    const monthName = targetDate.toLocaleString(t.locale, { month: 'long', year: 'numeric' });
     return { monthName, workDays: archiveWorkDays, totalSum: archiveTotalSum };
   };
 
   const exportToPDF = async () => {
     const days = getDaysInMonth(currentMonth);
-    const currentLangLocale = lang === 'uk' ? 'uk-UA' : 'ru-RU';
-    const monthStr = currentMonth.toLocaleString(currentLangLocale, { month: 'long', year: 'numeric' });
+    const monthStr = currentMonth.toLocaleString(t.locale, { month: 'long', year: 'numeric' });
     let tableRows = '';
     days.forEach(day => {
       const data = workData[day];
@@ -569,8 +560,8 @@ export default function App() {
   if (isTrialExpired) {
     return (
       <SafeAreaView style={styles.authContainer}>
-        <View style={styles.authCard}>
-          <Text style={styles.authTitle}>{t.trialExpiredTitle}</Text>
+        <View style={[styles.authCard, { borderColor: '#EF4444', borderWidth: 1.5 }]}>
+          <Text style={[styles.authTitle, { color: '#EF4444' }]}>{t.trialExpiredTitle}</Text>
           
           <Text style={[styles.authSubtitle, { marginBottom: 10, fontWeight: 'bold' }]}>{t.requestFullVersion}</Text>
           <TextInput placeholder={t.placeholderName} style={[styles.authInput, { marginBottom: 10 }]} value={clientName} onChangeText={setClientName} />
@@ -585,4 +576,125 @@ export default function App() {
 
           <View style={{ marginVertical: 15, borderBottomWidth: 1, borderColor: '#E5E7EB' }} />
 
-          <Text style={[styles.authSubtitle, { marginBottom: 10, fontWeight: 'bold' }]}>{t
+          <Text style={[styles.authSubtitle, { marginBottom: 10, fontWeight: 'bold' }]}>{t.enterKeyTitle}</Text>
+          <TextInput
+            placeholder={t.placeholderKey}
+            autoCapitalize="characters"
+            style={styles.authInput}
+            value={inputPassword}
+            onChangeText={setInputPassword}
+          />
+          <TouchableOpacity style={[styles.authButton, { backgroundColor: '#0052CC' }]} onPress={handleLogin}>
+            <Text style={styles.authButtonText}>{t.btnActivate}</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const isCurrentModeTrial = password && password.startsWith("TRIAL_MODE_");
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <View style={{ flex: 1.2 }}>
+            <Text style={styles.dateText}>{currentTime.toLocaleDateString(t.locale)}</Text>
+            <Text style={styles.timeText}>{currentTime.toLocaleTimeString(t.locale, { hour: '2-digit', minute: '2-digit' })}</Text>
+          </View>
+          
+          {isCurrentModeTrial ? (
+            <TouchableOpacity style={styles.requestHeaderButton} onPress={() => setRequestModalVisible(true)}>
+              <Text style={styles.requestHeaderButtonText}>{t.requestFullVersionHeader}</Text>
+            </TouchableOpacity>
+          ) : null}
+
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Text style={styles.logoutText}>{t.btnExit}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Название месяца + Кнопки смены языков */}
+        <View style={styles.monthSelectorRow}>
+          <TouchableOpacity 
+            style={[styles.langCircle, styles.langCircleRu, lang !== 'ru' && styles.langCircleDimmed]} 
+            onPress={() => handleSelectLanguage('ru')}
+          >
+            <Text style={styles.langCircleText}>Р</Text>
+          </TouchableOpacity>
+
+          <Text style={styles.monthTitle}>
+            {currentMonth.toLocaleString(t.locale, { month: 'long', year: 'numeric' }).toUpperCase()}
+          </Text>
+
+          <TouchableOpacity 
+            style={[styles.langCircle, styles.langCircleUk, lang !== 'uk' && styles.langCircleDimmed]} 
+            onPress={() => handleSelectLanguage('uk')}
+          >
+            <Text style={styles.langCircleText}>У</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.weekDaysRow}>
+          {t.weekDays.map((day, index) => {
+            const isWeekend = day === 'Сб' || day === 'Вс' || day === 'Нд';
+            return (
+              <Text key={index} style={[styles.weekDayText, isWeekend && styles.weekendText]}>
+                {day}
+              </Text>
+            );
+          })}
+        </View>
+
+        {isLoadingData ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <ActivityIndicator size="large" color="#0052CC" />
+          </View>
+        ) : (
+          <ScrollView contentContainerStyle={styles.calendarGrid}>
+            {(() => {
+              const days = getDaysInMonth(currentMonth);
+              if (days.length === 0) return null;
+
+              const firstDayDate = new Date(days[0]);
+              let startOfWeekOffset = firstDayDate.getDay(); 
+              startOfWeekOffset = startOfWeekOffset === 0 ? 6 : startOfWeekOffset - 1;
+
+              const gridCells = [];
+              for (let i = 0; i < startOfWeekOffset; i++) {
+                gridCells.push(<View key={`empty-${i}`} style={[styles.dayCell, { borderColor: 'transparent', backgroundColor: 'transparent' }]} />);
+              }
+
+              days.forEach((dateStr) => {
+                const isWorkDay = workData[dateStr] && (workData[dateStr].rate > 0 && workData[dateStr].hours > 0);
+                const dayNum = dateStr.split('-')[2];
+                gridCells.push(
+                  <TouchableOpacity 
+                    key={dateStr} 
+                    style={[styles.dayCell, isWorkDay ? styles.workDayCell : styles.weekendCell]} 
+                    onPress={() => handleDayPress(dateStr)}
+                  >
+                    <Text style={[styles.dayText, isWorkDay && styles.workDayText]}>
+                      {parseInt(dayNum)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              });
+
+              const rows = [];
+              for (let i = 0; i < gridCells.length; i += 7) {
+                rows.push(
+                  <View key={`row-${i}`} style={{ flexDirection: 'row', justifyContent: 'flex-start', width: '100%' }}>
+                    {gridCells.slice(i, i + 7)}
+                  </View>
+                );
+              }
+
+              return rows;
+            })()}
+          </ScrollView>
+        )}
+
+        <View style={styles.statsContainer}>
+          <Text style={styles.statsText}>{t.statsWorkDays}: {stats.workDays}</Text>
+          <Text style={styles.statsText}>{t.statsWeekendDays}: {stats.weekend
