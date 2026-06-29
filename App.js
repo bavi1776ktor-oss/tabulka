@@ -22,14 +22,9 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getDatabase, ref, onValue, set, get, child, off, update, remove } from 'firebase/database';
 
 const { width } = Dimensions.get('window');
-
-// Срок пробного периода: 7 дней в секундах
 const TRIAL_DURATION_SECONDS = 7 * 24 * 60 * 60;
-
-// Настройка Email для приема запросов
 const MY_TARGET_EMAIL = "kluh2026@gmail.com"; 
 
-// Конфигурация Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyCJl5iCX9N0k8hFIdzVrfWORzo54VqNQLc",
   authDomain: "my-apk-protection.firebaseapp.com",
@@ -43,7 +38,6 @@ const firebaseConfig = {
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 const db = getDatabase(app);
 
-// Локализация приложения
 const translations = {
   ru: {
     locale: 'ru-RU',
@@ -99,7 +93,7 @@ const translations = {
   uk: {
     locale: 'uk-UA',
     trialExpiredTitle: "Термін пробного тестування (7 днів) закінчився",
-    requestFullVersion: "Запросити полную версію:",
+    requestFullVersion: "Запросити повну версію:",
     requestFullVersionHeader: "Запросити повну версію",
     placeholderName: "Ваше Ім'я",
     placeholderPhone: "Телефон",
@@ -137,7 +131,7 @@ const translations = {
     alertFormatError: "Невірний формат",
     alertFormatShort: "Занадто короткий ключ активації.",
     alertSuccessTitle: "Успішно",
-    alertSuccessMessage: "Додаток успішно активовано!",
+    alertSuccessMessage: "Додаток успешно активовано!",
     alertKeyUsed: "Цей ключ вже закріплений за іншим пристроєм!",
     alertKeyBlock: "Цей ключ заблокований адміністратором.",
     alertKeyNotFound: "Ключ не знайдено в папці activation_keys бази даних.",
@@ -150,8 +144,8 @@ const translations = {
 };
 
 export default function App() {
-  const [lang, setLang] = useState(null); // 'ru' или 'uk'
-  const [langModalVisible, setLangModalVisible] = useState(false); // Выбор при первом старте
+  const [lang, setLang] = useState(null);
+  const [langModalVisible, setLangModalVisible] = useState(false);
 
   const [password, setPassword] = useState(null); 
   const [inputPassword, setInputPassword] = useState(''); 
@@ -167,7 +161,6 @@ export default function App() {
   const [rate, setRate] = useState('');
   const [hours, setHours] = useState('');
 
-  // Состояния триала и поддержки
   const [trialNotice, setTrialNotice] = useState(false); 
   const [isTrialExpired, setIsTrialExpired] = useState(false); 
   const [daysLeft, setDaysLeft] = useState(7);
@@ -175,7 +168,6 @@ export default function App() {
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('+38 (');
 
-  // Активный перевод
   const t = translations[lang || 'ru'];
 
   useEffect(() => {
@@ -219,11 +211,7 @@ export default function App() {
 
     const unsubscribe = onValue(listRef, (snapshot) => {
       const data = snapshot.val();
-      if (data) {
-        setWorkData(data);
-      } else {
-        setWorkData({});
-      }
+      setWorkData(data || {});
       setIsLoadingData(false);
     }, (error) => {
       Alert.alert("Ошибка БД", "Проверить правила: " + error.message);
@@ -299,7 +287,6 @@ export default function App() {
     try {
       const deviceId = Application.androidId || "DEVICE_GENERIC"; 
       const dbRef = ref(db);
-      
       const snapshot = await get(child(dbRef, `activation_keys/${trimmed}`));
       
       if (snapshot.exists()) {
@@ -309,11 +296,7 @@ export default function App() {
 
         if (currentStatus === "free" && currentDeviceId === "") {
           const keyRef = ref(db, `activation_keys/${trimmed}`);
-          
-          await update(keyRef, {
-            status: "used",
-            deviceId: deviceId
-          });
+          await update(keyRef, { status: "used", deviceId: deviceId });
 
           const requestRef = ref(db, `support_requests/${deviceId}`);
           await remove(requestRef);
@@ -323,9 +306,8 @@ export default function App() {
           setPassword(trimmed);
           setInputPassword('');
           Alert.alert(t.alertSuccessTitle, t.alertSuccessMessage);
-
         } else if (currentStatus === "used") {
-          if (currentDeviceId !== "" && currentDeviceId === deviceId) {
+          if (currentDeviceId && currentDeviceId === deviceId) {
             const requestRef = ref(db, `support_requests/${deviceId}`);
             await remove(requestRef);
 
@@ -357,7 +339,6 @@ export default function App() {
 
     try {
       const deviceId = Application.androidId || "DEVICE_GENERIC";
-      
       const requestRef = ref(db, `support_requests/${deviceId}`);
       await set(requestRef, {
         name: clientName.trim(),
@@ -378,7 +359,6 @@ export default function App() {
       } else {
         Alert.alert("Запрос сохранен", t.alertRequestSaved);
       }
-
     } catch (e) {
       setRequestModalVisible(false);
       Alert.alert("Внимание", t.alertMailError);
@@ -457,9 +437,9 @@ export default function App() {
   };
 
   const calculateStatsForPeriod = (daysList) => {
-    let workDays = 0; 
-    let weekendDays = 0; 
-    let totalSum = 0;
+    let wDays = 0; 
+    let wkDays = 0; 
+    let tSum = 0;
     
     const today = new Date(); 
     today.setHours(0, 0, 0, 0);
@@ -485,16 +465,16 @@ export default function App() {
       const dayNum = parseInt(day.split('-')[2]);
       const hasData = workData[day] && (workData[day].rate > 0 && workData[day].hours > 0);
       if (hasData) { 
-        workDays++; 
-        totalSum += workData[day].rate * workData[day].hours; 
+        wDays++; 
+        tSum += workData[day].rate * workData[day].hours; 
       } else { 
         if (dayNum >= firstWorkDayNum && dayNum <= lastWorkDayNum) {
-          weekendDays++; 
+          wkDays++; 
         }
       }
     });
     
-    return { workDays, weekendDays, totalSum };
+    return { workDays: wDays, weekendDays: wkDays, totalSum: tSum };
   };
 
   const stats = calculateStatsForPeriod(getDaysInMonth(currentMonth));
@@ -539,14 +519,54 @@ export default function App() {
     });
 
     const formattedTitle = t.pdfTitle.replace('{month}', monthStr);
-
     const htmlContent = `<html><head><style>body{font-family:'Helvetica';padding:20px;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:8px;text-align:center;}</style></head><body><h1>${formattedTitle}</h1><table><tr><th>${t.pdfColDay}</th><th>${t.pdfColStatus}</th><th>${t.pdfColRate}</th><th>${t.pdfColHours}</th><th>${t.pdfColSum}</th></tr>${tableRows}</table></body></html>`;
+    
     try {
       const { uri } = await Print.printToFileAsync({ html: htmlContent });
       await Sharing.shareAsync(uri);
     } catch (error) {
       Alert.alert("Ошибка", t.alertPdfError);
     }
+  };
+
+  const renderCalendarGrid = () => {
+    const days = getDaysInMonth(currentMonth);
+    if (days.length === 0) return null;
+
+    const firstDayDate = new Date(days[0]);
+    let startOfWeekOffset = firstDayDate.getDay(); 
+    startOfWeekOffset = startOfWeekOffset === 0 ? 6 : startOfWeekOffset - 1;
+
+    const gridCells = [];
+    for (let i = 0; i < startOfWeekOffset; i++) {
+      gridCells.push(<View key={`empty-${i}`} style={[styles.dayCell, { borderColor: 'transparent', backgroundColor: 'transparent' }]} />);
+    }
+
+    days.forEach((dateStr) => {
+      const isWorkDay = workData[dateStr] && (workData[dateStr].rate > 0 && workData[dateStr].hours > 0);
+      const dayNum = dateStr.split('-')[2];
+      gridCells.push(
+        <TouchableOpacity 
+          key={dateStr} 
+          style={[styles.dayCell, isWorkDay ? styles.workDayCell : styles.weekendCell]} 
+          onPress={() => handleDayPress(dateStr)}
+        >
+          <Text style={[styles.dayText, isWorkDay && styles.workDayText]}>
+            {parseInt(dayNum, 10)}
+          </Text>
+        </TouchableOpacity>
+      );
+    });
+
+    const rows = [];
+    for (let i = 0; i < gridCells.length; i += 7) {
+      rows.push(
+        <View key={`row-${i}`} style={{ flexDirection: 'row', justifyContent: 'flex-start', width: '100%' }}>
+          {gridCells.slice(i, i + 7)}
+        </View>
+      );
+    }
+    return rows;
   };
 
   if (isAuthChecking) {
@@ -614,7 +634,6 @@ export default function App() {
           </TouchableOpacity>
         </View>
 
-        {/* Название месяца + Кнопки смены языков */}
         <View style={styles.monthSelectorRow}>
           <TouchableOpacity 
             style={[styles.langCircle, styles.langCircleRu, lang !== 'ru' && styles.langCircleDimmed]} 
@@ -624,77 +643,4 @@ export default function App() {
           </TouchableOpacity>
 
           <Text style={styles.monthTitle}>
-            {currentMonth.toLocaleString(t.locale, { month: 'long', year: 'numeric' }).toUpperCase()}
-          </Text>
-
-          <TouchableOpacity 
-            style={[styles.langCircle, styles.langCircleUk, lang !== 'uk' && styles.langCircleDimmed]} 
-            onPress={() => handleSelectLanguage('uk')}
-          >
-            <Text style={styles.langCircleText}>У</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.weekDaysRow}>
-          {t.weekDays.map((day, index) => {
-            const isWeekend = day === 'Сб' || day === 'Вс' || day === 'Нд';
-            return (
-              <Text key={index} style={[styles.weekDayText, isWeekend && styles.weekendText]}>
-                {day}
-              </Text>
-            );
-          })}
-        </View>
-
-        {isLoadingData ? (
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <ActivityIndicator size="large" color="#0052CC" />
-          </View>
-        ) : (
-          <ScrollView contentContainerStyle={styles.calendarGrid}>
-            {(() => {
-              const days = getDaysInMonth(currentMonth);
-              if (days.length === 0) return null;
-
-              const firstDayDate = new Date(days[0]);
-              let startOfWeekOffset = firstDayDate.getDay(); 
-              startOfWeekOffset = startOfWeekOffset === 0 ? 6 : startOfWeekOffset - 1;
-
-              const gridCells = [];
-              for (let i = 0; i < startOfWeekOffset; i++) {
-                gridCells.push(<View key={`empty-${i}`} style={[styles.dayCell, { borderColor: 'transparent', backgroundColor: 'transparent' }]} />);
-              }
-
-              days.forEach((dateStr) => {
-                const isWorkDay = workData[dateStr] && (workData[dateStr].rate > 0 && workData[dateStr].hours > 0);
-                const dayNum = dateStr.split('-')[2];
-                gridCells.push(
-                  <TouchableOpacity 
-                    key={dateStr} 
-                    style={[styles.dayCell, isWorkDay ? styles.workDayCell : styles.weekendCell]} 
-                    onPress={() => handleDayPress(dateStr)}
-                  >
-                    <Text style={[styles.dayText, isWorkDay && styles.workDayText]}>
-                      {parseInt(dayNum)}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              });
-
-              const rows = [];
-              for (let i = 0; i < gridCells.length; i += 7) {
-                rows.push(
-                  <View key={`row-${i}`} style={{ flexDirection: 'row', justifyContent: 'flex-start', width: '100%' }}>
-                    {gridCells.slice(i, i + 7)}
-                  </View>
-                );
-              }
-
-              return rows;
-            })()}
-          </ScrollView>
-        )}
-
-        <View style={styles.statsContainer}>
-          <Text style={styles.statsText}>{t.statsWorkDays}: {stats.workDays}</Text>
-          <Text style={styles.statsText}>{t.statsWeekendDays}: {stats.weekend
+            {currentMonth.toLocaleString(t.locale, { month: 'long', year: '
