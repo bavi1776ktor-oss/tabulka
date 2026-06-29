@@ -284,7 +284,7 @@ export default function App() {
 
     } catch (e) {
       Alert.alert("Ошибка", "Не удалось проверить статус авторизации");
-    } fill {
+    } finally {
       setIsAuthChecking(false);
     }
   };
@@ -570,4 +570,19 @@ export default function App() {
     return (
       <SafeAreaView style={styles.authContainer}>
         <View style={styles.authCard}>
-          <Text style={styles.authTitle}>{t.trialExpiredTitle}</
+          <Text style={styles.authTitle}>{t.trialExpiredTitle}</Text>
+          
+          <Text style={[styles.authSubtitle, { marginBottom: 10, fontWeight: 'bold' }]}>{t.requestFullVersion}</Text>
+          <TextInput placeholder={t.placeholderName} style={[styles.authInput, { marginBottom: 10 }]} value={clientName} onChangeText={setClientName} />
+          <TextInput placeholder={t.placeholderPhone} keyboardType="phone-pad" style={[styles.authInput, { marginBottom: 15 }]} value={clientPhone} onChangeText={setClientPhone} />
+          <TouchableOpacity style={[styles.authButton, { backgroundColor: '#10B981', marginBottom: 10 }]} onPress={handleSendSupportRequest}>
+            <Text style={styles.authButtonText}>{t.btnSendRequest}</Text>
+          </TouchableOpacity>
+          
+          <View style={styles.noticeContainer}>
+            <Text style={styles.noticeSubText}>{t.noticeText}</Text>
+          </View>
+
+          <View style={{ marginVertical: 15, borderBottomWidth: 1, borderColor: '#E5E7EB' }} />
+
+          <Text style={[styles.authSubtitle, { marginBottom: 10, fontWeight: 'bold' }]}>{t
