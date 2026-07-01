@@ -38,6 +38,11 @@ jobs:
       - name: Generate Android Folder (Prebuild)
         run: npx expo prebuild --platform android
 
+      - name: Fix Broken Repositories (Remove Sonatype)
+        run: |
+          # Вырезаем кривую ссылку на sonatype snapshots из сгенерированных скриптов Gradle
+          find android -name "build.gradle" -type f -exec sed -i '/oss.sonatype.org\/content\/repositories\/snapshots/d' {} +
+
       - name: Build Android Release (Bypass Sonatype Timeout)
         run: |
           cd android
