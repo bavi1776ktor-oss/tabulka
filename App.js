@@ -16,7 +16,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import * as SecureStore from 'expo-secure-store';
+import * as Application from 'expo-application';
 
 const { width } = Dimensions.get('window');
 const TRIAL_DURATION_SECONDS = 7 * 24 * 60 * 60;
@@ -126,7 +126,7 @@ const translations = {
     pdfColHours: "Години",
     pdfColSum: "Сума",
     alertExitTitle: "Вихід",
-    alertExitMessage: "Вийти из профілю?",
+    alertExitMessage: "Вийти з профілю?",
     alertExitCancel: "Скасувати",
     alertFormatError: "Неправильний формат",
     alertFormatShort: "Занадто короткий ключ активації.",
@@ -262,10 +262,11 @@ export default function App() {
 
   const getOrCreateDeviceUUID = async () => {
     try {
-      let uuid = await SecureStore.getItemAsync('@tabulka_device_uuid');
+      let uuid = await AsyncStorage.getItem('@tabulka_device_uuid_v2');
       if (!uuid) {
-        uuid = 'dev_' + Date.now() + '_' + Math.random().toString(36).substring(2, 11);
-        await SecureStore.setItemAsync('@tabulka_device_uuid', uuid);
+        const androidFallback = Application.androidId || "GENERIC";
+        uuid = 'dev_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7) + '_' + androidFallback;
+        await AsyncStorage.setItem('@tabulka_device_uuid_v2', uuid);
       }
       return uuid;
     } catch (e) {
@@ -923,5 +924,5 @@ export default function App() {
   );
 }
 
-// Стили (styles) остаются без изменений в самом низу вашего файла...
+// Заглушка для стилей в самом низу твоего файла
 const styles = StyleSheet.create({});
