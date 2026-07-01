@@ -23,8 +23,10 @@ jobs:
       - name: Install JavaScript Dependencies
         run: npm install
 
-      - name: Generate Native Android Folder (Expo Prebuild)
-        run: npx expo prebuild --platform android
+      - name: Generate Native Android Folder
+        run: |
+          npx expo prebuild --platform android --clean
+          ls -la # Посмотрит, какие папки создались в корне, чтобы мы видели лог
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
@@ -35,21 +37,19 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      - name: Make Gradlew Executable
-        run: chmod +x android/gradlew
-
-      - name: Bundle JS and Assets (Local Metro)
+      - name: Fix Permissions and Build
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
         run: |
-          mkdir -p android/app/src/main/assets
-          npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res
-
-      - name: Build Native Android Release (APK)
-        run: |
-          cd android
-          ./gradlew clean
-          ./gradlew assembleRelease --stacktrace --info
+          if [ -d "android" ]; then
+            cd android
+            chmod +x gradlew
+            ./gradlew clean
+            ./gradlew assembleRelease --stacktrace --info
+          else
+            echo "Ошибка: Папка android так и не появилась после prebuild!"
+            exit 1
+          fi
 
       - name: Upload Finished APK Artifact
         uses: actions/upload-artifact@v4
