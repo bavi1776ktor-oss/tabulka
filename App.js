@@ -555,4 +555,896 @@ export default function App() {
       const dayNum = parseInt(day.split('-')[2]);
       const dayTotal = getDayTotal(workData[day]);
       if (dayTotal > 0) { 
-        wDays++;
+        wDays++; 
+        tSum += dayTotal; 
+      } else { 
+        if (dayNum >= firstWorkDayNum && dayNum <= lastWorkDayNum) {
+          wkDays++; 
+        }
+      }
+    });
+    
+    return { workDays: wDays, weekendDays: wkDays, totalSum: tSum };
+  };
+
+  const stats = calculateStatsForPeriod(getDaysInMonth(currentMonth));
+
+  const getArchiveMonthsList = () => {
+    const list = [];
+    const today = new Date();
+    for (let i = 1; i <= 12; i++) {
+      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      list.push({
+        year: d.getFullYear(),
+        month: d.getMonth(),
+        dateObject: d
+      });
+    }
+    return list;
+  };
+
+  const loadArchiveMonthData = (year, month) => {
+    setCurrentMonth(new Date(year, month, 1));
+    setArchiveModalVisible(false);
+  };
+
+  const handleGoToToday = () => {
+    const today = new Date();
+    setCurrentMonth(new Date(today.getFullYear(), today.getMonth(), 1));
+  };
+
+  const exportToPDF = async () => {
+    const days = getDaysInMonth(currentMonth);
+    const monthStr = currentMonth.toLocaleString(t.locale, { month: 'long', year: 'numeric' });
+    let tableRows = '';
+    
+    days.forEach(day => {
+      const data = workData[day];
+      const dayNum = day.split('-')[2];
+      const totalSum = getDayTotal(data);
+      const totalHours = getDayHours(data);
+
+      if (totalSum > 0) {
+        tableRows += `<tr><td>${dayNum}</td><td>${t.pdfStatusWork}</td><td>-</td><td>${totalHours}</td><td>${totalSum}</td></tr>`;
+      } else {
+        tableRows += `<tr><td>${dayNum}</td><td>${t.pdfStatusWeekend}</td><td>-</td><td>-</td><td>-</td></tr>`;
+      }
+    });
+
+    const formattedTitle = t.pdfTitle.replace('{month}', monthStr);
+    const htmlContent = `<html><head><style>body{font-family:'Helvetica';padding:20px;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:8px;text-align:center;}</style></head><body><h1>${formattedTitle}</h1><table><tr><th>${t.pdfColDay}</th><th>${t.pdfColStatus}</th><th>${t.pdfColRate}</th><th>${t.pdfColHours}</th><th>${t.pdfColSum}</th></tr>${tableRows}</table></body></html>`;
+    
+    try {
+      const { uri } = await Print.printToFileAsync({ html: htmlContent });
+      await Sharing.shareAsync(uri);
+    } catch (error) {
+      Alert.alert(t.errorTitle, t.alertPdfError);
+    }
+  };
+
+  const renderCalendarGrid = () => {
+    const days = getDaysInMonth(currentMonth);
+    if (days.length === 0) return null;
+
+    const firstDayDate = new Date(days[0]);
+    let startOfWeekOffset = firstDayDate.getDay(); 
+    startOfWeekOffset = startOfWeekOffset === 0 ? 6 : startOfWeekOffset - 1;
+
+    const gridCells = [];
+    for (let i = 0; i < startOfWeekOffset; i++) {
+      gridCells.push(<View key={`empty-${i}`} style={styles.emptyCell} />);
+    }
+
+    days.forEach((dateStr) => {
+      const dayData = workData[dateStr];
+      const dayTotal = getDayTotal(dayData);
+      const isWorkDay = dayTotal > 0;
+      const dayNum = dateStr.split('-')[2];
+      
+      gridCells.push(
+        <TouchableOpacity 
+          key={dateStr} 
+          style={isWorkDay ? styles.workDayCell : styles.weekendCell} 
+          onPress={() => handleDayPress(dateStr)}
+        >
+          <Text style={isWorkDay ? styles.workDayText : styles.dayText}>
+            {parseInt(dayNum, 10)}
+          </Text>
+          {isWorkDay && (
+            <Text style={styles.cellSumSubtext}>{dayTotal}</Text>
+          )}
+        </TouchableOpacity>
+      );
+    });
+
+    const rows = [];
+    for (let i = 0; i < gridCells.length; i += 7) {
+      rows.push(
+        <View key={`row-${i}`} style={styles.calendarRow}>
+          {gridCells.slice(i, i + 7)}
+        </View>
+      );
+    }
+    return rows;
+  };
+
+  if (isAuthChecking) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#0052CC" />
+      </View>
+    );
+  }
+
+  if (isTrialExpired) {
+    return (
+      <SafeAreaView style={styles.authContainer}>
+        <View style={styles.authCardExpired}>
+          <Text style={styles.authTitleExpired}>{t.trialExpiredTitle}</Text>
+          
+          <Text style={styles.authSubtitleBold}>{t.requestFullVersion}</Text>
+          <TextInput placeholder={t.placeholderName} style={styles.authInputMargin} value={clientName} onChangeText={setClientName} />
+          <TextInput placeholder={t.placeholderPhone} keyboardType="phone-pad" style={styles.authInputMarginLarge} value={clientPhone} onChangeText={setClientPhone} />
+          
+          <TouchableOpacity style={styles.authBtnSend} onPress={handleSendSupportRequest}>
+            <Text style={styles.authButtonText}>{t.btnSendRequest}</Text>
+          </TouchableOpacity>
+          
+          <View style={styles.noticeContainer}>
+            <Text style={styles.noticeSubText}>{t.noticeText}</Text>
+          </View>
+
+          <View style={styles.separator} />
+
+          <Text style={styles.authSubtitleBold}>{t.enterKeyTitle}</Text>
+          <TextInput
+            placeholder={t.placeholderKey}
+            autoCapitalize="characters"
+            style={styles.authInput}
+            value={inputPassword}
+            onChangeText={setInputPassword}
+          />
+          <TouchableOpacity style={styles.authBtnActivate} onPress={handleLogin}>
+            <Text style={styles.authButtonText}>{t.btnActivate}</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const isCurrentModeTrial = password && password.startsWith("TRIAL_MODE_");
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <View style={styles.headerTimeBlock}>
+            <Text style={styles.dateText}>{currentTime.toLocaleDateString(t.locale)}</Text>
+            <Text style={styles.timeText}>{currentTime.toLocaleTimeString(t.locale, { hour: '2-digit', minute: '2-digit' })}</Text>
+          </View>
+          
+          {isCurrentModeTrial ? (
+            <TouchableOpacity style={styles.requestHeaderButton} onPress={() => setRequestModalVisible(true)}>
+              <Text style={styles.requestHeaderButtonText}>{t.requestFullVersionHeader}</Text>
+            </TouchableOpacity>
+          ) : null}
+
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Text style={styles.logoutText}>{t.btnExit}</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.monthSelectorRow}>
+          <TouchableOpacity 
+            style={lang === 'ru' ? styles.langCircleRu : styles.langCircleRuDimmed} 
+            onPress={() => handleSelectLanguage('ru')}
+          >
+            <Text style={styles.langCircleText}>Р</Text>
+          </TouchableOpacity>
+
+          <View style={styles.monthTitleWrapper}>
+            <Text style={styles.monthTitle}>
+              {currentMonth.toLocaleString(t.locale, { month: 'long', year: 'numeric' }).toUpperCase()}
+            </Text>
+            <TouchableOpacity style={styles.todayButton} onPress={handleGoToToday}>
+              <Text style={styles.todayButtonText}>{t.btnToday.toUpperCase()}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity 
+            style={lang === 'uk' ? styles.langCircleUk : styles.langCircleUkDimmed} 
+            onPress={() => handleSelectLanguage('uk')}
+          >
+            <Text style={styles.langCircleText}>У</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.weekDaysRow}>
+          {t.weekDays.map((day, index) => {
+            const isWeekend = day === 'Сб' || day === 'Вс' || day === 'Нд';
+            return (
+              <Text key={index} style={isWeekend ? styles.weekDayTextWeekend : styles.weekDayTextNormal}>
+                {day}
+              </Text>
+            );
+          })}
+        </View>
+
+        {isLoadingData ? (
+          <View style={styles.centerLoading}>
+            <ActivityIndicator size="large" color="#0052CC" />
+          </View>
+        ) : (
+          <ScrollView contentContainerStyle={styles.calendarGrid}>
+            {renderCalendarGrid()}
+          </ScrollView>
+        )}
+
+        <View style={styles.statsContainer}>
+          <Text style={styles.statsText}>{t.statsWorkDays}: {stats.workDays}</Text>
+          <Text style={styles.statsText}>{t.statsWeekendDays}: {stats.weekendDays}</Text>
+          <Text style={styles.totalText}>{t.statsTotalSum}: {stats.totalSum}</Text>
+        </View>
+
+        <TouchableOpacity style={styles.archiveButton} onPress={() => setArchiveModalVisible(true)}>
+          <Text style={styles.archiveButtonText}>{t.btnArchive}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.pdfButton} onPress={exportToPDF}>
+          <Text style={styles.pdfButtonText}>{t.btnSavePdf}</Text>
+        </TouchableOpacity>
+
+        <Modal visible={langModalVisible} transparent={true} animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContentLang}>
+              <TouchableOpacity style={styles.btnLangUk} onPress={() => handleSelectLanguage('uk')}>
+                <Text style={styles.authButtonText}>Оберіть мову (Укр)</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.btnLangRu} onPress={() => handleSelectLanguage('ru')}>
+                <Text style={styles.authButtonText}>Выберите язык (Рус)</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal visible={requestModalVisible} transparent={true} animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>{t.btnSendRequest}</Text>
+              <TextInput placeholder={t.placeholderName} style={styles.input} value={clientName} onChangeText={setClientName} />
+              <TextInput placeholder={t.placeholderPhone} keyboardType="phone-pad" style={styles.input} value={clientPhone} onChangeText={setClientPhone} />
+              
+              <View style={styles.modalButtons}>
+                <TouchableOpacity style={styles.btnRequestSave} onPress={handleSendSupportRequest}>
+                  <Text style={styles.btnText}>{t.btnSendRequest}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.btn, styles.btnCancel]} onPress={() => setRequestModalVisible(false)}>
+                  <Text style={styles.btnText}>{t.btnCancel}</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.noticeContainerMargin}>
+                <Text style={styles.noticeSubText}>{t.noticeText}</Text>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal visible={archiveModalVisible} transparent={true} animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>{t.btnArchive}</Text>
+              <ScrollView style={styles.archiveScroll}>
+                {getArchiveMonthsList().map((item, idx) => {
+                  const label = item.dateObject.toLocaleString(t.locale, { month: 'long', year: 'numeric' });
+                  return (
+                    <TouchableOpacity 
+                      key={idx} 
+                      style={styles.archiveItemRow}
+                      onPress={() => loadArchiveMonthData(item.year, item.month)}
+                    >
+                      <Text style={styles.archiveMonthNameText}>{label.toUpperCase()}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+              <TouchableOpacity style={styles.btnCloseArchive} onPress={() => setArchiveModalVisible(false)}>
+                <Text style={styles.btnText}>{t.btnClose}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal visible={modalVisible} transparent={true} animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>{t.modalDayTitle}: {selectedDate ? selectedDate.split('-')[2] : ''}</Text>
+              
+              <Text style={styles.subSectionTitle}>{t.subSectionTitle}</Text>
+              <ScrollView style={styles.miniRecordsList}>
+                {workData[selectedDate]?.records && workData[selectedDate].records.length > 0 ? (
+                  workData[selectedDate].records.map((rec) => (
+                    <View key={rec.id} style={styles.miniRecordRow}>
+                      <Text style={styles.miniRecordText}>
+                        {rec.rate} × {rec.hours} {t.hourUnit} = {rec.rate * rec.hours}
+                      </Text>
+                      <TouchableOpacity onPress={() => handleDeleteRecord(rec.id)} style={styles.miniDeleteBtn}>
+                        <Text style={styles.miniDeleteBtnText}>🗑</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.noRecordsText}>{t.noRecordsText}</Text>
+                )}
+              </ScrollView>
+
+              <Text style={styles.dayTotalText}>{t.dayTotalText} {getDayTotal(workData[selectedDate])}</Text>
+
+              <View style={styles.inputRow}>
+                <TextInput 
+                  placeholder={t.placeholderRate} 
+                  keyboardType="numeric" 
+                  style={[styles.input, { flex: 1, marginRight: 8 }]} 
+                  value={rate} 
+                  onChangeText={setRate} 
+                />
+                <TextInput 
+                  placeholder={t.placeholderHours} 
+                  keyboardType="numeric" 
+                  style={[styles.input, { flex: 1 }]} 
+                  value={hours} 
+                  onChangeText={setHours} 
+                />
+              </View>
+
+              <TouchableOpacity style={styles.btnAddRecord} onPress={handleAddRecord}>
+                <Text style={styles.btnText}>{t.btnAddRecord}</Text>
+              </TouchableOpacity>
+
+              <View style={styles.modalButtons}>
+                <TouchableOpacity style={styles.btnSave} onPress={saveDayAndClose}>
+                  <Text style={styles.btnText}>{t.btnSave}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.btn, styles.btnCancel]} 
+                  onPress={() => {
+                    setModalVisible(false);
+                    setSelectedDate(null);
+                    fetchWorkData(password);
+                  }}
+                >
+                  <Text style={styles.btnText}>{t.btnCancel}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F4F5F7',
+  },
+  container: {
+    flex: 1,
+    paddingHorizontal: 10,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F4F5F7',
+  },
+  centerLoading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E3E6EB',
+  },
+  headerTimeBlock: {
+    flexDirection: 'column',
+  },
+  dateText: {
+    fontSize: 14,
+    color: '#6B778C',
+    fontWeight: '500',
+  },
+  timeText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#172B4D',
+    marginTop: 2,
+  },
+  requestHeaderButton: {
+    backgroundColor: '#FFAB00',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  requestHeaderButtonText: {
+    color: '#172B4D',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  logoutButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+    backgroundColor: '#FFEBE6',
+  },
+  logoutText: {
+    color: '#DE350B',
+    fontWeight: 'bold',
+    fontSize: 13,
+  },
+  monthSelectorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginVertical: 12,
+  },
+  monthTitleWrapper: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  monthTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#0052CC',
+    textAlign: 'center',
+  },
+  todayButton: {
+    marginTop: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+    backgroundColor: '#EAE6FF',
+    borderRadius: 4,
+  },
+  todayButtonText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#403294',
+  },
+  langCircleRu: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#0052CC',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  langCircleRuDimmed: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#DFE1E6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  langCircleUk: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#00875A',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  langCircleUkDimmed: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#DFE1E6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  langCircleText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  weekDaysRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingBottom: 6,
+    marginBottom: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#DFE1E6',
+  },
+  weekDayTextNormal: {
+    width: (width - 20) / 7,
+    textAlign: 'center',
+    fontSize: 13,
+    color: '#7A869A',
+    fontWeight: '600',
+  },
+  weekDayTextWeekend: {
+    width: (width - 20) / 7,
+    textAlign: 'center',
+    fontSize: 13,
+    color: '#DE350B',
+    fontWeight: '600',
+  },
+  calendarGrid: {
+    paddingBottom: 10,
+  },
+  calendarRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+  },
+  emptyCell: {
+    width: (width - 26) / 7,
+    height: 52,
+  },
+  weekendCell: {
+    width: (width - 26) / 7,
+    height: 52,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 6,
+    padding: 4,
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#FFEBE6',
+  },
+  workDayCell: {
+    width: (width - 26) / 7,
+    height: 52,
+    backgroundColor: '#DEEBFF',
+    borderRadius: 6,
+    padding: 4,
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#B3D4FF',
+  },
+  dayText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#172B4D',
+  },
+  workDayText: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#0747A6',
+  },
+  cellSumSubtext: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#0747A6',
+    textAlign: 'right',
+  },
+  statsContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    padding: 12,
+    marginVertical: 8,
+    borderWidth: 1,
+    borderColor: '#E3E6EB',
+  },
+  stylesText: { // Сохранено из оригинального кода для безопасности
+    fontSize: 14,
+    color: '#4A5568',
+    marginBottom: 3,
+  },
+  statsText: {
+    fontSize: 14,
+    color: '#4A5568',
+    marginBottom: 3,
+  },
+  totalText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#172B4D',
+    marginTop: 4,
+    paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: '#EDF2F7',
+  },
+  archiveButton: {
+    backgroundColor: '#4C51BF',
+    paddingVertical: 10,
+    borderRadius: 6,
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  archiveButtonText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  pdfButton: {
+    backgroundColor: '#0052CC',
+    paddingVertical: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  pdfButtonText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(9, 30, 66, 0.54)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  modalContentLang: {
+    width: '85%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+  },
+  btnLangUk: {
+    width: '100%',
+    backgroundColor: '#00875A',
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  btnLangRu: {
+    width: '100%',
+    backgroundColor: '#0052CC',
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#172B4D',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  subSectionTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#6B778C',
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  miniRecordsList: {
+    maxHeight: 120,
+    marginBottom: 8,
+    backgroundColor: '#F4F5F7',
+    borderRadius: 6,
+    padding: 6,
+  },
+  miniRecordRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E3E6EB',
+  },
+  miniRecordText: {
+    fontSize: 13,
+    color: '#172B4D',
+  },
+  miniDeleteBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  miniDeleteBtnText: {
+    color: '#DE350B',
+    fontSize: 15,
+  },
+  noRecordsText: {
+    fontSize: 13,
+    color: '#7A869A',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginVertical: 8,
+  },
+  dayTotalText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#172B4D',
+    textAlign: 'right',
+    marginBottom: 12,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    marginBottom: 10,
+  },
+  input: {
+    backgroundColor: '#FAFBFC',
+    borderWidth: 1,
+    borderColor: '#DFE1E6',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+    color: '#172B4D',
+  },
+  btnAddRecord: {
+    backgroundColor: '#0052CC',
+    paddingVertical: 8,
+    borderRadius: 6,
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: '#E3E6EB',
+    paddingTop: 12,
+  },
+  btnSave: {
+    flex: 1,
+    backgroundColor: '#00875A',
+    paddingVertical: 10,
+    borderRadius: 6,
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  btnCancel: {
+    flex: 1,
+    backgroundColor: '#7A869A',
+    paddingVertical: 10,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  btnText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  archiveScroll: {
+    maxHeight: 250,
+    marginBottom: 12,
+  },
+  archiveItemRow: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E3E6EB',
+    alignItems: 'center',
+  },
+  archiveMonthNameText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#42526E',
+  },
+  btnCloseArchive: {
+    backgroundColor: '#42526E',
+    paddingVertical: 10,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  authContainer: {
+    flex: 1,
+    backgroundColor: '#002159',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  authCardExpired: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  authTitleExpired: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#DE350B',
+    textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 22,
+  },
+  authSubtitleBold: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#172B4D',
+    marginBottom: 6,
+  },
+  authInputMargin: {
+    backgroundColor: '#FAFBFC',
+    borderWidth: 1,
+    borderColor: '#DFE1E6',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  authInputMarginLarge: {
+    backgroundColor: '#FAFBFC',
+    borderWidth: 1,
+    borderColor: '#DFE1E6',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  authInput: {
+    backgroundColor: '#FAFBFC',
+    borderWidth: 1,
+    borderColor: '#DFE1E6',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  authBtnSend: {
+    backgroundColor: '#00875A',
+    paddingVertical: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  authBtnActivate: {
+    backgroundColor: '#0052CC',
+    paddingVertical: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  authButtonText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  noticeContainer: {
+    marginTop: 8,
+    backgroundColor: '#DEEBFF',
+    padding: 8,
+    borderRadius: 4,
+  },
+  noticeContainerMargin: {
+    marginTop: 12,
+    backgroundColor: '#DEEBFF',
+    padding: 8,
+    borderRadius: 4,
+  },
+  noticeSubText: {
+    fontSize: 11,
+    color: '#0747A6',
+    textAlign: 'center',
+    lineHeight: 15,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: '#DFE1E6',
+    marginVertical: 16,
+  },
+  btnRequestSave: {
+    flex: 1,
+    backgroundColor: '#00875A',
+    paddingVertical: 10,
+    borderRadius: 6,
+    alignItems: 'center',
+    marginRight: 8,
+  },
+});
