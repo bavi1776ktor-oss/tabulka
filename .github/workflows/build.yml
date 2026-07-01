@@ -21,8 +21,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-size: 20
-          cache: 'npm'
+          node-version: '20'
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
