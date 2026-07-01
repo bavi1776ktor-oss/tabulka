@@ -24,14 +24,12 @@ jobs:
         run: npm install
 
       - name: Generate Native Android Folder
-        run: |
-          npx expo prebuild --platform android --clean
-          ls -la # Посмотрит, какие папки создались в корне, чтобы мы видели лог
+        run: npx expo prebuild --platform android --clean
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: '18'
           distribution: 'zulu'
 
       - name: Setup Gradle
@@ -41,15 +39,10 @@ jobs:
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
         run: |
-          if [ -d "android" ]; then
-            cd android
-            chmod +x gradlew
-            ./gradlew clean
-            ./gradlew assembleRelease --stacktrace --info
-          else
-            echo "Ошибка: Папка android так и не появилась после prebuild!"
-            exit 1
-          fi
+          cd android
+          chmod +x gradlew
+          ./gradlew clean
+          ./gradlew assembleRelease --stacktrace --quiet
 
       - name: Upload Finished APK Artifact
         uses: actions/upload-artifact@v4
