@@ -116,10 +116,10 @@ const translations = {
     btnCancel: "Скасувати",
     btnClose: "Закрити",
     archiveEarnings: "Заробіток",
-    toastTrialActive: "⏱ АКТИВНИЙ ТЕСТОВИЙ ПЕРІОД (ЗАЛИШИЛОСЯ {days} ДН.)",
+    toastTrialActive: "⏱ АКТИВНИЙ ТЕСТОВИЙ ПЕРИОД (ЗАЛИШИЛОСЯ {days} ДН.)",
     pdfTitle: "Звіт — {month}",
     pdfStatusWork: "Робочий",
-    pdfStatusWeekend: "Вихідний",
+    pdfStatusWeekend: "Виходний",
     pdfColDay: "День",
     pdfColStatus: "Статус",
     pdfColRate: "Ставка",
@@ -204,6 +204,19 @@ export default function App() {
     checkSavedPassword();
   };
 
+  // Метод берет настоящий, постоянный Android ID устройства через нативный модуль Expo
+  const getOrCreateDeviceId = async () => {
+    try {
+      const nativeId = await Application.getAndroidIdAsync();
+      if (nativeId) {
+        return nativeId;
+      }
+      return "DEVICE_FALLBACK_" + Date.now();
+    } catch (e) {
+      return "DEVICE_FALLBACK_" + Date.now();
+    }
+  };
+
   const handleSelectLanguage = async (selectedLang) => {
     try {
       await AsyncStorage.setItem('@tabulka_lang', selectedLang);
@@ -262,7 +275,7 @@ export default function App() {
 
   const checkSavedPassword = async () => {
     try {
-      const deviceId = Application.androidId || "DEVICE_GENERIC";
+      const deviceId = await getOrCreateDeviceId();
       const savedPass = await AsyncStorage.getItem('@tabulka_password');
       
       if (savedPass) {
@@ -323,7 +336,7 @@ export default function App() {
     setIsAuthChecking(true);
 
     try {
-      const deviceId = Application.androidId || "DEVICE_GENERIC"; 
+      const deviceId = await getOrCreateDeviceId(); 
       const response = await fetch(`${FIREBASE_REST_URL}/activation_keys/${trimmed}.json`);
       const keyData = await response.json();
       
@@ -373,7 +386,7 @@ export default function App() {
     }
 
     try {
-      const deviceId = Application.androidId || "DEVICE_GENERIC";
+      const deviceId = await getOrCreateDeviceId();
       await fetch(`${FIREBASE_REST_URL}/support_requests/${deviceId}.json`, {
         method: 'PUT',
         body: JSON.stringify({
@@ -864,123 +877,117 @@ export default function App() {
                 )}
               </ScrollView>
 
-              <View style={styles.daySummaryLabelBox}>
-                <Text style={styles.daySummaryLabelText}>{t.dayTotalText} {getDayTotal(workData[selectedDate])}</Text>
+              <View style={styles.dayTotalRow}>
+                <Text style={styles.dayTotalTextLeft}>{t.dayTotalText}</Text>
+                <Text style={styles.dayTotalTextRight}>{getDayTotal(workData[selectedDate])}</Text>
               </View>
 
-              <TextInput placeholder={t.placeholderRate} style={styles.input} keyboardType="numeric" value={rate} onChangeText={setRate} />
-              <TextInput placeholder={t.placeholderHours} style={styles.input} keyboardType="numeric" value={hours} onChangeText={setHours} />
-              
-              <TouchableOpacity style={styles.btnAddNewRecordRow} onPress={handleAddRecord}>
-                <Text style={styles.btnAddNewRecordRowText}>{t.btnAddRecord}</Text>
+              <View style={styles.inputGroupRow}>
+                <TextInput 
+                  placeholder={t.placeholderRate} 
+                  keyboardType="numeric" 
+                  style={styles.modalInputHalf} 
+                  value={rate} 
+                  onChangeText={setRate} 
+                />
+                <TextInput 
+                  placeholder={t.placeholderHours} 
+                  keyboardType="numeric" 
+                  style={styles.modalInputHalf} 
+                  value={hours} 
+                  onChangeText={setHours} 
+                />
+              </View>
+
+              <TouchableOpacity style={styles.btnAddRecordRow} onPress={handleAddRecord}>
+                <Text style={styles.btnAddRecordRowText}>{t.btnAddRecord}</Text>
               </TouchableOpacity>
 
-              <View style={styles.modalButtons}>
-                <TouchableOpacity style={[styles.btn, styles.btnSave]} onPress={saveDayAndClose}><Text style={styles.btnText}> {t.btnSave} </Text></TouchableOpacity>
-                <TouchableOpacity style={[styles.btn, styles.btnCancel]} onPress={() => { setModalVisible(false); setSelectedDate(null); fetchWorkData(password); }}><Text style={styles.btnText}> {t.btnCancel} </Text></TouchableOpacity>
+              <View style={styles.modalButtonsRow}>
+                <TouchableOpacity style={styles.btnSaveMain} onPress={saveDayAndClose}>
+                  <Text style={styles.btnText}>{t.btnSave}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.btnCancelMain} onPress={() => { setModalVisible(false); setSelectedDate(null); fetchWorkData(password); }}>
+                  <Text style={styles.btnText}>{t.btnCancel}</Text>
+                </TouchableOpacity>
               </View>
             </View>
           </View>
         </Modal>
       </View>
-
-      {trialNotice && (
-        <View style={styles.trialToastContainer} pointerEvents="none">
-          <View style={styles.trialToast}>
-            <Text style={styles.trialToastText}>
-              {t.toastTrialActive.replace('{days}', daysLeft.toString())}
-            </Text>
-          </View>
-        </View>
-      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F9FAFB' },
-  authContainer: { flex: 1, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' },
-  authCardExpired: { width: width * 0.9, backgroundColor: '#FFF', padding: 22, borderRadius: 16, borderWidth: 1.5, borderColor: '#EF4444' },
-  authTitleExpired: { fontSize: 20, fontWeight: 'bold', color: '#EF4444', marginBottom: 15, textAlign: 'center' },
-  authSubtitleBold: { fontSize: 14, color: '#4B5563', marginBottom: 8, textAlign: 'left', fontWeight: 'bold' },
-  authInput: { borderBottomWidth: 1, borderColor: '#D1D5DB', paddingVertical: 6, fontSize: 16, marginBottom: 16, textAlign: 'center' },
-  authInputMargin: { borderBottomWidth: 1, borderColor: '#D1D5DB', paddingVertical: 6, fontSize: 16, marginBottom: 10, textAlign: 'center' },
-  authInputMarginLarge: { borderBottomWidth: 1, borderColor: '#D1D5DB', paddingVertical: 6, fontSize: 16, marginBottom: 15, textAlign: 'center' },
-  authBtnSend: { padding: 13, borderRadius: 10, alignItems: 'center', backgroundColor: '#10B981', marginBottom: 10 },
-  authBtnActivate: { padding: 13, borderRadius: 10, alignItems: 'center', backgroundColor: '#0052CC' },
-  authButtonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
-  separator: { marginVertical: 15, borderBottomWidth: 1, borderColor: '#E5E7EB' },
-  safeArea: { flex: 1, backgroundColor: '#F9FAFB', paddingTop: 30 },
-  container: { flex: 1, paddingHorizontal: 16 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-  headerTimeBlock: { flex: 1.2 },
-  dateText: { fontSize: 14, color: '#6B7280' },
-  timeText: { fontSize: 22, fontWeight: 'bold', color: '#111827' },
-  logoutButton: { paddingVertical: 4, paddingHorizontal: 8, backgroundColor: '#EF4444', borderRadius: 6 },
-  logoutText: { color: '#FFF', fontSize: 12, fontWeight: 'bold' },
-  requestHeaderButton: { flex: 1, marginHorizontal: 6, paddingVertical: 6, paddingHorizontal: 4, backgroundColor: '#10B981', borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
-  requestHeaderButtonText: { color: '#FFF', fontSize: 11, fontWeight: 'bold', textAlign: 'center' },
-  monthSelectorRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  monthTitleWrapper: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
-  monthTitle: { fontSize: 16, fontWeight: '700', color: '#374151', textAlign: 'center', marginRight: 8, maxWidth: 150 },
-  todayButton: { paddingVertical: 4, paddingHorizontal: 8, backgroundColor: '#0052CC', borderRadius: 6 },
-  todayButtonText: { color: '#FFF', fontSize: 11, fontWeight: 'bold' },
-  langCircleText: { color: '#FFF', fontSize: 14, fontWeight: 'bold' },
-  langCircleRu: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 1, backgroundColor: '#0052CC' },
-  langCircleRuDimmed: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 1, backgroundColor: '#0052CC', opacity: 0.35 },
-  langCircleUk: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 1, backgroundColor: '#10B981' },
-  langCircleUkDimmed: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 1, backgroundColor: '#10B981', opacity: 0.35 },
-  weekDaysRow: { flexDirection: 'row', marginBottom: 8 },
-  weekDayTextNormal: { width: (width - 32) / 7 - 8, marginHorizontal: 4, textAlign: 'center', fontWeight: '700', color: '#9CA3AF' },
-  weekDayTextWeekend: { width: (width - 32) / 7 - 8, marginHorizontal: 4, textAlign: 'center', fontWeight: '700', color: '#EF4444' },
+  safeArea: { flex: 1, backgroundColor: '#FFF' },
+  container: { flex: 1, paddingHorizontal: 10 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   centerLoading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  calendarGrid: { flexDirection: 'row', flexWrap: 'wrap' },
-  calendarRow: { flexDirection: 'row', justifyContent: 'flex-start', width: '100%' },
-  emptyCell: { width: (width - 32) / 7 - 8, height: 46, margin: 4, borderColor: 'transparent', backgroundColor: 'transparent' },
-  weekendCell: { width: (width - 32) / 7 - 8, height: 46, margin: 4, justifyContent: 'center', alignItems: 'center', borderRadius: 8, borderWidth: 1, backgroundColor: '#FFF', borderColor: '#E5E7EB' },
-  workDayCell: { width: (width - 32) / 7 - 8, height: 46, margin: 4, justifyContent: 'center', alignItems: 'center', borderRadius: 8, borderWidth: 1, backgroundColor: '#0052CC', borderColor: '#0052CC' },
-  dayText: { fontSize: 16, fontWeight: '600', color: '#374151' },
-  workDayText: { fontSize: 15, fontWeight: '600', color: '#FFF' },
-  cellSumSubtext: { fontSize: 10, color: '#A3E635', fontWeight: 'bold', marginTop: -2 },
-  statsContainer: { backgroundColor: '#FFF', padding: 14, borderRadius: 12, marginTop: 10, borderWidth: 1, borderColor: '#E5E7EB' },
-  statsText: { fontSize: 14, color: '#4B5563' },
-  totalText: { fontSize: 16, fontWeight: 'bold', marginTop: 4 },
-  archiveButton: { backgroundColor: '#0052CC', padding: 12, borderRadius: 12, alignItems: 'center', marginTop: 10 },
+  header: { flexDirection: 'row', justifyContent: 'between', alignItems: 'center', paddingVertical: 10 },
+  headerTimeBlock: { flex: 1 },
+  dateText: { fontSize: 14, color: '#666' },
+  timeText: { fontSize: 20, fontWeight: 'bold' },
+  requestHeaderButton: { padding: 8, backgroundColor: '#FF9900', borderRadius: 5, marginRight: 10 },
+  requestHeaderButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 12 },
+  logoutButton: { padding: 8, backgroundColor: '#FF4D4D', borderRadius: 5 },
+  logoutText: { color: '#FFF', fontWeight: 'bold' },
+  monthSelectorRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginVertical: 15 },
+  langCircleRu: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#0052CC', justifyContent: 'center', alignItems: 'center', marginRight: 15 },
+  langCircleRuDimmed: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#A2C2F2', justifyContent: 'center', alignItems: 'center', marginRight: 15 },
+  langCircleUk: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#0052CC', justifyContent: 'center', alignItems: 'center', marginLeft: 15 },
+  langCircleUkDimmed: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#A2C2F2', justifyContent: 'center', alignItems: 'center', marginLeft: 15 },
+  langCircleText: { color: '#FFF', fontWeight: 'bold' },
+  monthTitleWrapper: { alignItems: 'center' },
+  monthTitle: { fontSize: 18, fontWeight: 'bold', letterSpacing: 1 },
+  todayButton: { marginTop: 4 },
+  todayButtonText: { fontSize: 11, color: '#0052CC', fontWeight: 'bold' },
+  weekDaysRow: { flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: '#EEE' },
+  weekDayTextNormal: { width: (width - 20) / 7, textAlign: 'center', fontWeight: 'bold', color: '#333' },
+  weekDayTextWeekend: { width: (width - 20) / 7, textAlign: 'center', fontWeight: 'bold', color: '#FF4D4D' },
+  calendarGrid: { paddingVertical: 10 },
+  calendarRow: { flexDirection: 'row', justifyContent: 'start' },
+  emptyCell: { width: (width - 20) / 7, height: 55, margin: 0 },
+  weekendCell: { width: (width - 20) / 7, height: 55, justifyContent: 'center', alignItems: 'center', borderWidth: 0.5, borderColor: '#E0E0E0', backgroundColor: '#FAFAFA' },
+  workDayCell: { width: (width - 20) / 7, height: 55, justifyContent: 'center', alignItems: 'center', borderWidth: 0.5, borderColor: '#0052CC', backgroundColor: '#E6F0FF' },
+  dayText: { fontSize: 14, color: '#333' },
+  workDayText: { fontSize: 14, fontWeight: 'bold', color: '#0052CC' },
+  cellSumSubtext: { fontSize: 10, color: '#28A745', fontWeight: 'bold', marginTop: 2 },
+  statsContainer: { padding: 12, backgroundColor: '#F4F5F7', borderRadius: 8, marginVertical: 10 },
+  statsText: { fontSize: 14, color: '#333', marginBottom: 4 },
+  totalText: { fontSize: 16, fontWeight: 'bold', color: '#0052CC', marginTop: 4 },
+  archiveButton: { padding: 12, backgroundColor: '#6C757D', borderRadius: 6, alignItems: 'center', marginBottom: 8 },
   archiveButtonText: { color: '#FFF', fontWeight: 'bold' },
-  pdfButton: { backgroundColor: '#10B981', padding: 12, borderRadius: 12, alignItems: 'center', marginTop: 8 },
+  pdfButton: { padding: 12, backgroundColor: '#28A745', borderRadius: 6, alignItems: 'center', marginBottom: 15 },
   pdfButtonText: { color: '#FFF', fontWeight: 'bold' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
-  modalContent: { width: width * 0.85, backgroundColor: '#FFF', padding: 20, borderRadius: 16 },
-  modalContentLang: { width: width * 0.85, backgroundColor: '#FFF', padding: 20, borderRadius: 16, paddingVertical: 25 },
-  btnLangUk: { padding: 13, borderRadius: 10, alignItems: 'center', backgroundColor: '#10B981', marginBottom: 15, width: '100%' },
-  btnLangRu: { padding: 13, borderRadius: 10, alignItems: 'center', backgroundColor: '#0052CC', width: '100%' },
-  modalTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
-  archiveScroll: { maxHeight: 300 },
-  archiveItemRow: { paddingVertical: 14, borderBottomWidth: 1, borderColor: '#E5E7EB', alignItems: 'center', width: '100%' },
-  archiveMonthNameText: { fontSize: 15, fontWeight: 'bold', color: '#374151' },
-  btnCloseArchive: { padding: 10, borderRadius: 8, alignItems: 'center', backgroundColor: '#9CA3AF', width: '100%', marginTop: 15 },
-  input: { borderBottomWidth: 1, borderColor: '#D1D5DB', paddingVertical: 6, marginBottom: 10 },
-  modalButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
-  btn: { padding: 10, borderRadius: 8, minWidth: 80, alignItems: 'center' },
-  btnSave: { backgroundColor: '#0052CC', flex: 1, marginRight: 5 },
-  btnRequestSave: { padding: 10, borderRadius: 8, minWidth: 80, alignItems: 'center', backgroundColor: '#10B981', flex: 1, marginRight: 5 },
-  btnCancel: { backgroundColor: '#9CA3AF' },
+  modalContent: { width: width * 0.85, backgroundColor: '#FFF', borderRadius: 10, padding: 20 },
+  modalContentLang: { width: width * 0.8, backgroundColor: '#FFF', borderRadius: 10, padding: 25, alignItems: 'center' },
+  btnLangUk: { width: '100%', padding: 15, backgroundColor: '#FFD700', borderRadius: 6, alignItems: 'center', marginBottom: 12 },
+  btnLangRu: { width: '100%', padding: 15, backgroundColor: '#0052CC', borderRadius: 6, alignItems: 'center' },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, textAlign: 'center' },
+  subSectionTitle: { fontSize: 14, fontWeight: 'bold', color: '#5E6C84', marginBottom: 5 },
+  miniRecordsList: { maxHeight: 120, marginBottom: 10, borderBottomWidth: 1, borderBottomColor: '#EDF2F7' },
+  miniRecordRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6, borderBottomWidth: 0.5, borderBottomColor: '#E2E8F0' },
+  miniRecordText: { fontSize: 14, color: '#2D3748' },
+  miniDeleteBtn: { padding: 4 },
+  miniDeleteBtnText: { fontSize: 14, color: '#E53E3E' },
+  noRecordsText: { fontSize: 13, color: '#A0AEC0', fontStyle: 'italic', paddingVertical: 10, textAlign: 'center' },
+  dayTotalRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
+  dayTotalTextLeft: { fontSize: 14, fontWeight: 'bold', color: '#2D3748' },
+  dayTotalTextRight: { fontSize: 15, fontWeight: 'bold', color: '#28A745' },
+  inputGroupRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+  modalInputHalf: { width: '48%', borderWidth: 1, borderColor: '#CBD5E0', borderRadius: 6, padding: 8, fontSize: 14 },
+  btnAddRecordRow: { padding: 10, backgroundColor: '#EBECF0', borderRadius: 6, alignItems: 'center', marginBottom: 20 },
+  btnAddRecordRowText: { color: '#42526E', fontWeight: 'bold', fontSize: 14 },
+  modalButtonsRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  btnSaveMain: { width: '48%', padding: 12, backgroundColor: '#0052CC', borderRadius: 6, alignItems: 'center' },
+  btnCancelMain: { width: '48%', padding: 12, backgroundColor: '#7A869A', borderRadius: 6, alignItems: 'center' },
+  archiveScroll: { maxHeight: 250, width: '100%' },
+  archiveItemRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#EEE', alignItems: 'center' },
+  archiveMonthNameText: { fontSize: 14, fontWeight: 'bold', color: '#333' },
+  btnCloseArchive: { width: '100%', padding: 12, backgroundColor: '#7A869A', borderRadius: 6, alignItems: 'center', marginTop: 15 },
   btnText: { color: '#FFF', fontWeight: 'bold' },
-  noticeContainer: { backgroundColor: '#0052CC', padding: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  noticeContainerMargin: { backgroundColor: '#0052CC', padding: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginTop: 12 },
-  noticeSubText: { fontSize: 16, fontWeight: 'bold', color: '#FFF', textAlign: 'center' },
-  trialToastContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: 9999 },
-  trialToast: { backgroundColor: 'rgba(0, 0, 0, 0.88)', paddingVertical: 18, paddingHorizontal: 26, borderRadius: 14, maxWidth: width * 0.9, elevation: 8 },
-  trialToastText: { color: '#FFF', fontSize: 16, fontWeight: 'bold', textAlign: 'center', letterSpacing: 0.5 },
-  subSectionTitle: { fontSize: 13, fontWeight: 'bold', color: '#4B5563', marginBottom: 5 },
-  miniRecordsList: { maxHeight: 110, backgroundColor: '#F3F4F6', borderRadius: 8, padding: 8, marginBottom: 8 },
-  miniRecordRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4, borderBottomWidth: 1, borderColor: '#E5E7EB' },
-  miniRecordText: { fontSize: 14, color: '#111827', fontWeight: '500' },
-  miniDeleteBtn: { paddingHorizontal: 8, paddingVertical: 2 },
-  miniDeleteBtnText: { fontSize: 14, color: '#EF4444' },
-  noRecordsText: { fontSize: 13, color: '#9CA3AF', textAlign: 'center', marginVertical: 10 },
-  daySummaryLabelBox: { backgroundColor: '#EFF6FF', padding: 8, borderRadius: 6, alignItems: 'center', marginBottom: 10 },
-  daySummaryLabelText: { fontSize: 14, fontWeight: 'bold', color: '#1E40AF' },
-  btnAddNewRecordRow: { backgroundColor: '#10B981', padding: 10, borderRadius: 8, alignItems: 'center', marginBottom: 5 },
-  btnAddNewRecordRowText: { color: '#FFF', fontWeight: 'bold', fontSize: 14 }
-});
+  input: { width: '100%', borderWidth: 1, borderColor: '#CCC', borderRadius: 6, padding: 10, marginBottom: 12 },
+  modalButtons: { flexDirection: 'row', justifyContent: 'space-between', width: '100%' },
+  btnRequestSave: { width: '48%', padding: 12, backgroundColor: '#28A745', borderRadius: 6
