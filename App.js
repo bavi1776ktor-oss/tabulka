@@ -51,7 +51,7 @@ const translations = {
     btnCancel: "Отмена",
     btnClose: "Закрыть",
     archiveEarnings: "Заработок",
-    toastTrialActive: "⏱ АКТИВЕН ТЕСТОВЫЙ ПЕРИОД (ОСТАЛОСЬ {days} ДН.)",
+    toastTrialActive: "⏱ ТЕСТОВЫЙ ПЕРИОД: ОСТАЛОСЬ {days} ДН.",
     pdfTitle: "Отчет — {month}",
     pdfStatusWork: "Рабочий",
     pdfStatusWeekend: "Выходной",
@@ -92,7 +92,7 @@ const translations = {
   },
   uk: {
     locale: 'uk-UA',
-    trialExpiredTitle: "Термін дії пробного періоду (7 днів) закінчився",
+    trialExpiredTitle: "Термін дії пробного періоду (7 дней) закінчився",
     requestFullVersion: "Надіслати запит на повну версію:",
     requestFullVersionHeader: "Запитувати повну версію",
     placeholderName: "Ваше Ім'я",
@@ -112,11 +112,11 @@ const translations = {
     modalDayTitle: "День",
     placeholderRate: "Ставка",
     placeholderHours: "Години",
-    btnSave: "Зберегти",
+    btnSave: "Скасувати",
     btnCancel: "Скасувати",
     btnClose: "Закрити",
     archiveEarnings: "Заробіток",
-    toastTrialActive: "⏱ АКТИВНИЙ ТЕСТОВИЙ ПЕРИОД (ЗАЛИШИЛОСЯ {days} ДН.)",
+    toastTrialActive: "⏱ ТЕСТОВИЙ ПЕРІОД: ЗАЛИШИЛОСЯ {days} ДН.",
     pdfTitle: "Звіт — {month}",
     pdfStatusWork: "Робочий",
     pdfStatusWeekend: "Вихідний",
@@ -175,7 +175,6 @@ export default function App() {
   const [rate, setRate] = useState('');
   const [hours, setHours] = useState('');
 
-  const [trialNotice, setTrialNotice] = useState(false); 
   const [isTrialExpired, setIsTrialExpired] = useState(false); 
   const [daysLeft, setDaysLeft] = useState(7);
   const [requestModalVisible, setRequestModalVisible] = useState(false);
@@ -306,8 +305,6 @@ export default function App() {
           const calculatedDays = Math.ceil(remainingSeconds / (24 * 60 * 60));
           setDaysLeft(calculatedDays);
           setPassword("TRIAL_MODE_" + deviceId);
-          setTrialNotice(true);
-          setTimeout(() => setTrialNotice(false), 3000);
         }
       } else {
         await fetch(`${FIREBASE_REST_URL}/trial_devices/${deviceId}.json`, {
@@ -316,8 +313,6 @@ export default function App() {
         });
         setDaysLeft(7);
         setPassword("TRIAL_MODE_" + deviceId);
-        setTrialNotice(true);
-        setTimeout(() => setTrialNotice(false), 3000);
       }
 
     } catch (e) {
@@ -717,6 +712,16 @@ export default function App() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
+        
+        {/* Постоянное жирное сообщение о триал-периоде */}
+        {isCurrentModeTrial && (
+          <View style={styles.persistentTrialContainer}>
+            <Text style={styles.persistentTrialText}>
+              {t.toastTrialActive.replace('{days}', daysLeft)}
+            </Text>
+          </View>
+        )}
+
         <View style={styles.header}>
           <View style={styles.headerTimeBlock}>
             <Text style={styles.dateText}>{currentTime.toLocaleDateString(t.locale)}</Text>
@@ -933,6 +938,24 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 10,
   },
+  persistentTrialContainer: {
+    backgroundColor: '#DEEBFF',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    marginTop: 8,
+    marginBottom: 4,
+    borderWidth: 1.5,
+    borderColor: '#0052CC',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  persistentTrialText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#0747A6',
+    textAlign: 'center',
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -1131,11 +1154,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E3E6EB',
   },
-  stylesText: { // Сохранено из оригинального кода для безопасности
-    fontSize: 14,
-    color: '#4A5568',
-    marginBottom: 3,
-  },
   statsText: {
     fontSize: 14,
     color: '#4A5568',
@@ -1209,242 +1227,3 @@ const styles = StyleSheet.create({
   },
   btnLangRu: {
     width: '100%',
-    backgroundColor: '#0052CC',
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#172B4D',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  subSectionTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#6B778C',
-    textTransform: 'uppercase',
-    marginBottom: 6,
-  },
-  miniRecordsList: {
-    maxHeight: 120,
-    marginBottom: 8,
-    backgroundColor: '#F4F5F7',
-    borderRadius: 6,
-    padding: 6,
-  },
-  miniRecordRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E3E6EB',
-  },
-  miniRecordText: {
-    fontSize: 13,
-    color: '#172B4D',
-  },
-  miniDeleteBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  miniDeleteBtnText: {
-    color: '#DE350B',
-    fontSize: 15,
-  },
-  noRecordsText: {
-    fontSize: 13,
-    color: '#7A869A',
-    fontStyle: 'italic',
-    textAlign: 'center',
-    marginVertical: 8,
-  },
-  dayTotalText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#172B4D',
-    textAlign: 'right',
-    marginBottom: 12,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    marginBottom: 10,
-  },
-  input: {
-    backgroundColor: '#FAFBFC',
-    borderWidth: 1,
-    borderColor: '#DFE1E6',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 14,
-    color: '#172B4D',
-  },
-  btnAddRecord: {
-    backgroundColor: '#0052CC',
-    paddingVertical: 8,
-    borderRadius: 6,
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    borderTopWidth: 1,
-    borderTopColor: '#E3E6EB',
-    paddingTop: 12,
-  },
-  btnSave: {
-    flex: 1,
-    backgroundColor: '#00875A',
-    paddingVertical: 10,
-    borderRadius: 6,
-    alignItems: 'center',
-    marginRight: 8,
-  },
-  btnCancel: {
-    flex: 1,
-    backgroundColor: '#7A869A',
-    paddingVertical: 10,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  btnText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  archiveScroll: {
-    maxHeight: 250,
-    marginBottom: 12,
-  },
-  archiveItemRow: {
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E3E6EB',
-    alignItems: 'center',
-  },
-  archiveMonthNameText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#42526E',
-  },
-  btnCloseArchive: {
-    backgroundColor: '#42526E',
-    paddingVertical: 10,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  authContainer: {
-    flex: 1,
-    backgroundColor: '#002159',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  authCardExpired: {
-    width: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  authTitleExpired: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#DE350B',
-    textAlign: 'center',
-    marginBottom: 16,
-    lineHeight: 22,
-  },
-  authSubtitleBold: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#172B4D',
-    marginBottom: 6,
-  },
-  authInputMargin: {
-    backgroundColor: '#FAFBFC',
-    borderWidth: 1,
-    borderColor: '#DFE1E6',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 14,
-    marginBottom: 8,
-  },
-  authInputMarginLarge: {
-    backgroundColor: '#FAFBFC',
-    borderWidth: 1,
-    borderColor: '#DFE1E6',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 14,
-    marginBottom: 12,
-  },
-  authInput: {
-    backgroundColor: '#FAFBFC',
-    borderWidth: 1,
-    borderColor: '#DFE1E6',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 14,
-    marginBottom: 12,
-  },
-  authBtnSend: {
-    backgroundColor: '#00875A',
-    paddingVertical: 12,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  authBtnActivate: {
-    backgroundColor: '#0052CC',
-    paddingVertical: 12,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  authButtonText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  noticeContainer: {
-    marginTop: 8,
-    backgroundColor: '#DEEBFF',
-    padding: 8,
-    borderRadius: 4,
-  },
-  noticeContainerMargin: {
-    marginTop: 12,
-    backgroundColor: '#DEEBFF',
-    padding: 8,
-    borderRadius: 4,
-  },
-  noticeSubText: {
-    fontSize: 11,
-    color: '#0747A6',
-    textAlign: 'center',
-    lineHeight: 15,
-  },
-  separator: {
-    height: 1,
-    backgroundColor: '#DFE1E6',
-    marginVertical: 16,
-  },
-  btnRequestSave: {
-    flex: 1,
-    backgroundColor: '#00875A',
-    paddingVertical: 10,
-    borderRadius: 6,
-    alignItems: 'center',
-    marginRight: 8,
-  },
-});
