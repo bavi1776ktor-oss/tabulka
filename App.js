@@ -16,7 +16,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import * as Application from 'expo-application';
+import * as SecureStore from 'expo-secure-store';
 
 const { width } = Dimensions.get('window');
 const TRIAL_DURATION_SECONDS = 7 * 24 * 60 * 60;
@@ -119,14 +119,14 @@ const translations = {
     toastTrialActive: "⏱ АКТИВНИЙ ТЕСТОВИЙ ПЕРИОД (ЗАЛИШИЛОСЯ {days} ДН.)",
     pdfTitle: "Звіт — {month}",
     pdfStatusWork: "Робочий",
-    pdfStatusWeekend: "Виходний",
+    pdfStatusWeekend: "Вихідний",
     pdfColDay: "День",
     pdfColStatus: "Статус",
     pdfColRate: "Ставка",
     pdfColHours: "Години",
     pdfColSum: "Сума",
     alertExitTitle: "Вихід",
-    alertExitMessage: "Вийти з профілю?",
+    alertExitMessage: "Вийти из профілю?",
     alertExitCancel: "Скасувати",
     alertFormatError: "Неправильний формат",
     alertFormatShort: "Занадто короткий ключ активації.",
@@ -134,17 +134,17 @@ const translations = {
     alertSuccessMessage: "Додаток успешно активовано!",
     alertKeyUsed: "Цей ключ вже закріплений за іншим пристроєм!",
     alertKeyBlock: "Цей ключ заблокований адміністратором.",
-    alertKeyNotFound: "Ключ не знайдено в базі даних.",
+    alertKeyNotFound: "Ключ не знайдено в базе даних.",
     alertInputError: "Введіть коректні числа",
     alertPdfError: "Не вдалося створити PDF",
     alertRequestSaved: "Дані записані в базу. На вашому пристрої не знайдено налаштованого поштового додатка для прямої відправки.",
-    alertMailError: "Запит успішно збережено в Firebase, но не вдалося запустити поштовий додаток.",
+    alertMailError: "Запит успішно збережено в Firebase, але не вдалося запустити поштовий додаток.",
     alertFillFields: "Будь ласка, заповніть Ім'я та Телефон для зв'язку",
     btnToday: "Сьогодні",
     noRecordsText: "Немає записів за цей день",
     subSectionTitle: "Роботи за день:",
     dayTotalText: "Всього за день:",
-    btnAddRecord: "+ Добавить запись",
+    btnAddRecord: "+ Додати запис",
     selectLangTitle: "Оберіть мову (Укр)",
     errorTitle: "Помилка",
     networkErrorTitle: "Помилка мережі",
@@ -204,18 +204,6 @@ export default function App() {
     checkSavedPassword();
   };
 
-  const getOrCreateDeviceId = async () => {
-    try {
-      const nativeId = await Application.getAndroidIdAsync();
-      if (nativeId) {
-        return nativeId;
-      }
-      return "DEVICE_FALLBACK_" + Date.now();
-    } catch (e) {
-      return "DEVICE_FALLBACK_" + Date.now();
-    }
-  };
-
   const handleSelectLanguage = async (selectedLang) => {
     try {
       await AsyncStorage.setItem('@tabulka_lang', selectedLang);
@@ -272,9 +260,22 @@ export default function App() {
     }
   }, [password, currentMonth]);
 
+  const getOrCreateDeviceUUID = async () => {
+    try {
+      let uuid = await SecureStore.getItemAsync('@tabulka_device_uuid');
+      if (!uuid) {
+        uuid = 'dev_' + Date.now() + '_' + Math.random().toString(36).substring(2, 11);
+        await SecureStore.setItemAsync('@tabulka_device_uuid', uuid);
+      }
+      return uuid;
+    } catch (e) {
+      return "DEVICE_GENERIC_FALLBACK";
+    }
+  };
+
   const checkSavedPassword = async () => {
     try {
-      const deviceId = await getOrCreateDeviceId();
+      const deviceId = await getOrCreateDeviceUUID();
       const savedPass = await AsyncStorage.getItem('@tabulka_password');
       
       if (savedPass) {
@@ -335,7 +336,7 @@ export default function App() {
     setIsAuthChecking(true);
 
     try {
-      const deviceId = await getOrCreateDeviceId(); 
+      const deviceId = await getOrCreateDeviceUUID(); 
       const response = await fetch(`${FIREBASE_REST_URL}/activation_keys/${trimmed}.json`);
       const keyData = await response.json();
       
@@ -385,7 +386,7 @@ export default function App() {
     }
 
     try {
-      const deviceId = await getOrCreateDeviceId();
+      const deviceId = await getOrCreateDeviceUUID();
       await fetch(`${FIREBASE_REST_URL}/support_requests/${deviceId}.json`, {
         method: 'PUT',
         body: JSON.stringify({
@@ -537,8 +538,8 @@ export default function App() {
       return { workDays: 0, weekendDays: 0, totalSum: 0 };
     }
     
-    const firstWorkDayNum = Math.min(...activeWorkDaysInMonth.map(d => parseInt(d.split('-')[2], 10)));
-    let lastWorkDayNum = Math.max(...activeWorkDaysInMonth.map(d => parseInt(d.split('-')[2], 10)));
+    const firstWorkDayNum = Math.min(...activeWorkDaysInMonth.map(d => parseInt(d.split('-')[2])));
+    let lastWorkDayNum = Math.max(...activeWorkDaysInMonth.map(d => parseInt(d.split('-')[2])));
     
     const sampleDay = daysList[0]; 
     const [viewYear, viewMonth] = sampleDay.split('-').map(Number);
@@ -550,7 +551,7 @@ export default function App() {
     }
     
     daysList.forEach(day => {
-      const dayNum = parseInt(day.split('-')[2], 10);
+      const dayNum = parseInt(day.split('-')[2]);
       const dayTotal = getDayTotal(workData[day]);
       if (dayTotal > 0) { 
         wDays++; 
@@ -734,4 +735,193 @@ export default function App() {
 
         <View style={styles.monthSelectorRow}>
           <TouchableOpacity 
-            style={lang
+            style={lang === 'ru' ? styles.langCircleRu : styles.langCircleRuDimmed} 
+            onPress={() => handleSelectLanguage('ru')}
+          >
+            <Text style={styles.langCircleText}>Р</Text>
+          </TouchableOpacity>
+
+          <View style={styles.monthTitleWrapper}>
+            <Text style={styles.monthTitle}>
+              {currentMonth.toLocaleString(t.locale, { month: 'long', year: 'numeric' }).toUpperCase()}
+            </Text>
+            <TouchableOpacity style={styles.todayButton} onPress={handleGoToToday}>
+              <Text style={styles.todayButtonText}>{t.btnToday.toUpperCase()}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity 
+            style={lang === 'uk' ? styles.langCircleUk : styles.langCircleUkDimmed} 
+            onPress={() => handleSelectLanguage('uk')}
+          >
+            <Text style={styles.langCircleText}>У</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.weekDaysRow}>
+          {t.weekDays.map((day, index) => {
+            const isWeekend = day === 'Сб' || day === 'Вс' || day === 'Нд';
+            return (
+              <Text key={index} style={isWeekend ? styles.weekDayTextWeekend : styles.weekDayTextNormal}>
+                {day}
+              </Text>
+            );
+          })}
+        </View>
+
+        {isLoadingData ? (
+          <View style={styles.centerLoading}>
+            <ActivityIndicator size="large" color="#0052CC" />
+          </View>
+        ) : (
+          <ScrollView contentContainerStyle={styles.calendarGrid}>
+            {renderCalendarGrid()}
+          </ScrollView>
+        )}
+
+        <View style={styles.statsContainer}>
+          <Text style={styles.statsText}>{t.statsWorkDays}: {stats.workDays}</Text>
+          <Text style={styles.statsText}>{t.statsWeekendDays}: {stats.weekendDays}</Text>
+          <Text style={styles.totalText}>{t.statsTotalSum}: {stats.totalSum}</Text>
+        </View>
+
+        <TouchableOpacity style={styles.archiveButton} onPress={() => setArchiveModalVisible(true)}>
+          <Text style={styles.archiveButtonText}>{t.btnArchive}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.pdfButton} onPress={exportToPDF}>
+          <Text style={styles.pdfButtonText}>{t.btnSavePdf}</Text>
+        </TouchableOpacity>
+
+        <Modal visible={langModalVisible} transparent={true} animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContentLang}>
+              <TouchableOpacity style={styles.btnLangUk} onPress={() => handleSelectLanguage('uk')}>
+                <Text style={styles.authButtonText}>Оберіть мову (Укр)</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.btnLangRu} onPress={() => handleSelectLanguage('ru')}>
+                <Text style={styles.authButtonText}>Выберите язык (Рус)</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal visible={requestModalVisible} transparent={true} animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>{t.btnSendRequest}</Text>
+              <TextInput placeholder={t.placeholderName} style={styles.input} value={clientName} onChangeText={setClientName} />
+              <TextInput placeholder={t.placeholderPhone} keyboardType="phone-pad" style={styles.input} value={clientPhone} onChangeText={setClientPhone} />
+              
+              <View style={styles.modalButtons}>
+                <TouchableOpacity style={styles.btnRequestSave} onPress={handleSendSupportRequest}>
+                  <Text style={styles.btnText}>{t.btnSendRequest}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.btn, styles.btnCancel]} onPress={() => setRequestModalVisible(false)}>
+                  <Text style={styles.btnText}>{t.btnCancel}</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.noticeContainerMargin}>
+                <Text style={styles.noticeSubText}>{t.noticeText}</Text>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal visible={archiveModalVisible} transparent={true} animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>{t.btnArchive}</Text>
+              <ScrollView style={styles.archiveScroll}>
+                {getArchiveMonthsList().map((item, idx) => {
+                  const label = item.dateObject.toLocaleString(t.locale, { month: 'long', year: 'numeric' });
+                  return (
+                    <TouchableOpacity 
+                      key={idx} 
+                      style={styles.archiveItemRow}
+                      onPress={() => loadArchiveMonthData(item.year, item.month)}
+                    >
+                      <Text style={styles.archiveMonthNameText}>{label.toUpperCase()}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+              <TouchableOpacity style={styles.btnCloseArchive} onPress={() => setArchiveModalVisible(false)}>
+                <Text style={styles.btnText}>{t.btnClose}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal visible={modalVisible} transparent={true} animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>{t.modalDayTitle}: {selectedDate ? selectedDate.split('-')[2] : ''}</Text>
+              
+              <Text style={styles.subSectionTitle}>{t.subSectionTitle}</Text>
+              <ScrollView style={styles.miniRecordsList}>
+                {workData[selectedDate]?.records && workData[selectedDate].records.length > 0 ? (
+                  workData[selectedDate].records.map((rec) => (
+                    <View key={rec.id} style={styles.miniRecordRow}>
+                      <Text style={styles.miniRecordText}>
+                        {rec.rate} × {rec.hours} {t.hourUnit} = {rec.rate * rec.hours}
+                      </Text>
+                      <TouchableOpacity onPress={() => handleDeleteRecord(rec.id)} style={styles.miniDeleteBtn}>
+                        <Text style={styles.miniDeleteBtnText}>🗑</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.noRecordsText}>{t.noRecordsText}</Text>
+                )}
+              </ScrollView>
+
+              <Text style={styles.dayTotalText}>{t.dayTotalText} {getDayTotal(workData[selectedDate])}</Text>
+
+              <View style={styles.inputRow}>
+                <TextInput 
+                  placeholder={t.placeholderRate} 
+                  keyboardType="numeric" 
+                  style={[styles.input, { flex: 1, marginRight: 8 }]} 
+                  value={rate} 
+                  onChangeText={setRate} 
+                />
+                <TextInput 
+                  placeholder={t.placeholderHours} 
+                  keyboardType="numeric" 
+                  style={[styles.input, { flex: 1 }]} 
+                  value={hours} 
+                  onChangeText={setHours} 
+                />
+              </View>
+
+              <TouchableOpacity style={styles.btnAddRecord} onPress={handleAddRecord}>
+                <Text style={styles.btnText}>{t.btnAddRecord}</Text>
+              </TouchableOpacity>
+
+              <View style={styles.modalButtons}>
+                <TouchableOpacity style={styles.btnSave} onPress={saveDayAndClose}>
+                  <Text style={styles.btnText}>{t.btnSave}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.btn, styles.btnCancel]} 
+                  onPress={() => {
+                    setModalVisible(false);
+                    setSelectedDate(null);
+                    fetchWorkData(password);
+                  }}
+                >
+                  <Text style={styles.btnText}>{t.btnCancel}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+// Стили (styles) остаются без изменений в самом низу вашего файла...
+const styles = StyleSheet.create({});
