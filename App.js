@@ -88,68 +88,76 @@ const translations = {
     lockTitle: "Блокировка",
     noticeTitle: "Уведомление",
     networkSendError: "Не удалось отправить данные",
-    hourUnit: "ч."
+    hourUnit: "ч.",
+    attention: "Внимание",
+    trialNotice: "Используется бесплатный пробный период (7 дней)."
   },
   uk: {
     locale: 'uk-UA',
-    trialExpiredTitle: 'Термін дії пробної версії закінчився',
-    requestFullVersion: 'Запросити повну версію програми',
+    trialExpiredTitle: "Термін дії пробної версії закінчився",
+    requestFullVersion: "Запросити повну версію програми",
+    requestFullVersionHeader: "ЗАПРОСИТИ ПОВНУ ВЕРСІЮ",
     placeholderName: "Ваше ім'я",
-    placeholderPhone: 'Телефон +38 (0...',
-    btnSendRequest: 'Надіслати запит',
-    noticeText: 'Для отримання ключа надішліть запит',
-    enterKeyTitle: 'Або введіть ключ активації, якщо він у вас є:',
-    placeholderKey: 'КЛЮЧ АКТИВАЦІЇ',
-    btnActivate: 'Активувати',
-    // Вот эта строка, которая у тебя светилась на русском:
-    toastTrialActive: 'Увага! Використовується безкоштовний пробний період. Залишилося днів: {days}',
-    statsWorkDays: 'Робочих днів',
-    statsWeekendDays: 'Вихідних днів (у періоді)',
-    statsTotalSum: 'Загальна сума',
-    btnArchive: 'АРХІВ МІСЯЦІВ',
-    btnSavePdf: 'ЗБЕРЕГТИ В PDF',
-    modalDayTitle: 'День',
-    subSectionTitle: 'Список записів за день:',
-    hourUnit: 'год',
-    noRecordsText: 'Немає записів за цей день',
-    dayTotalText: 'Разом за день:',
-    placeholderRate: 'Ставка',
-    placeholderHours: 'Години',
-    btnAddRecord: 'Додати запис',
-    btnSave: 'ЗБЕРЕГТИ ДЕНЬ',
-    btnCancel: 'Скасувати',
-    btnClose: 'ЗАКРИТИ',
-    pdfStatusWork: 'Робота',
-    pdfStatusWeekend: 'Вихідний',
-    pdfTitle: 'Звіт за {month}',
-    pdfColDay: 'День',
-    pdfColStatus: 'Статус',
-    pdfColRate: 'Ставка',
-    pdfColHours: 'Години',
-    pdfColSum: 'Сума',
-    alertFormatError: 'Помилка формату',
-    alertFormatShort: 'Ключ занадто короткий',
-    alertSuccessTitle: 'Успішно',
-    alertSuccessMessage: 'Ключ активовано!',
-    activationErrorTitle: 'Помилка активації',
-    alertKeyUsed: 'Цей ключ вже використовується на іншому пристрої!',
-    lockTitle: 'Блокування',
-    alertKeyBlock: 'Ключ заблоковано!',
-    noticeTitle: 'Увага',
-    alertKeyNotFound: 'Ключ не знайдено в базі даних!',
-    networkErrorTitle: 'Помилка мережі',
-    alertFillFields: 'Будь ласка, заповніть всі поля',
-    alertRequestSaved: 'Запит збережено в базі! Надішліть email для підтвердження.',
-    alertMailError: 'Не вдалося відкрити поштову програму. Запит збережено в базі.',
-    alertExitTitle: 'Вихід',
-    alertExitMessage: 'Ви впевнені, що хочете видалити ключ і вийти?',
-    alertExitCancel: 'Скасувати',
-    btnExit: 'ВИХІД',
-    errorTitle: 'Помилка',
-    alertInputError: 'Будь ласка, введіть коректні значення ставки та годин',
-    networkSendError: 'Не вдалося зберегти дані на сервері',
-    btnToday: 'Сьогодні',
-    requestFullVersionHeader: 'ЗАПРОСИТИ ПОВНУ ВЕРСІЮ'
+    placeholderPhone: "Телефон +38 (0...",
+    btnSendRequest: "Надіслати запит",
+    noticeText: "Для отримання ключа надішліть запит",
+    enterKeyTitle: "Або введіть ключ активації, якщо він у вас є:",
+    placeholderKey: "КЛЮЧ АКТИВАЦІЇ",
+    btnActivate: "Актувати",
+    btnExit: "ВИХІД",
+    weekDays: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'],
+    statsWorkDays: "Робочих днів",
+    statsWeekendDays: "Вихідних днів (у періоді)",
+    statsTotalSum: "Загальна сума",
+    btnArchive: "АРХІВ МІСЯЦІВ",
+    btnSavePdf: "ЗБЕРЕГТИ В PDF",
+    modalDayTitle: "День",
+    placeholderRate: "Ставка",
+    placeholderHours: "Години",
+    btnSave: "ЗБЕРЕГТИ ДЕНЬ",
+    btnCancel: "Скасувати",
+    btnClose: "ЗАКРИТИ",
+    archiveEarnings: "Заробіток",
+    toastTrialActive: "Увага! Використовується безкоштовний пробний період. Залишилося днів: {days}",
+    pdfTitle: "Звіт за {month}",
+    pdfStatusWork: "Робота",
+    pdfStatusWeekend: "Вихідний",
+    pdfColDay: "День",
+    pdfColStatus: "Статус",
+    pdfColRate: "Ставка",
+    pdfColHours: "Години",
+    pdfColSum: "Сума",
+    alertExitTitle: "Вихід",
+    alertExitMessage: "Ви впевнені, що хочете видалити ключ і вийти?",
+    alertExitCancel: "Скасувати",
+    alertFormatError: "Помилка формату",
+    alertFormatShort: "Ключ занадто короткий",
+    alertSuccessTitle: "Успішно",
+    alertSuccessMessage: "Ключ активовано!",
+    alertKeyUsed: "Цей ключ вже використовується на іншому пристрої!",
+    alertKeyBlock: "Ключ заблоковано!",
+    alertKeyNotFound: "Ключ не знайдено в базі даних!",
+    alertInputError: "Будь ласка, введіть коректні значення ставки та годин",
+    alertPdfError: "Не вдалося створити PDF",
+    alertRequestSaved: "Запит збережено в базі! Надішліть email для підтвердження.",
+    alertMailError: "Не вдалося відкрити поштову програму. Запит збережено в базі.",
+    alertFillFields: "Будь ласка, заповніть всі поля",
+    btnToday: "Сьогодні",
+    noRecordsText: "Немає записів за цей день",
+    subSectionTitle: "Список записів за день:",
+    dayTotalText: "Разом за день:",
+    btnAddRecord: "+ Додати запис",
+    selectLangTitle: "Оберіть мову (Укр)",
+    errorTitle: "Помилка",
+    networkErrorTitle: "Помилка мережі",
+    networkErrorMsg: "Не вдалося оновити дані з бази",
+    activationErrorTitle: "Помилка активації",
+    lockTitle: "Блокування",
+    noticeTitle: "Увага",
+    networkSendError: "Не вдалося зберегти дані на сервері",
+    hourUnit: "год",
+    attention: "Увага",
+    trialNotice: "Використовується безкоштовний пробний період (7 днів)."
   }
 };
 
@@ -184,16 +192,13 @@ export default function App() {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     initLanguageAndAuth();
     
-    // Всплывающее сообщение при старте приложения
-    // Оно возьмет "Внимание" и нужную фразу из твоих словарей t.alertTitle и t.alertTrialNotice (или аналогичных)
-    // Если перевод не сработает, покажет стандартный русский текст:
     Alert.alert(
       t.attention || "Внимание", 
       t.trialNotice || "Используется бесплатный пробный период (7 дней)."
     );
 
     return () => clearInterval(timer);
-  }, []);
+  }, [lang]);
 
   const initLanguageAndAuth = async () => {
     try {
@@ -211,10 +216,7 @@ export default function App() {
 
   const getUniqueDeviceId = async () => {
     try {
-      // Пытаемся взять системный ID устройства (на Android он сохраняется при переустановке)
       let id = Application.androidId;
-      
-      // Если по какой-то причине он пустой (например, старый iOS или сбой), делаем фоллбек на AsyncStorage
       if (!id) {
         id = await AsyncStorage.getItem('@tabulka_device_id');
         if (!id) {
@@ -1002,13 +1004,53 @@ const styles = StyleSheet.create({
   archiveItemRow: { paddingVertical: 14, borderBottomWidth: 1, borderColor: '#E5E7EB', alignItems: 'center', width: '100%' },
   archiveMonthNameText: { fontSize: 15, fontWeight: 'bold', color: '#374151' },
   btnCloseArchive: { padding: 10, borderRadius: 8, alignItems: 'center', backgroundColor: '#9CA3AF', width: '100%', marginTop: 15 },
-  input: { borderBottomWidth: 1, borderColor: '#0052CC', paddingVertical: 12, marginBottom: 16, fontWeight: 'bold', fontSize: 22, textAlign: 'center', color: '#000' },
+  inputInline: { 
+    flex: 1,
+    height: 55,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1.5,
+    borderColor: '#D1D5DB', 
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#000',
+    textAlign: 'center'
+  },
+  input: { 
+    width: '100%',
+    height: 55,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1.5,
+    borderColor: '#0052CC',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center', 
+    color: '#000',
+    marginBottom: 16 
+  },
   modalButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 15 },
-  btn: { padding: 12, borderRadius: 8, minWidth: 80, alignItems: 'center' },
-  btnSave: { backgroundColor: '#0052CC', flex: 1, marginRight: 5 },
+  btn: { padding: 12, borderRadius: 8, minWidth: 80, alignItems: 'center', justifyContent: 'center' },
+  btnSave: { 
+    backgroundColor: '#0052CC', 
+    flex: 1, 
+    marginRight: 5,
+    height: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8
+  },
   btnRequestSave: { padding: 10, borderRadius: 8, minWidth: 80, alignItems: 'center', backgroundColor: '#10B981', flex: 1, marginRight: 5 },
-  btnCancel: { backgroundColor: '#9CA3AF' },
-  btnText: { color: '#FFF', fontWeight: 'bold' },
+  btnCancel: { 
+    backgroundColor: '#9CA3AF',
+    flex: 1,
+    height: 50,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  btnText: { color: '#FFF', fontWeight: 'bold', fontSize: 16, textAlign: 'center' },
   noticeContainer: { backgroundColor: '#0052CC', padding: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   noticeContainerMargin: { backgroundColor: '#0052CC', padding: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginTop: 12 },
   noticeSubText: { fontSize: 16, fontWeight: 'bold', color: '#FFF', textAlign: 'center' },
@@ -1024,6 +1066,15 @@ const styles = StyleSheet.create({
   noRecordsText: { fontSize: 13, color: '#9CA3AF', textAlign: 'center', marginVertical: 10, fontWeight: 'bold' },
   daySummaryLabelBox: { backgroundColor: '#EFF6FF', padding: 8, borderRadius: 6, alignItems: 'center', marginBottom: 10 },
   daySummaryLabelText: { fontSize: 14, fontWeight: 'bold', color: '#1E40AF' },
-  btnAddNewRecordRow: { backgroundColor: '#28a745', padding: 14, borderRadius: 10, alignItems: 'center', marginBottom: 5, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 2 },
-  btnAddNewRecordRowText: { color: '#FFF', fontWeight: 'bold', fontSize: 18 }
+  btnAddRecordRow: { 
+    backgroundColor: '#0052CC',
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+    marginBottom: 15,
+    width: '100%'
+  },
+  btnAddRecordRowText: { color: '#FFF', fontWeight: 'bold', fontSize: 16, textAlign: 'center' }
 });
