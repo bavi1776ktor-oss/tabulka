@@ -187,6 +187,15 @@ export default function App() {
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     initLanguageAndAuth();
+    
+    // Всплывающее сообщение при старте приложения
+    // Оно возьмет "Внимание" и нужную фразу из твоих словарей t.alertTitle и t.alertTrialNotice (или аналогичных)
+    // Если перевод не сработает, покажет стандартный русский текст:
+    Alert.alert(
+      t.attention || "Внимание", 
+      t.trialNotice || "Используется бесплатный пробный период (7 дней)."
+    );
+
     return () => clearInterval(timer);
   }, []);
 
