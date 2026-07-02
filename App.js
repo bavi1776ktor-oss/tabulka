@@ -215,10 +215,16 @@ export default function App() {
 
   const getUniqueDeviceId = async () => {
     try {
-      let id = await AsyncStorage.getItem('@tabulka_device_id');
+      // Пытаемся взять системный ID устройства (на Android он сохраняется при переустановке)
+      let id = Application.androidId;
+      
+      // Если по какой-то причине он пустой (например, старый iOS или сбой), делаем фоллбек на AsyncStorage
       if (!id) {
-        id = 'dev_' + Math.random().toString(36).substring(2, 11) + '_' + Math.floor(Date.now() / 1000);
-        await AsyncStorage.setItem('@tabulka_device_id', id);
+        id = await AsyncStorage.getItem('@tabulka_device_id');
+        if (!id) {
+          id = 'dev_' + Math.random().toString(36).substring(2, 11) + '_' + Math.floor(Date.now() / 1000);
+          await AsyncStorage.setItem('@tabulka_device_id', id);
+        }
       }
       return id;
     } catch (e) {
