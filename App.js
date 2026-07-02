@@ -213,6 +213,19 @@ export default function App() {
     checkSavedPassword();
   };
 
+  const getUniqueDeviceId = async () => {
+    try {
+      let id = await AsyncStorage.getItem('@tabulka_device_id');
+      if (!id) {
+        id = 'dev_' + Math.random().toString(36).substring(2, 11) + '_' + Math.floor(Date.now() / 1000);
+        await AsyncStorage.setItem('@tabulka_device_id', id);
+      }
+      return id;
+    } catch (e) {
+      return "DEVICE_GENERIC";
+    }
+  };
+
   const handleSelectLanguage = async (selectedLang) => {
     try {
       await AsyncStorage.setItem('@tabulka_lang', selectedLang);
@@ -271,7 +284,7 @@ export default function App() {
 
   const checkSavedPassword = async () => {
     try {
-      const deviceId = Application.androidId || "DEVICE_GENERIC";
+      const deviceId = await getUniqueDeviceId();
       const savedPass = await AsyncStorage.getItem('@tabulka_password');
       
       if (savedPass) {
@@ -332,7 +345,7 @@ export default function App() {
     setIsAuthChecking(true);
 
     try {
-      const deviceId = Application.androidId || "DEVICE_GENERIC"; 
+      const deviceId = await getUniqueDeviceId(); 
       const response = await fetch(`${FIREBASE_REST_URL}/activation_keys/${trimmed}.json`);
       const keyData = await response.json();
       
@@ -382,7 +395,7 @@ export default function App() {
     }
 
     try {
-      const deviceId = Application.androidId || "DEVICE_GENERIC";
+      const deviceId = await getUniqueDeviceId();
       await fetch(`${FIREBASE_REST_URL}/support_requests/${deviceId}.json`, {
         method: 'PUT',
         body: JSON.stringify({
