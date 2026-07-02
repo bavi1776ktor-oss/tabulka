@@ -1000,9 +1000,9 @@ const styles = StyleSheet.create({
   archiveItemRow: { paddingVertical: 14, borderBottomWidth: 1, borderColor: '#E5E7EB', alignItems: 'center', width: '100%' },
   archiveMonthNameText: { fontSize: 15, fontWeight: 'bold', color: '#374151' },
   btnCloseArchive: { padding: 10, borderRadius: 8, alignItems: 'center', backgroundColor: '#9CA3AF', width: '100%', marginTop: 15 },
-  input: { borderBottomWidth: 1, borderColor: '#D1D5DB', paddingVertical: 6, marginBottom: 10, fontWeight: 'bold' },
-  modalButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
-  btn: { padding: 10, borderRadius: 8, minWidth: 80, alignItems: 'center' },
+  input: { borderBottomWidth: 1, borderColor: '#0052CC', paddingVertical: 12, marginBottom: 16, fontWeight: 'bold', fontSize: 22, textAlign: 'center', color: '#000' },
+  modalButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 15 },
+  btn: { padding: 12, borderRadius: 8, minWidth: 80, alignItems: 'center' },
   btnSave: { backgroundColor: '#0052CC', flex: 1, marginRight: 5 },
   btnRequestSave: { padding: 10, borderRadius: 8, minWidth: 80, alignItems: 'center', backgroundColor: '#10B981', flex: 1, marginRight: 5 },
   btnCancel: { backgroundColor: '#9CA3AF' },
@@ -1022,6 +1022,6 @@ const styles = StyleSheet.create({
   noRecordsText: { fontSize: 13, color: '#9CA3AF', textAlign: 'center', marginVertical: 10, fontWeight: 'bold' },
   daySummaryLabelBox: { backgroundColor: '#EFF6FF', padding: 8, borderRadius: 6, alignItems: 'center', marginBottom: 10 },
   daySummaryLabelText: { fontSize: 14, fontWeight: 'bold', color: '#1E40AF' },
-  btnAddNewRecordRow: { backgroundColor: '#10B981', padding: 10, borderRadius: 8, alignItems: 'center', marginBottom: 5 },
-  btnAddNewRecordRowText: { color: '#FFF', fontWeight: 'bold', fontSize: 14 }
+  btnAddNewRecordRow: { backgroundColor: '#28a745', padding: 14, borderRadius: 10, alignItems: 'center', marginBottom: 5, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 2 },
+  btnAddNewRecordRowText: { color: '#FFF', fontWeight: 'bold', fontSize: 18 }
 });
