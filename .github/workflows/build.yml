@@ -29,7 +29,7 @@ jobs:
       - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
-          java-version: '18'
+          java-version: '17'
           distribution: 'zulu'
 
       - name: Setup Gradle
@@ -42,7 +42,16 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew clean
-          ./gradlew assembleRelease --stacktrace --quiet
+          
+          # Записываем весь лог сборки в файл, чтобы не потерять начало ошибки
+          ./gradlew assembleRelease --stacktrace > build_log.txt 2>&1 || true
+          
+          # Если билд упал, выводим последние 100 строк, где кроется причина
+          if grep -q "BUILD FAILED" build_log.txt; then
+            echo "=== КРИТИЧЕСКАЯ ОШИБКА СБОРКИ ==="
+            cat build_log.txt | grep -B 20 -A 10 "FAILED" || tail -n 100 build_log.txt
+            exit 1
+          fi
 
       - name: Upload Finished APK Artifact
         uses: actions/upload-artifact@v4
