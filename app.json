@@ -12,7 +12,11 @@
       "supportsTablet": true
     },
     "android": {
-      "package": "com.wi_ktor.tabulka"
+      "package": "com.wi_ktor.tabulka",
+      "permissions": [
+        "android.permission.READ_PHONE_STATE",
+        "android.permission.READ_PRIVILEGED_PHONE_STATE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
