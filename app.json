@@ -5,6 +5,9 @@
     "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
+    "plugins": [
+      "expo-application"
+    ],
     "userInterfaceStyle": "light",
     "splash": {
       "backgroundColor": "#ffffff"
