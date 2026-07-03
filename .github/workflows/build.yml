@@ -20,11 +20,6 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install JavaScript Dependencies
-        run: |
-          npm install
-          npm install expo-secure-store@~15.0.1 @expo/vector-icons@^14.0.0 react-native-calendars --save
-
       - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
@@ -44,16 +39,19 @@ jobs:
         run: |
           npx expo prebuild --platform android --clean
 
-      - name: Force Composite Build
+      - name: Final "Dependency Injection" Fix
         run: |
-          # 1. Записываем includeBuild в самый конец settings.gradle
+          # 1. Заставляем все проекты (включая изолированные) использовать наши репозитории
+          # Это вставка блока 'allprojects' в корневой build.gradle
+          sed -i '1i allprojects { buildscript { repositories { google(); mavenCentral() } }; repositories { google(); mavenCentral() } }' android/build.gradle
+          
+          # 2. Добавляем includeBuild в settings.gradle, чтобы плагин был доступен
           echo 'includeBuild("../node_modules/expo-modules-core/android")' >> android/settings.gradle
           
-          # 2. Правим конфиг модуля, чтобы он использовал локальный проект, а не искал артефакты
-          # Мы заменяем подключение плагина в secure-store на прямой вызов
+          # 3. Принудительный патч модуля, чтобы он не искал плагин, а использовал родительский
           sed -i 's/id "expo-module-gradle-plugin"/id "expo.modules.gradle"/g' node_modules/expo-secure-store/android/build.gradle
           
-          # 3. Фикс совместимости
+          # 4. Фикс совместимости
           sed -i "s/components.release/components.findByName('release')/g" node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle || true
 
       - name: Compile Native APK via Gradle
