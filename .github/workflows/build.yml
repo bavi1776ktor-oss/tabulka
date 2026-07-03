@@ -1,100 +1,30 @@
-name: Android Local Build
-
-on:
-  push:
-    branches:
-      - main
-      - master
-  workflow_dispatch:
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install JavaScript Dependencies
-        run: |
-          # Базовая установка зависимостей
-          npm install
-          npm install expo-secure-store@~15.0.1 @expo/vector-icons@^14.0.0 react-native-calendars --save
-
-      - name: Setup Java JDK
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'zulu'
-
-      - name: Setup Official Expo CLI Environment
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          expo-version: latest
-
-      - name: Standard Expo Prebuild
-        env:
-          NODE_OPTIONS: "--max-old-space-size=4096"
-          EXPO_NO_DOCTOR: "1"
-        run: |
-          # Генерируем чистую оригинальную структуру Android
-          npx expo prebuild --platform android --clean
-
-      - name: Precise Project Target Substitution via JS
+- name: Hardcoded Classpath Injection via JS
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
             const path = 'android/settings.gradle';
             
-            // Читаем дефолтный файл настроек Expo
             let content = fs.readFileSync(path, 'utf8');
             
-            // Перенаправляем плагин через строковое указание проекта, как требует синтаксис Gradle 8
-            const substitution = `
+            // Вместо сложных стратегий мы просто подключаем плагин в classpath корневого билда.
+            // Gradle 8.8 увидит его как предопределенный, и спорить не будет.
+            const injection = `
+            buildscript {
                 repositories {
                     google()
                     mavenCentral()
-                    gradlePluginPortal()
+                    maven { url new File(settingsDir, "../node_modules/expo-modules-core/android") }
                 }
-                resolutionStrategy {
-                    eachPlugin {
-                        if (requested.id.id == 'expo-module-gradle-plugin') {
-                            useTarget([project: ':expo-modules-core', group: 'expo.modules', name: 'expo-module-gradle-plugin'])
-                        }
-                    }
-                }`;
+                dependencies {
+                    classpath("expo.modules:expo-module-gradle-plugin:+")
+                }
+            }`;
             
             if (content.includes('pluginManagement {')) {
-              content = content.replace('pluginManagement {', 'pluginManagement {' + substitution);
+              content = content.replace('pluginManagement {', 'pluginManagement {' + injection);
               fs.writeFileSync(path, content, 'utf8');
-              console.log('Successfully injected precise project target substitution!');
+              console.log('Successfully injected hardcoded classpath!');
             } else {
               throw new Error('pluginManagement block not found');
             }
-
-      - name: Hotfix Expo Gradle 8+ Compatibility
-        run: |
-          # Фикс совместимости Gradle 8+ для ядра
-          sed -i "s/components.release/components.findByName('release')/g" node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle || true
-
-      - name: Compile Native APK via Gradle
-        run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew clean
-          
-          # Запуск сборки APK
-          ./gradlew assembleRelease --no-daemon
-
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: tabulka-app-release
-          path: android/app/build/outputs/apk/release/app-release.apk
