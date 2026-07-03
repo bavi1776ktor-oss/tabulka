@@ -18,7 +18,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 18.18.0 # Фиксируем стабильную LTS версию, где Metro не сбоит
 
       - name: Install JavaScript Dependencies
         run: |
@@ -32,21 +32,20 @@ jobs:
 
       - name: Generate and Build Android APK
         env:
-          # Выделяем Node.js 6 гигабайт памяти вместо 4, чтобы билд не падал по памяти
-          NODE_OPTIONS: "--max-old-space-size=6144"
+          NODE_OPTIONS: "--max-old-space-size=4096"
           EXPO_NO_DOCTOR: "1"
+          NODE_ENV: "production" # Принудительно переводим сборщик в продакшн режим
           SOURCEMAP_OUTPUT: "/dev/null"
         run: |
-          # Генерируем нативную структуру проекта
+          # Генерируем нативную структуру
           npx expo prebuild --platform android --no-install
           
-          # Очищаем кэш Metro перед финальной сборкой
-          npx metro cache-clean || true
-          
-          # Переходим и собираем APK
+          # Переходим в папку android и собираем
           cd android
           chmod +x gradlew
           ./gradlew clean
+          
+          # Запускаем сборку без загрузки лишних потоков демона
           ./gradlew assembleRelease --no-daemon
           
       - name: Upload APK Artifact
