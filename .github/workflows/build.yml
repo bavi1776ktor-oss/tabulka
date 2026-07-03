@@ -20,41 +20,29 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install Dependencies
+      - name: Install and Prebuild
         run: |
           npm install
-          npm install expo@~51.0.0 react-native-calendars expo-secure-store@~13.0.1 @expo/vector-icons --save-exact
-
-      - name: Setup Java JDK
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'zulu'
-
-      - name: Standard Expo Prebuild
-        env:
-          NODE_OPTIONS: "--max-old-space-size=4096"
-          EXPO_NO_DOCTOR: "1"
-        run: |
+          npm install expo@~51.0.0
           npx expo prebuild --platform android
 
-      - name: Bypass Native Plugin Check
+      - name: Force Offline Gradle Mode
         run: |
-          # Вместо того чтобы пытаться подключить плагин, мы просто «вырезаем» его применение.
-          # Это заставит Gradle игнорировать отсутствие плагина Android в модулях.
-          find node_modules/expo-modules-core/android -name "*.gradle" -exec sed -i 's/apply plugin: .com.android.library.//g' {} +
-          find node_modules/expo-modules-core/android -name "*.gradle" -exec sed -i 's/id .com.android.library.//g' {} +
+          # Создаем gradle.properties, который отключает поиск плагинов в сети
+          # и указывает на локальные пути
+          echo "org.gradle.parallel=true" > android/gradle.properties
+          echo "org.gradle.configureondemand=true" >> android/gradle.properties
           
-          # Очищаем settings.gradle от всего, кроме стандартного подключения проекта
-          echo 'rootProject.name = "tabulka"
-          include ":app"' > android/settings.gradle
+          # Заменяем репозитории в корневом build.gradle на локальные пути
+          sed -i 's|google()|maven { url "https://maven.google.com" }|g' android/build.gradle
+          sed -i 's|mavenCentral()|maven { url "https://repo1.maven.org/maven2" }|g' android/build.gradle
 
-      - name: Compile Native APK via Gradle
+      - name: Compile Native APK
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew clean
-          ./gradlew assembleRelease --no-daemon
+          # Используем --offline, чтобы Gradle НЕ лез в интернет
+          ./gradlew assembleRelease --offline --no-daemon
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
