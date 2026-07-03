@@ -38,11 +38,14 @@ jobs:
           # 1. Генерируем нативные папки без установки
           npx expo prebuild --platform android --no-install
           
-          # 2. Создаем вручную папки для ресурсов Android, если их нет
+          # 2. Генерируем временный базовый конфиг Metro, чтобы сборщик не ругался
+          echo "const { getDefaultConfig } = require('@expo/metro-config'); const config = getDefaultConfig(__dirname); config.transformer.getTransformOptions = async () => ({ transform: { experimentalImportSupport: false, inlineRequires: true } }); module.exports = config;" > metro.config.js
+          
+          # 3. Создаем вручную папки для ресурсов Android
           mkdir -p android/app/src/main/assets
           mkdir -p android/app/src/main/res/drawable-mdpi
           
-          # 3. Собираем JS бандл напрямую через react-native CLI, минуя Gradle таску
+          # 4. Собираем JS бандл напрямую через react-native CLI
           npx react-native bundle \
             --platform android \
             --dev false \
