@@ -32,16 +32,18 @@ jobs:
 
       - name: Generate and Build Android APK
         env:
-          NODE_OPTIONS: "--max-old-space-size=4096"
+          # Выделяем Node.js 6 гигабайт памяти вместо 4, чтобы билд не падал по памяти
+          NODE_OPTIONS: "--max-old-space-size=6144"
           EXPO_NO_DOCTOR: "1"
-          EAS_NO_ERRORS: "1"
           SOURCEMAP_OUTPUT: "/dev/null"
         run: |
-          # Убираем оффлайн-флаг только на эту строчку, чтобы он скачал шаблон структуры папки,
-          # но запрещаем ставить зависимости через сеть с помощью --no-install
+          # Генерируем нативную структуру проекта
           npx expo prebuild --platform android --no-install
           
-          # Переходим и собираем
+          # Очищаем кэш Metro перед финальной сборкой
+          npx metro cache-clean || true
+          
+          # Переходим и собираем APK
           cd android
           chmod +x gradlew
           ./gradlew clean
