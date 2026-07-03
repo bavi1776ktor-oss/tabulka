@@ -43,38 +43,15 @@ jobs:
           NODE_OPTIONS: "--max-old-space-size=4096"
           EXPO_NO_DOCTOR: "1"
         run: |
-          # Генерируем нативную структуру
+          # Генерируем РОДНУЮ и правильную структуру папки android
           npx expo prebuild --platform android --clean
 
-      - name: Absolute Settings Overwrite Fix v2
+      - name: Safe Injection to Native Repositories
         run: |
-          # Перезаписываем settings.gradle, убрав проблемную строчку RepositoriesMode.
-          # Оставляем только то, что нужно для автолинковки плагинов Expo и React Native.
-          cat << 'EOF' > android/settings.gradle
-          pluginManagement {
-              repositories {
-                  maven { url new File(settingsDir, "../node_modules/expo-modules-core/android") }
-                  google()
-                  mavenCentral()
-                  gradlePluginPortal()
-              }
-          }
-          
-          dependencyResolutionManagement {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
-          
-          rootProject.name = 'Табулька'
-          
-          apply from: new File(settingsDir, "../node_modules/@react-native/gradle-plugin/settings.gradle")
-          apply from: new File(settingsDir, "../node_modules/expo/settings.gradle")
-          
-          include ':app'
-          includeBuild('../node_modules/@react-native/gradle-plugin')
-          EOF
+          # Мы берем оригинальный, рабочий settings.gradle и ювелирно добавляем 
+          # локальный путь к плагину Expo строго внутрь блока поиска плагинов.
+          # Больше никакие пути к стандартным скриптам Expo не сломаются.
+          sed -i '/pluginManagement {/,/repositories {/ { /repositories {/a \ \ \ \ \ \ \ \ maven { url "${settingsDir}/../node_modules/expo-modules-core/android" }' android/settings.gradle
 
       - name: Hotfix Expo Gradle 8+ Compatibility
         run: |
@@ -87,7 +64,7 @@ jobs:
           chmod +x gradlew
           ./gradlew clean
           
-          # Запуск финальной сборки
+          # Запуск сборки
           ./gradlew assembleRelease --no-daemon
 
       - name: Upload APK Artifact
