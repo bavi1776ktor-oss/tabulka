@@ -44,17 +44,17 @@ jobs:
         run: |
           npx expo prebuild --platform android --clean
 
-      - name: Inject Repository Configuration
+      - name: Bruteforce Plugin Injection
         run: |
-          # Прямая запись в gradle.properties заставляет Gradle видеть репозитории Expo 
-          # как часть своего стандартного процесса поиска плагинов
-          echo "expo.modules.core.path=../node_modules/expo-modules-core/android" >> android/gradle.properties
+          # 1. Внедряем путь к плагину в корень build.gradle
+          sed -i '1i buildscript { repositories { maven { url "./../node_modules/expo-modules-core/android" } }; dependencies { classpath "expo.modules:expo-module-gradle-plugin:+" } }' android/build.gradle
           
-          # Добавляем пути в корневой build.gradle через простой echo, чтобы не ломать структуру
-          sed -i '1i buildscript { repositories { google(); mavenCentral(); maven { url "https://plugins.gradle.org/m2/" } } }' android/build.gradle
-
-      - name: Hotfix Expo Gradle 8+ Compatibility
-        run: |
+          # 2. Удаляем блок plugins, который вызывает ошибку в secure-store, так как плагин теперь уже загружен в classpath
+          sed -i '/plugins {/d' node_modules/expo-secure-store/android/build.gradle
+          sed -i '/id "expo-module-gradle-plugin"/d' node_modules/expo-secure-store/android/build.gradle
+          sed -i '/}/d' node_modules/expo-secure-store/android/build.gradle
+          
+          # 3. Фикс совместимости
           sed -i "s/components.release/components.findByName('release')/g" node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle || true
 
       - name: Compile Native APK via Gradle
