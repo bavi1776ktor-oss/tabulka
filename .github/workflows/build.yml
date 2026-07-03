@@ -46,16 +46,16 @@ jobs:
           # Генерируем нативную структуру
           npx expo prebuild --platform android --clean
 
-      - name: Hard Inject Repository to Secure Store Module
+      - name: Clean Global Plugin Autolink Fix
         run: |
-          # Хирургически внедряем локальный путь к expo-module-gradle-plugin 
-          # прямо на ПЕРВУЮ строку файла build.gradle проблемного модуля expo-secure-store.
-          # Используем разделитель '|', чтобы пути с косыми чертами сработали идеально.
-          sed -i '1s|^|buildscript { repositories { google(); mavenCentral(); maven { url "${rootProject.projectDir}/../node_modules/expo-modules-core/android" } } dependencies { classpath "expo.modules:expo-module-gradle-plugin:+" } }\n|' node_modules/expo-secure-store/android/build.gradle
+          # Вместо того чтобы ломать файлы модулей, мы красиво добавляем локальный репозиторий 
+          # в глобальный блок pluginManagement прямо внутри settings.gradle.
+          # Это решит проблему путей для ВСЕХ модулей без синтаксических ошибок.
+          sed -i 's|repositories {|repositories {\n        maven { url "${settingsDir}/../node_modules/expo-modules-core/android" }|g' android/settings.gradle
 
       - name: Hotfix Expo Gradle 8+ Compatibility
         run: |
-          # Фикс совместимости Gradle 8+ для ядра модулей
+          # Фикс совместимости Gradle 8+ для ядра
           sed -i "s/components.release/components.findByName('release')/g" node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle || true
 
       - name: Compile Native APK via Gradle
@@ -64,7 +64,7 @@ jobs:
           chmod +x gradlew
           ./gradlew clean
           
-          # Финальная сборка APK
+          # Запуск финальной сборки
           ./gradlew assembleRelease --no-daemon
 
       - name: Upload APK Artifact
