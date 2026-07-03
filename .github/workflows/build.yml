@@ -20,19 +20,25 @@ jobs:
         with:
           node-version: 20
 
+      - name: Install Dependencies
+        run: |
+          # Устанавливаем всё необходимое ОДНИМ заходом
+          npm install
+          npm install expo@~51.0.0 react-native-calendars expo-secure-store@~13.0.1 @expo/vector-icons --save-exact
+
       - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'zulu'
 
-      - name: Install and Prebuild
+      - name: Standard Expo Prebuild
+        env:
+          NODE_OPTIONS: "--max-old-space-size=4096"
+          EXPO_NO_DOCTOR: "1"
         run: |
-          npm install
-          npm install expo@~51.0.0 --save-exact
-          # Очистка и стандартный пребилд
-          rm -rf .expo
-          npx expo prebuild --platform android --clean
+          # ВАЖНО: не используем --clean, чтобы не вычищать установленные пакеты
+          npx expo prebuild --platform android
 
       - name: Patch Native Dependencies
         run: |
@@ -46,7 +52,6 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew clean
-          # Собираем бандл и APK одновременно
           ./gradlew assembleRelease --no-daemon
 
       - name: Upload APK Artifact
