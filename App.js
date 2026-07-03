@@ -65,7 +65,7 @@ const translations = {
     placeholderHours: "Години",
     btnSaveDay: "Зберегти день",
     btnCancel: "Скасувати",
-    alertConfirmDelete: "Видалити запис?",
+    alertConfirmDelete: "Видалити запись?",
     alertDeleteMsg: "Ви впевнені, що хочете видалити цей робочий рядок?",
     btnDelete: "Видалити",
     msgNoRecords: "Немає записів за цей день",
@@ -101,16 +101,15 @@ export default function App() {
   // Календарь: текущий рабочий месяц для отображения структуры
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().split('T')[0].substring(0, 7));
 
-  // Получение железного ID устройства (благодаря expo-application плагину)
+  // Получение железного ID устройства
   const getUniqueDeviceId = async () => {
     try {
-      // Берем напрямую железный ID. Если его нет — отдаем фиксированную строку.
-      // Никаких динамических вызовов других свойств модуля, которые могут сбоить при компиляции.
       return Application.androidId || "generic_android_device";
     } catch (e) {
       return "DEVICE_GENERIC_ERROR";
     }
   };
+
   // Проверка сохраненного ключа при старте
   useEffect(() => {
     async function checkSavedPassword() {
@@ -124,7 +123,6 @@ export default function App() {
           if (keyData && keyData.status === "used") {
             const deviceId = await getUniqueDeviceId();
             
-            // Если ключ семейный или начинается с FAMILY_, проверку по ID устройства пропускаем
             if (keyData.isFamily || trimmed.startsWith("FAMILY_")) {
               setPassword(trimmed);
               await fetchWorkData(trimmed);
@@ -186,7 +184,6 @@ export default function App() {
         return updated;
       });
 
-      // Обновляем состояние временных записей в открытой модалке
       if (dayData && dayData.records) {
         setTempRecords(dayData.records);
       } else {
@@ -218,7 +215,6 @@ export default function App() {
 
       const deviceId = await getUniqueDeviceId();
 
-      // Логика семейного ключа (начинается с FAMILY_)
       if (trimmed.startsWith("FAMILY_")) {
         await fetch(`${FIREBASE_REST_URL}/activation_keys/${trimmed}.json`, {
           method: 'PATCH',
@@ -229,7 +225,6 @@ export default function App() {
         Alert.alert(t.authTitle, t.toastWelcome);
         await fetchWorkData(trimmed);
       } 
-      // Логика обычного ключа
       else {
         if (keyData.status === "free") {
           await fetch(`${FIREBASE_REST_URL}/activation_keys/${trimmed}.json`, {
@@ -263,7 +258,6 @@ export default function App() {
     const yearMonth = dateStr.substring(0, 7);
     const dayStr = dateStr.substring(8, 10);
     
-    // Сначала берем то, что есть локально
     const existingDayData = workData[yearMonth]?.[dayStr];
     if (existingDayData && existingDayData.records) {
       setTempRecords(existingDayData.records);
@@ -275,7 +269,6 @@ export default function App() {
     setHours('');
     setModalVisible(true);
 
-    // Сразу же тащим свежие данные с сервера для этого дня
     await refreshSingleDayData(dateStr, password);
   };
 
@@ -383,17 +376,6 @@ export default function App() {
     return items;
   };
 
-  // Экран ожидания инициализации
-  if (isAuthChecking) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#2563EB" />
-        <Text style={{ marginTop: 12, color: '#4B5563' }}>{t.msgLoading}</Text>
-      </View>
-    );
-  }
-
-  // Экран ввода лицензионного ключа (авторизация)
   if (!password) {
     return (
       <View style={styles.authContainer}>
@@ -423,7 +405,6 @@ export default function App() {
     );
   }
 
-  // Главный рабочий экран календаря
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -465,13 +446,11 @@ export default function App() {
         )}
       />
 
-      {/* Модальное окно редактирования дня */}
       <Modal visible={modalVisible} animationType="slide" transparent={true}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>{selectedDate}</Text>
 
-            {/* Окно со списком выполненных работ дня (высота 160 под 5 записей) */}
             <ScrollView style={styles.miniRecordsList} nestedScrollEnabled={true}>
               {tempRecords.length === 0 ? (
                 <Text style={styles.noRecordsText}>{t.msgNoRecords}</Text>
@@ -489,12 +468,10 @@ export default function App() {
               )}
             </ScrollView>
 
-            {/* Итоговая сумма за день */}
             <View style={styles.dayTotalContainer}>
               <Text style={styles.dayTotalText}>{t.dayTotalText} {getTempTotal()}</Text>
             </View>
 
-            {/* ПОЛЯ ВВОДА ДАННЫХ (Крупные, перенесены НАВЕРХ) */}
             <View style={styles.inputGroupRow}>
               <TextInput
                 placeholder={t.placeholderRate}
@@ -514,12 +491,10 @@ export default function App() {
               />
             </View>
 
-            {/* Кнопка добавления записи */}
             <TouchableOpacity style={styles.btnAddRecordRow} onPress={handleAddRecord}>
               <Text style={styles.btnAddRecordRowText}>{t.btnAddRecord}</Text>
             </TouchableOpacity>
 
-            {/* Нижний ряд кнопок управления */}
             <View style={styles.modalActionsRow}>
               <TouchableOpacity style={[styles.btnModal, styles.btnModalCancel]} onPress={() => setModalVisible(false)}>
                 <Text style={styles.btnModalCancelText}>{t.btnCancel}</Text>
@@ -543,4 +518,43 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     paddingHorizontal: 16,
     backgroundColor: '#2563EB',
-    flexDirection: 'row
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
+  headerTitle: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
+  authContainer: { flex: 1, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  authCard: { backgroundColor: '#fff', width: '100%', maxWidth: 400, borderRadius: 16, padding: 24, elevation: 4 },
+  authTitle: { fontSize: 22, fontWeight: 'bold', color: '#111827', textAlign: 'center', marginBottom: 8 },
+  authSubtitle: { fontSize: 14, color: '#6B7280', textAlign: 'center', marginBottom: 24, lineHeight: 20 },
+  authInput: { backgroundColor: '#F3F4F6', borderRadius: 8, padding: 14, fontSize: 16, color: '#111827', marginBottom: 16, borderWidth: 1, borderColor: '#E5E7EB', textAlign: 'center', fontWeight: 'bold' },
+  authButton: { backgroundColor: '#2563EB', borderRadius: 8, padding: 14, alignItems: 'center', justifyContent: 'center' },
+  authButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  agendaItem: { backgroundColor: '#fff', borderRadius: 8, padding: 16, marginRight: 16, marginTop: 16, elevation: 1 },
+  agendaRowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  agendaItemTitle: { fontSize: 15, color: '#374151' },
+  agendaItemTotal: { fontSize: 16, fontWeight: 'bold', color: '#111827' },
+  agendaItemSub: { fontSize: 13, color: '#9CA3AF' },
+  emptyDateContainer: { justifyContent: 'center', alignItems: 'center', padding: 16, marginTop: 16 },
+  emptyDateText: { color: '#9CA3AF', fontSize: 16 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
+  modalContent: { backgroundColor: '#fff', width: width * 0.9, maxWidth: 450, borderRadius: 16, padding: 20, elevation: 10 },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#111827', marginBottom: 14, textAlign: 'center' },
+  miniRecordsList: { maxHeight: 160, backgroundColor: '#F3F4F6', borderRadius: 8, padding: 8, marginBottom: 8 },
+  noRecordsText: { color: '#9CA3AF', textAlign: 'center', marginVertical: 12, fontSize: 14 },
+  miniRecordRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6, marginBottom: 6, borderWidth: 1, borderColor: '#E5E7EB' },
+  miniRecordText: { fontSize: 15, color: '#374151' },
+  btnDeleteTrash: { padding: 4 },
+  dayTotalContainer: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#E5E7EB', marginBottom: 14, alignItems: 'flex-end' },
+  dayTotalText: { fontSize: 16, fontWeight: 'bold', color: '#2563EB' },
+  inputGroupRow: { flexDirection: 'row', marginBottom: 12 },
+  inputInline: { flex: 1, height: 55, backgroundColor: '#F3F4F6', borderRadius: 8, paddingHorizontal: 12, fontSize: 18, fontWeight: 'bold', color: '#111827', borderWidth: 1, borderColor: '#E5E7EB', textAlign: 'center' },
+  btnAddRecordRow: { backgroundColor: '#2563EB', borderRadius: 8, height: 48, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+  btnAddRecordRowText: { color: '#fff', fontSize: 16, fontWeight: 'bold', textAlign: 'center' },
+  modalActionsRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  btnModal: { flex: 1, height: 48, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+  btnModalCancel: { backgroundColor: '#F3F4F6', marginRight: 8, borderWidth: 1, borderColor: '#D1D5DB' },
+  btnModalCancelText: { color: '#4B5563', fontSize: 15, fontWeight: 'bold', textAlign: 'center' },
+  btnModalSave: { backgroundColor: '#10B981' },
+  btnModalSaveText: { color: '#fff', fontSize: 15, fontWeight: 'bold', textAlign: 'center' }
+});
