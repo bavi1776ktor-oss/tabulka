@@ -46,10 +46,10 @@ jobs:
           # Генерируем нативную структуру
           npx expo prebuild --platform android --clean
 
-      - name: Absolute Settings Overwrite Fix
+      - name: Absolute Settings Overwrite Fix v2
         run: |
-          # Полностью перезаписываем settings.gradle правильной структурой,
-          # где четко разделены плагины React Native и Expo Modules.
+          # Перезаписываем settings.gradle, убрав проблемную строчку RepositoriesMode.
+          # Оставляем только то, что нужно для автолинковки плагинов Expo и React Native.
           cat << 'EOF' > android/settings.gradle
           pluginManagement {
               repositories {
@@ -61,7 +61,6 @@ jobs:
           }
           
           dependencyResolutionManagement {
-              repositoriesMode.set(RepositoriesMode.PRESERVE_AT_BUILDSCRIPT)
               repositories {
                   google()
                   mavenCentral()
