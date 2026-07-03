@@ -43,15 +43,30 @@ jobs:
           NODE_OPTIONS: "--max-old-space-size=4096"
           EXPO_NO_DOCTOR: "1"
         run: |
-          # Генерируем РОДНУЮ и правильную структуру папки android
+          # Генерируем оригинальную структуру Android
           npx expo prebuild --platform android --clean
 
-      - name: Safe Injection to Native Repositories
-        run: |
-          # Мы берем оригинальный, рабочий settings.gradle и ювелирно добавляем 
-          # локальный путь к плагину Expo строго внутрь блока поиска плагинов.
-          # Больше никакие пути к стандартным скриптам Expo не сломаются.
-          sed -i '/pluginManagement {/,/repositories {/ { /repositories {/a \ \ \ \ \ \ \ \ maven { url "${settingsDir}/../node_modules/expo-modules-core/android" }' android/settings.gradle
+      - name: Safe JS Injection to Native Repositories
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = 'android/settings.gradle';
+            
+            // Читаем сгенерированный файл настроек Gradle
+            let content = fs.readFileSync(path, 'utf8');
+            
+            // Наша строка с локальным путем к плагину Expo
+            const injection = '\n        maven { url "${settingsDir}/../node_modules/expo-modules-core/android" }';
+            
+            // Ювелирно вставляем ее сразу после первого упоминания "repositories {"
+            if (content.includes('repositories {')) {
+              content = content.replace('repositories {', 'repositories {' + injection);
+              fs.writeFileSync(path, content, 'utf8');
+              console.log('Successfully injected Expo plugin repository path via JS!');
+            } else {
+              throw new Error('Could not find repositories block in settings.gradle');
+            }
 
       - name: Hotfix Expo Gradle 8+ Compatibility
         run: |
@@ -64,7 +79,7 @@ jobs:
           chmod +x gradlew
           ./gradlew clean
           
-          # Запуск сборки
+          # Запуск финальной сборки APK
           ./gradlew assembleRelease --no-daemon
 
       - name: Upload APK Artifact
