@@ -43,40 +43,44 @@ jobs:
           NODE_OPTIONS: "--max-old-space-size=4096"
           EXPO_NO_DOCTOR: "1"
         run: |
-          # Генерируем оригинальную структуру Android
+          # Генерируем чистую оригинальную структуру Android
           npx expo prebuild --platform android --clean
 
-      - name: Global Android Buildscript Fix via JS
+      - name: Advanced Plugin Resolution Fix via JS
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
-            const path = 'android/build.gradle';
+            const path = 'android/settings.gradle';
             
-            // Читаем корневой build.gradle
+            // Читаем дефолтный, сгенерированный Expo файл настроек
             let content = fs.readFileSync(path, 'utf8');
             
-            // Внедряем глобальное правило: ВСЕ проекты и модули должны искать плагины
-            // в локальной папке expo-modules-core, а также в google и mavenCentral.
-            const globalFix = `
-            allprojects {
-                buildscript {
-                    repositories {
-                        maven { url "\${rootProject.projectDir}/../node_modules/expo-modules-core/android" }
-                        google()
-                        mavenCentral()
-                    }
-                }
+            // Прописываем стратегию разрешения плагина: если запрашивают expo-module-gradle-plugin,
+            // мы явно говорим Gradle использовать локальный путь в node_modules.
+            const resolutionStrategy = `
                 repositories {
+                    maven { url new File(settingsDir, "../node_modules/expo-modules-core/android") }
                     google()
                     mavenCentral()
+                    gradlePluginPortal()
                 }
-            }
-            `;
+                resolutionStrategy {
+                    eachPlugin {
+                        if (requested.id.id == 'expo-module-gradle-plugin') {
+                            useModule('expo.modules:expo-module-gradle-plugin:+')
+                        }
+                    }
+                }`;
             
-            // Записываем это правило в самый верх корневого файла сборки
-            fs.writeFileSync(path, globalFix + content, 'utf8');
-            console.log('Successfully applied global buildscript repositories fix!');
+            // Внедряем эту стратегию прямо внутрь РОДНОГО блока pluginManagement
+            if (content.includes('pluginManagement {')) {
+              content = content.replace('pluginManagement {', 'pluginManagement {' + resolutionStrategy);
+              fs.writeFileSync(path, content, 'utf8');
+              console.log('Successfully injected advanced resolution strategy into pluginManagement!');
+            } else {
+              throw new Error('pluginManagement block not found in settings.gradle');
+            }
 
       - name: Hotfix Expo Gradle 8+ Compatibility
         run: |
@@ -89,7 +93,7 @@ jobs:
           chmod +x gradlew
           ./gradlew clean
           
-          # Запуск финальной сборки APK
+          # Запуск сборки APK
           ./gradlew assembleRelease --no-daemon
 
       - name: Upload APK Artifact
