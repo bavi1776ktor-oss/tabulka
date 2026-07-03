@@ -46,29 +46,27 @@ jobs:
           # Генерируем оригинальную структуру Android
           npx expo prebuild --platform android --clean
 
-      - name: Absolute Top JS Injection to Settings
+      - name: Elegant JS Injection to Plugin Management
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
             const path = 'android/settings.gradle';
             
-            // Читаем исходный файл настроек
+            // Читаем родной файл настроек Expo
             let content = fs.readFileSync(path, 'utf8');
             
-            // Создаем блок управления плагинами, который встанет в самый верх файла
-            const injection = `pluginManagement {
-                repositories {
-                    maven { url new File(settingsDir, "../node_modules/expo-modules-core/android") }
-                    google()
-                    mavenCentral()
-                    gradlePluginPortal()
-                }
-            }\n\n`;
+            // Наша строка с локальным путем к плагину Expo
+            const injection = '\n    repositories {\n        maven { url new File(settingsDir, "../node_modules/expo-modules-core/android") }\n    }';
             
-            // Записываем инжект в самое начало файла перед родным кодом Expo
-            fs.writeFileSync(path, injection + content, 'utf8');
-            console.log('Successfully prepended Expo plugin repository path via JS!');
+            // Внедряем настройки репозитория прямо внутрь РОДНОГО блока pluginManagement
+            if (content.includes('pluginManagement {')) {
+              content = content.replace('pluginManagement {', 'pluginManagement {' + injection);
+              fs.writeFileSync(path, content, 'utf8');
+              console.log('Successfully injected repository into native pluginManagement block!');
+            } else {
+              throw new Error('pluginManagement block not found in original settings.gradle');
+            }
 
       - name: Hotfix Expo Gradle 8+ Compatibility
         run: |
@@ -81,7 +79,7 @@ jobs:
           chmod +x gradlew
           ./gradlew clean
           
-          # Запуск сборки APK
+          # Запуск финальной сборки APK
           ./gradlew assembleRelease --no-daemon
 
       - name: Upload APK Artifact
