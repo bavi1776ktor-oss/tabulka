@@ -104,16 +104,13 @@ export default function App() {
   // Получение железного ID устройства (благодаря expo-application плагину)
   const getUniqueDeviceId = async () => {
     try {
-      let id = Application.androidId;
-      if (!id) {
-        id = "android_fallback_" + Application.applicationId;
-      }
-      return id;
+      // Берем напрямую железный ID. Если его нет — отдаем фиксированную строку.
+      // Никаких динамических вызовов других свойств модуля, которые могут сбоить при компиляции.
+      return Application.androidId || "generic_android_device";
     } catch (e) {
       return "DEVICE_GENERIC_ERROR";
     }
   };
-
   // Проверка сохраненного ключа при старте
   useEffect(() => {
     async function checkSavedPassword() {
