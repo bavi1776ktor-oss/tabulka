@@ -38,8 +38,8 @@ jobs:
           # 1. Генерируем нативные папки без установки
           npx expo prebuild --platform android --no-install
           
-          # 2. Генерируем правильный конфиг, расширяющий @react-native/metro-config
-          echo "const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config'); const config = {}; module.exports = mergeConfig(getDefaultConfig(__dirname), config);" > metro.config.js
+          # 2. Генерируем стандартный Expo-конфиг Metro, который точно сработает
+          echo "const { getDefaultConfig } = require('@expo/metro-config'); module.exports = getDefaultConfig(__dirname);" > metro.config.js
           
           # 3. Создаем вручную папки для ресурсов Android
           mkdir -p android/app/src/main/assets
