@@ -38,26 +38,17 @@ jobs:
         run: |
           npx expo prebuild --platform android
 
-      - name: Force Plugin Substitution
+      - name: Force Repository Injection
         run: |
-          # Внедряем подмену плагина прямо в настройки, чтобы gradle не искал его в сети
-          echo 'pluginManagement {
-              repositories {
-                  google()
-                  mavenCentral()
-                  gradlePluginPortal()
-              }
-              includeBuild("../node_modules/expo-modules-core/android")
-          }' > android/settings.gradle
+          # Внедряем настройки репозиториев глобально, чтобы каждый модуль их видел
+          sed -i '1i allprojects { repositories { google(); mavenCentral(); maven { url "https://plugins.gradle.org/m2/" } } }' android/build.gradle
           
-          # Убеждаемся, что include ":app" и другие остаются
+          # Настраиваем settings.gradle максимально просто
           echo 'rootProject.name = "tabulka"
           include ":app"
-          includeBuild("../node_modules/expo-modules-core/android")' >> android/settings.gradle
+          includeBuild("../node_modules/expo-modules-core/android")' > android/settings.gradle
 
       - name: Compile Native APK via Gradle
-        env:
-          ORG_GRADLE_PROJECT_expoModulesCorePath: "../node_modules/expo-modules-core/android"
         run: |
           cd android
           chmod +x gradlew
