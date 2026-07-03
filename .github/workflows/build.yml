@@ -42,13 +42,26 @@ jobs:
           # Генерируем нативную структуру
           npx expo prebuild --platform android --clean
 
-      - name: Force Inject Plugin Repository
+      - name: Core Autolink Repair
         run: |
-          # Используем @ вместо / в sed, чтобы Linux не путал разделители команд с URL адресами
-          sed -i '/repositories {/a \        maven { url "https://plugins.gradle.org/m2/" }\n        maven { url "https://maven.mozilla.org/maven2/" }' android/settings.gradle
+          # Перезаписываем блок pluginManagement в settings.gradle так, чтобы Gradle железно знал,
+          # что плагин автоматизации Expo нужно искать в локальной папке node_modules.
+          cat << 'EOF' > android/settings.gradle.new
+          pluginManagement {
+              repositories {
+                  maven { url new File(settingsDir, "../node_modules/expo-modules-core/android") }
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          EOF
           
-          # Корректно инжектим репозиторий в билд-файл модуля secure-store через безопасный разделитель @
-          sed -i '1s@^@buildscript { repositories { google(); mavenCentral(); maven { url "https://plugins.gradle.org/m2/" } } }\n@' node_modules/expo-secure-store/android/build.gradle
+          # Вырезаем старый дефолтный pluginManagement и склеиваем файлы корректно
+          sed -i '/pluginManagement {/,/^}/d' android/settings.gradle
+          cat android/settings.gradle.new android/settings.gradle > android/settings.gradle.combined
+          mv android/settings.gradle.combined android/settings.gradle
+          rm android/settings.gradle.new
 
       - name: Hotfix Expo Gradle 8+ Compatibility
         run: |
@@ -61,7 +74,7 @@ jobs:
           chmod +x gradlew
           ./gradlew clean
           
-          # Запускаем финальную компиляцию
+          # Запускаем сборку
           ./gradlew assembleRelease --no-daemon
 
       - name: Upload APK Artifact
