@@ -22,7 +22,10 @@ jobs:
 
       - name: Install JavaScript Dependencies
         run: |
+          # 1. Ставим твои базовые зависимости
           npm install
+          # 2. Принудительно доставляем пакеты, которые требует App.js, строго под версию твоей Expo 51
+          npm install expo-secure-store@~5.0.1 @expo/vector-icons@^14.0.0 --save
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
@@ -34,9 +37,9 @@ jobs:
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
           EXPO_NO_DOCTOR: "1"
-          EXPO_OFFLINE: "1" # Блокируем запросы к аккаунту expo.dev, работаем строго локально
+          EXPO_OFFLINE: "1"
         run: |
-          # 1. Генерируем папки с автолинковкой пакетов (убираем --no-install)
+          # 1. Генерируем папки с автолинковкой пакетов теперь, когда все библиотеки на месте
           npx expo prebuild --platform android --clean
           
           # 2. Создаем папки для ассет-бандла
