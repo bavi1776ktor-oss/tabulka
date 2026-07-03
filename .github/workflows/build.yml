@@ -24,29 +24,31 @@ jobs:
         run: |
           npm ci || npm install
 
-      - name: Generate Native Android Folder
-        # Включаем жесткий оффлайн-режим для генерации, игнорируя сервера expo.dev
-        env:
-          EXPO_NO_DOCTOR: "1"
-          EXPO_OFFLINE: "1"
-          EAS_NO_ERRORS: "1"
-        run: npx expo prebuild --platform android --clean
-
       - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'zulu'
 
-      - name: Fix Permissions and Build
-        # Полностью изолируем локальный Gradle билд от внешних проверок Expo
+      - name: Generate and Build Android APK
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
           EXPO_NO_DOCTOR: "1"
           EXPO_OFFLINE: "1"
+          EAS_NO_ERRORS: "1"
           SOURCEMAP_OUTPUT: "/dev/null"
         run: |
+          # Принудительно генерируем нативную папку android
+          npx expo prebuild --platform android --template blank
+          
+          # Переходим и собираем
           cd android
           chmod +x gradlew
           ./gradlew clean
           ./gradlew assembleRelease --no-daemon
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tabulka-app-release
+          path: android/app/build/outputs/apk/release/app-release.apk
