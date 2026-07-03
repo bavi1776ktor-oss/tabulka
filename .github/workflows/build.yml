@@ -44,15 +44,14 @@ jobs:
         run: |
           npx expo prebuild --platform android --clean
 
-      - name: Bruteforce Plugin Injection
+      - name: Force Composite Build
         run: |
-          # 1. Внедряем путь к плагину в корень build.gradle
-          sed -i '1i buildscript { repositories { maven { url "./../node_modules/expo-modules-core/android" } }; dependencies { classpath "expo.modules:expo-module-gradle-plugin:+" } }' android/build.gradle
+          # 1. Записываем includeBuild в самый конец settings.gradle
+          echo 'includeBuild("../node_modules/expo-modules-core/android")' >> android/settings.gradle
           
-          # 2. Удаляем блок plugins, который вызывает ошибку в secure-store, так как плагин теперь уже загружен в classpath
-          sed -i '/plugins {/d' node_modules/expo-secure-store/android/build.gradle
-          sed -i '/id "expo-module-gradle-plugin"/d' node_modules/expo-secure-store/android/build.gradle
-          sed -i '/}/d' node_modules/expo-secure-store/android/build.gradle
+          # 2. Правим конфиг модуля, чтобы он использовал локальный проект, а не искал артефакты
+          # Мы заменяем подключение плагина в secure-store на прямой вызов
+          sed -i 's/id "expo-module-gradle-plugin"/id "expo.modules.gradle"/g' node_modules/expo-secure-store/android/build.gradle
           
           # 3. Фикс совместимости
           sed -i "s/components.release/components.findByName('release')/g" node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle || true
