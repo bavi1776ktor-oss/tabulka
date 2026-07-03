@@ -46,23 +46,22 @@ jobs:
           # Генерируем оригинальную структуру Android
           npx expo prebuild --platform android --clean
 
-      - name: Include Build Injection via JS
+      - name: Append Build Injection via JS
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
             const path = 'android/settings.gradle';
             
-            // Читаем сгенерированный файл настроек Expo
+            // Читаем исходный файл настроек Expo
             let content = fs.readFileSync(path, 'utf8');
             
-            // Вместо репозиториев, мы подключаем сам исходный код плагина как составную часть сборки.
-            // Это решает проблему "Plugin not found (dependency must include a version number)"
+            // Команда склейки плагина без версий
             const injection = '\nincludeBuild("../node_modules/expo-modules-core/android")\n';
             
-            // Записываем инструкцию в самый верх файла
-            fs.writeFileSync(path, injection + content, 'utf8');
-            console.log('Successfully injected includeBuild for Expo module plugin!');
+            // Дописываем инструкцию в самый КОНЕЦ файла, чтобы не нарушать порядок блоков вверху
+            fs.writeFileSync(path, content + injection, 'utf8');
+            console.log('Successfully appended includeBuild to the end of settings.gradle!');
 
       - name: Hotfix Expo Gradle 8+ Compatibility
         run: |
