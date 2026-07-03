@@ -25,7 +25,7 @@ jobs:
           # 1. Базовая установка
           npm install
           
-          # 2. Жестко фиксируем нехватку библиотек в package.json до вызова prebuild
+          # 2. Фиксируем модули в package.json
           npm install expo-secure-store@~15.0.1 @expo/vector-icons@^14.0.0 react-native-calendars --save
 
       - name: Setup Java JDK
@@ -39,12 +39,21 @@ jobs:
           NODE_OPTIONS: "--max-old-space-size=4096"
           EXPO_NO_DOCTOR: "1"
         run: |
-          # Разрешаем полноценный пребилд. Он сам поставит нативные связи и сгенерирует правильный settings.gradle
+          # Генерируем нативную структуру
           npx expo prebuild --platform android --clean
+
+      - name: Force Inject Plugin Repository
+        run: |
+          # Прописываем удаленный Maven репозиторий Expo прямо в pluginManagement нативного проекта,
+          # чтобы Gradle мог скачать 'expo-module-gradle-plugin' из сети, если локальный путь не сработал.
+          sed -i '/repositories {/a \        maven { url "https://plugins.gradle.org/m2/" }\n        maven { url "https://maven.mozilla.org/maven2/" }' android/settings.gradle
+          
+          # На всякий случай дублируем репозиторий в build.gradle самого модуля secure-store
+          sed -i '1s/^/buildscript { repositories { google(); mavenCentral(); maven { url "https://plugins.gradle.org/m2/" } } }\n/' node_modules/expo-secure-store/android/build.gradle
 
       - name: Hotfix Expo Gradle 8+ Compatibility
         run: |
-          # Исправляем известную нативную ошибку совместимости с Gradle 8
+          # Исправляем ошибку совместимости с Gradle 8
           sed -i "s/components.release/components.findByName('release')/g" node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle || true
 
       - name: Compile Native APK via Gradle
@@ -53,7 +62,7 @@ jobs:
           chmod +x gradlew
           ./gradlew clean
           
-          # Запускаем сборку. Поскольку prebuild отработал штатно, встроенный бандлер Expo выполнится внутри Gradle сам
+          # Запускаем финальную компиляцию
           ./gradlew assembleRelease --no-daemon
 
       - name: Upload APK Artifact
