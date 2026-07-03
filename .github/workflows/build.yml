@@ -34,7 +34,7 @@ jobs:
           java-version: '17'
           distribution: 'zulu'
 
-      - name: Split Build Process (Expo Smart Inject)
+      - name: Split Build Process (Native Hotfix)
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
           EXPO_NO_DOCTOR: "1"
@@ -42,8 +42,9 @@ jobs:
           # 1. Быстрая генерация нативной папки без сброса npm-зависимостей
           npx expo prebuild --platform android --clean --no-install
           
-          # 2. Аккуратно внедряем локальный репозиторий Expo внутрь существующего блока repositories в settings.gradle
-          sed -i '/repositories {/a \ \ \ \ \ \ \ \ maven { url "${settingsDir}/../node_modules/expo-modules-core/android" }' android/settings.gradle
+          # 2. ЖЕСТКИЙ ПАТЧ: внедряем локальный classpath репозиторий прямо в билд-скрипт проблемного модуля
+          # Это заставит expo-secure-store увидеть свой плагин локально
+          sed -i '1s/^/buildscript { repositories { google(); mavenCentral(); maven { url "${projectDir}\/..\/expo-modules-core\/android" } } dependencies { classpath "expo.modules:expo-module-gradle-plugin:+" } }\n/' node_modules/expo-secure-store/android/build.gradle
           
           # 3. Исправление нативного бага Expo плагина для совместимости с Gradle 8+
           sed -i "s/components.release/components.findByName('release')/g" node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle || true
