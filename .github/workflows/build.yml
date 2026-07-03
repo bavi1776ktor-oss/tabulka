@@ -26,18 +26,18 @@ jobs:
           java-version: '17'
           distribution: 'zulu'
 
-      - name: Prepare and Export JS Bundle
+      - name: Install and Prebuild
         run: |
           npm install
-          # Принудительная очистка и подготовка JS-бандла перед сборкой Gradle
+          npm install expo@~51.0.0 --save-exact
+          # Очистка и стандартный пребилд
           rm -rf .expo
-          npx expo export --platform android --dump-asset-map
           npx expo prebuild --platform android --clean
 
       - name: Patch Native Dependencies
         run: |
           sed -i "s/components.release/components.findByName('release')/g" node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle || true
-          sed -i 's/id("expo-module-gradle-plugin")/id("expo.modules.gradle")/g" node_modules/expo-secure-store/android/build.gradle || true
+          sed -i 's/id("expo-module-gradle-plugin")/id("expo.modules.gradle")/g' node_modules/expo-secure-store/android/build.gradle || true
 
       - name: Compile Native APK via Gradle
         env:
@@ -46,6 +46,7 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew clean
+          # Собираем бандл и APK одновременно
           ./gradlew assembleRelease --no-daemon
 
       - name: Upload APK Artifact
