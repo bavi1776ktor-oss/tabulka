@@ -44,24 +44,8 @@ jobs:
 
       - name: Core Autolink Repair
         run: |
-          # Перезаписываем блок pluginManagement в settings.gradle так, чтобы Gradle железно знал,
-          # что плагин автоматизации Expo нужно искать в локальной папке node_modules.
-          cat << 'EOF' > android/settings.gradle.new
-          pluginManagement {
-              repositories {
-                  maven { url new File(settingsDir, "../node_modules/expo-modules-core/android") }
-                  google()
-                  mavenCentral()
-                  gradlePluginPortal()
-              }
-          }
-          EOF
-          
-          # Вырезаем старый дефолтный pluginManagement и склеиваем файлы корректно
-          sed -i '/pluginManagement {/,/^}/d' android/settings.gradle
-          cat android/settings.gradle.new android/settings.gradle > android/settings.gradle.combined
-          mv android/settings.gradle.combined android/settings.gradle
-          rm android/settings.gradle.new
+          # Не ломаем родной блок, а просто аккуратно внедряем путь к expo-модулям первой строчкой в repositories
+          sed -i '/repositories {/a \        maven { url new File(settingsDir, "../node_modules/expo-modules-core/android") }' android/settings.gradle
 
       - name: Hotfix Expo Gradle 8+ Compatibility
         run: |
