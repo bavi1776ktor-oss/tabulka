@@ -22,7 +22,7 @@ jobs:
 
       - name: Install JavaScript Dependencies
         run: |
-          # 1. Базовая установка зависимостей проектa
+          # 1. Базовая установка зависимостей
           npm install
           
           # 2. Установка необходимых для App.js модулей
@@ -34,7 +34,7 @@ jobs:
           java-version: '17'
           distribution: 'zulu'
 
-      - name: Split Build Process (Expo Hard Autolink)
+      - name: Split Build Process (Expo Smart Inject)
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
           EXPO_NO_DOCTOR: "1"
@@ -42,10 +42,8 @@ jobs:
           # 1. Быстрая генерация нативной папки без сброса npm-зависимостей
           npx expo prebuild --platform android --clean --no-install
           
-          # 2. Прописываем жесткий путь к Gradle-плагинам Expo, чтобы сборщик не терял их
-          echo "pluginManagement { repositories { maven { url '#{__dirname}/node_modules/expo-modules-core/android' }; gradlePluginPortal(); google(); mavenCentral() } }" > android/settings.gradle.tmp
-          cat android/settings.gradle >> android/settings.gradle.tmp
-          mv android/settings.gradle.tmp android/settings.gradle
+          # 2. Аккуратно внедряем локальный репозиторий Expo внутрь существующего блока repositories в settings.gradle
+          sed -i '/repositories {/a \ \ \ \ \ \ \ \ maven { url "${settingsDir}/../node_modules/expo-modules-core/android" }' android/settings.gradle
           
           # 3. Исправление нативного бага Expo плагина для совместимости с Gradle 8+
           sed -i "s/components.release/components.findByName('release')/g" node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle || true
@@ -68,7 +66,7 @@ jobs:
           chmod +x gradlew
           ./gradlew clean
           
-          # Финальная сборка APK с жестко прилинкованными плагинами
+          # Финальная сборка APK
           ./gradlew assembleRelease -x createBundleReleaseJsAndAssets --no-daemon
 
       - name: Upload APK Artifact
