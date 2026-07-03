@@ -18,7 +18,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20 # Поднимаем версию Node.js, чтобы утилиты Expo не ругались на совместимость
+          node-version: 20
 
       - name: Install JavaScript Dependencies
         run: |
@@ -36,19 +36,26 @@ jobs:
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
-          expo-version: latest # Исправляем packager-version на валидный expo-version
+          expo-version: latest
 
       - name: Standard Expo Prebuild
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
           EXPO_NO_DOCTOR: "1"
         run: |
-          # Пребилд под правильным окружением Node 20
+          # Генерируем нативную структуру
           npx expo prebuild --platform android --clean
+
+      - name: Hard Inject Repository to Secure Store Module
+        run: |
+          # Хирургически внедряем локальный путь к expo-module-gradle-plugin 
+          # прямо на ПЕРВУЮ строку файла build.gradle проблемного модуля expo-secure-store.
+          # Используем разделитель '|', чтобы пути с косыми чертами сработали идеально.
+          sed -i '1s|^|buildscript { repositories { google(); mavenCentral(); maven { url "${rootProject.projectDir}/../node_modules/expo-modules-core/android" } } dependencies { classpath "expo.modules:expo-module-gradle-plugin:+" } }\n|' node_modules/expo-secure-store/android/build.gradle
 
       - name: Hotfix Expo Gradle 8+ Compatibility
         run: |
-          # Фикс совместимости Gradle 8+
+          # Фикс совместимости Gradle 8+ для ядра модулей
           sed -i "s/components.release/components.findByName('release')/g" node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle || true
 
       - name: Compile Native APK via Gradle
