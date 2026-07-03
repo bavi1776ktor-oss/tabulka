@@ -30,19 +30,20 @@ jobs:
           java-version: '17'
           distribution: 'zulu'
 
-      - name: Split Build Process (Expo Embed Bundling)
+      - name: Split Build Process (Expo Full Autolink)
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
           EXPO_NO_DOCTOR: "1"
+          EXPO_OFFLINE: "1" # Блокируем запросы к аккаунту expo.dev, работаем строго локально
         run: |
-          # 1. Генерируем нативные папки android
-          npx expo prebuild --platform android --no-install
+          # 1. Генерируем папки с автолинковкой пакетов (убираем --no-install)
+          npx expo prebuild --platform android --clean
           
-          # 2. Создаем папки для бандла и ресурсов
+          # 2. Создаем папки для ассет-бандла
           mkdir -p android/app/src/main/assets
           mkdir -p android/app/src/main/res/drawable-mdpi
           
-          # 3. Собираем бандл через родной сборщик Expo, который знает про @expo/vector-icons
+          # 3. Собираем JS бандл через встроенный компилятор Expo
           npx expo export:embed \
             --platform android \
             --dev false \
@@ -56,7 +57,7 @@ jobs:
           chmod +x gradlew
           ./gradlew clean
           
-          # Собираем APK, запрещая Gradle запускать бандлер повторно
+          # Запускаем сборку APK, полностью исключая повторный вызов забагованной таски Metro
           ./gradlew assembleRelease -x createBundleReleaseJsAndAssets --no-daemon
 
       - name: Upload APK Artifact
