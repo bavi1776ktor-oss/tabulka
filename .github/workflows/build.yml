@@ -22,7 +22,6 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          # Устанавливаем всё необходимое ОДНИМ заходом
           npm install
           npm install expo@~51.0.0 react-native-calendars expo-secure-store@~13.0.1 @expo/vector-icons --save-exact
 
@@ -37,13 +36,24 @@ jobs:
           NODE_OPTIONS: "--max-old-space-size=4096"
           EXPO_NO_DOCTOR: "1"
         run: |
-          # ВАЖНО: не используем --clean, чтобы не вычищать установленные пакеты
           npx expo prebuild --platform android
 
-      - name: Patch Native Dependencies
+      - name: Force Plugin Substitution
         run: |
-          sed -i "s/components.release/components.findByName('release')/g" node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle || true
-          sed -i 's/id("expo-module-gradle-plugin")/id("expo.modules.gradle")/g' node_modules/expo-secure-store/android/build.gradle || true
+          # Внедряем подмену плагина прямо в настройки, чтобы gradle не искал его в сети
+          echo 'pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+              includeBuild("../node_modules/expo-modules-core/android")
+          }' > android/settings.gradle
+          
+          # Убеждаемся, что include ":app" и другие остаются
+          echo 'rootProject.name = "tabulka"
+          include ":app"
+          includeBuild("../node_modules/expo-modules-core/android")' >> android/settings.gradle
 
       - name: Compile Native APK via Gradle
         env:
