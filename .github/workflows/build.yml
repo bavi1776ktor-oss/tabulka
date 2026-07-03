@@ -42,14 +42,18 @@ jobs:
           # Генерируем нативную структуру
           npx expo prebuild --platform android --clean
 
-      - name: Core Autolink Repair
+      - name: Native Autolink Fix via Properties
         run: |
-          # Не ломаем родной блок, а просто аккуратно внедряем путь к expo-модулям первой строчкой в repositories
-          sed -i '/repositories {/a \        maven { url new File(settingsDir, "../node_modules/expo-modules-core/android") }' android/settings.gradle
+          # Вместо хрупких sed-замен, мы жестко прописываем локальный путь к плагину Expo 
+          # в глобальный билд-скрипт Gradle самого проекта.
+          cd android
+          echo "buildscript { repositories { google(); mavenCentral(); maven { url \"../node_modules/expo-modules-core/android\" } } dependencies { classpath \"expo.modules:expo-module-gradle-plugin:+\" } }" > build.gradle.tmp
+          cat build.gradle >> build.gradle.tmp
+          mv build.gradle.tmp build.gradle
 
       - name: Hotfix Expo Gradle 8+ Compatibility
         run: |
-          # Исправляем ошибку совместимости с Gradle 8
+          # Исправляем ошибку совместимости с Gradle 8 в самом ядре
           sed -i "s/components.release/components.findByName('release')/g" node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle || true
 
       - name: Compile Native APK via Gradle
