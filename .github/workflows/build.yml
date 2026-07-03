@@ -21,10 +21,10 @@ jobs:
           node-version: 18
 
       - name: Install JavaScript Dependencies
-        run: npm install
+        run: |
+          npm ci || npm install
 
       - name: Generate Native Android Folder
-        # Добавляем EXPO_NO_DOCTOR=1, чтобы сборка не падала из-за формата картинок в assets
         env:
           EXPO_NO_DOCTOR: "1"
         run: npx expo prebuild --platform android --clean
@@ -36,17 +36,13 @@ jobs:
           distribution: 'zulu'
 
       - name: Fix Permissions and Build
+        # Добавляем принудительное отключение генерации сорсмапов, чтобы разгрузить Metro
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
           EXPO_NO_DOCTOR: "1"
+          SOURCEMAP_OUTPUT: "/dev/null"
         run: |
           cd android
           chmod +x gradlew
           ./gradlew clean
-          ./gradlew assembleRelease --stacktrace --info --no-daemon
-
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: tabulka-app-release
-          path: android/app/build/outputs/apk/release/app-release.apk
+          ./gradlew assembleRelease --no-daemon --stacktrace
