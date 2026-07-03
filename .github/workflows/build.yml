@@ -20,31 +20,37 @@ jobs:
         with:
           node-version: 18
 
+      - name: Install JavaScript Dependencies
+        run: |
+          # 1. Установка базовых зависимостей
+          npm install
+          
+          # 2. Фиксируем модули в package.json
+          npm install expo-secure-store@~15.0.1 @expo/vector-icons@^14.0.0 react-native-calendars --save
+
       - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'zulu'
 
-      - name: Standard Expo Prebuild with Native Install
+      - name: Standard Expo Prebuild
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
           EXPO_NO_DOCTOR: "1"
         run: |
-          # 1. Сначала ставим базовые npm пакеты проекта
-          npm install
-          
-          # 2. Добавляем нехватающие модули в package.json
-          npm install expo-secure-store@~15.0.1 @expo/vector-icons@^14.0.0 react-native-calendars --save
-          
-          # 3. Запускаем ПОЛНЫЙ пребилд БЕЗ флага --no-install. 
-          # Это заставит Expo CLI локально скачать и прилинковать все Android-зависимости,
-          # включая злополучный expo-module-gradle-plugin.
+          # Генерируем нативную папку android
           npx expo prebuild --platform android --clean
+
+      - name: Force Include Expo Gradle Plugin
+        run: |
+          # Инжектируем прямую сборку плагина Expo Modules прямо в корневой settings.gradle.
+          # Это заставит Gradle принудительно скомпилировать и зарегистрировать плагин локально.
+          echo "includeBuild('../node_modules/expo-modules-core/android')" >> android/settings.gradle
 
       - name: Hotfix Expo Gradle 8+ Compatibility
         run: |
-          # Исправляем ошибку совместимости с Gradle 8 в сгенерированном ядре
+          # Исправляем ошибку совместимости с Gradle 8 в самом ядре
           sed -i "s/components.release/components.findByName('release')/g" node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle || true
 
       - name: Compile Native APK via Gradle
@@ -53,7 +59,7 @@ jobs:
           chmod +x gradlew
           ./gradlew clean
           
-          # Запускаем сборку APK. Теперь все локальные плагины на месте.
+          # Запускаем сборку
           ./gradlew assembleRelease --no-daemon
 
       - name: Upload APK Artifact
