@@ -36,7 +36,6 @@ jobs:
           distribution: 'zulu'
 
       - name: Fix Permissions and Build
-        # Отключаем строгую валидацию Metro, чтобы он не падал на упаковке ресурсов
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
           EXPO_NO_DOCTOR: "1"
@@ -44,7 +43,7 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew clean
-          ./gradlew assembleRelease --no-daemon
+          ./gradlew assembleRelease --stacktrace --info --no-daemon
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
