@@ -20,13 +20,6 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install JavaScript Dependencies
-        run: |
-          rm -rf node_modules package-lock.json
-          npm install
-          npm install expo@~51.0.0 --save-exact
-          npm install expo-secure-store@~13.0.1 @expo/vector-icons react-native-calendars --save
-
       - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
@@ -38,23 +31,22 @@ jobs:
           NODE_OPTIONS: "--max-old-space-size=4096"
           EXPO_NO_DOCTOR: "1"
         run: |
+          npm install
           npx expo prebuild --platform android --clean
 
-      - name: Inject Configuration
+      - name: Patch Native Dependencies
         run: |
-          # 1. Добавляем путь к локальному плагину в gradle.properties
-          echo "expo.modules.core.path=../node_modules/expo-modules-core/android" >> android/gradle.properties
-          
-          # 2. Очищаем settings.gradle от лишних блоков, если они там есть, 
-          # чтобы избежать ошибки "At most, one pluginManagement block"
-          # Мы используем только то, что Expo уже создало, просто добавив туда одну строчку в репозитории
-          sed -i '/maven { url "..\/node_modules\/expo-modules-core\/android" }/d' android/settings.gradle
-          sed -i '/pluginManagement {/a \        maven { url "../node_modules/expo-modules-core/android" }' android/settings.gradle
-
-          # 3. Фикс совместимости
+          # Вместо правки файлов настроек, мы патчим сам плагин, 
+          # чтобы он не требовал внешних репозиториев для поиска артефактов
           sed -i "s/components.release/components.findByName('release')/g" node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle || true
+          
+          # Убираем жесткую привязку к плагину в secure-store, переключая его на локальную сборку
+          sed -i 's/id("expo-module-gradle-plugin")/id("expo.modules.gradle")/g' node_modules/expo-secure-store/android/build.gradle || true
 
       - name: Compile Native APK via Gradle
+        env:
+          # Передаем путь к модулям напрямую в Gradle, минуя настройки репозиториев
+          ORG_GRADLE_PROJECT_expoModulesCorePath: "../node_modules/expo-modules-core/android"
         run: |
           cd android
           chmod +x gradlew
