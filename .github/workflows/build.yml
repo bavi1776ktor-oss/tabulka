@@ -46,27 +46,29 @@ jobs:
           # Генерируем оригинальную структуру Android
           npx expo prebuild --platform android --clean
 
-      - name: Safe JS Injection to Native Repositories
+      - name: Absolute Top JS Injection to Settings
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
             const path = 'android/settings.gradle';
             
-            // Читаем сгенерированный файл настроек Gradle
+            // Читаем исходный файл настроек
             let content = fs.readFileSync(path, 'utf8');
             
-            // Наша строка с локальным путем к плагину Expo
-            const injection = '\n        maven { url "${settingsDir}/../node_modules/expo-modules-core/android" }';
+            // Создаем блок управления плагинами, который встанет в самый верх файла
+            const injection = `pluginManagement {
+                repositories {
+                    maven { url new File(settingsDir, "../node_modules/expo-modules-core/android") }
+                    google()
+                    mavenCentral()
+                    gradlePluginPortal()
+                }
+            }\n\n`;
             
-            // Ювелирно вставляем ее сразу после первого упоминания "repositories {"
-            if (content.includes('repositories {')) {
-              content = content.replace('repositories {', 'repositories {' + injection);
-              fs.writeFileSync(path, content, 'utf8');
-              console.log('Successfully injected Expo plugin repository path via JS!');
-            } else {
-              throw new Error('Could not find repositories block in settings.gradle');
-            }
+            // Записываем инжект в самое начало файла перед родным кодом Expo
+            fs.writeFileSync(path, injection + content, 'utf8');
+            console.log('Successfully prepended Expo plugin repository path via JS!');
 
       - name: Hotfix Expo Gradle 8+ Compatibility
         run: |
@@ -79,7 +81,7 @@ jobs:
           chmod +x gradlew
           ./gradlew clean
           
-          # Запуск финальной сборки APK
+          # Запуск сборки APK
           ./gradlew assembleRelease --no-daemon
 
       - name: Upload APK Artifact
