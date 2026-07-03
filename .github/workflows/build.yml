@@ -46,12 +46,36 @@ jobs:
           # Генерируем нативную структуру
           npx expo prebuild --platform android --clean
 
-      - name: Clean Global Plugin Autolink Fix
+      - name: Absolute Settings Overwrite Fix
         run: |
-          # Вместо того чтобы ломать файлы модулей, мы красиво добавляем локальный репозиторий 
-          # в глобальный блок pluginManagement прямо внутри settings.gradle.
-          # Это решит проблему путей для ВСЕХ модулей без синтаксических ошибок.
-          sed -i 's|repositories {|repositories {\n        maven { url "${settingsDir}/../node_modules/expo-modules-core/android" }|g' android/settings.gradle
+          # Полностью перезаписываем settings.gradle правильной структурой,
+          # где четко разделены плагины React Native и Expo Modules.
+          cat << 'EOF' > android/settings.gradle
+          pluginManagement {
+              repositories {
+                  maven { url new File(settingsDir, "../node_modules/expo-modules-core/android") }
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.PRESERVE_AT_BUILDSCRIPT)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          
+          rootProject.name = 'Табулька'
+          
+          apply from: new File(settingsDir, "../node_modules/@react-native/gradle-plugin/settings.gradle")
+          apply from: new File(settingsDir, "../node_modules/expo/settings.gradle")
+          
+          include ':app'
+          includeBuild('../node_modules/@react-native/gradle-plugin')
+          EOF
 
       - name: Hotfix Expo Gradle 8+ Compatibility
         run: |
