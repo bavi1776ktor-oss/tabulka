@@ -22,11 +22,11 @@ jobs:
 
       - name: Install JavaScript Dependencies
         run: |
-          # 1. Базовая установка зависимостей из твоего package.json
+          # 1. Базовая установка
           npm install
           
-          # 2. Устанавливаем ядро модулей Expo вместе с недостающими пакетами, чтобы нативный плагин Gradle встал на свое место автоматически
-          npm install expo-modules-core@~1.12.21 expo-secure-store@~15.0.1 @expo/vector-icons@^14.0.0 react-native-calendars --save
+          # 2. Жестко фиксируем нехватку библиотек в package.json до вызова prebuild
+          npm install expo-secure-store@~15.0.1 @expo/vector-icons@^14.0.0 react-native-calendars --save
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
@@ -34,37 +34,27 @@ jobs:
           java-version: '17'
           distribution: 'zulu'
 
-      - name: Split Build Process (Expo Standard Build)
+      - name: Standard Expo Prebuild (Full Autolink)
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
           EXPO_NO_DOCTOR: "1"
         run: |
-          # 1. Чистая генерация нативной папки Android. Теперь со всеми ядрами модулей
-          npx expo prebuild --platform android --clean --no-install
-          
-          # 2. Исправление нативного бага Expo для совместимости с Gradle 8+
-          sed -i "s/components.release/components.findByName('release')/g" node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle || true
-          
-          # 3. Создаем папки для готового JS-бандла
-          mkdir -p android/app/src/main/assets
-          mkdir -p android/app/src/main/res/drawable-mdpi
-          
-          # 4. Собираем JS бандл отдельно силами Expo компилятора
-          npx expo export:embed \
-            --platform android \
-            --dev false \
-            --entry-file App.js \
-            --bundle-output android/app/src/main/assets/index.android.bundle \
-            --assets-dest android/app/src/main/res/
+          # Разрешаем полноценный пребилд. Он сам поставит нативные связи и сгенерирует правильный settings.gradle
+          npx expo prebuild --platform android --clean
 
-      - name: Disable Gradle Internal Bundling and Compile APK
+      - name: Hotfix Expo Gradle 8+ Compatibility
+        run: |
+          # Исправляем известную нативную ошибку совместимости с Gradle 8
+          sed -i "s/components.release/components.findByName('release')/g" node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle || true
+
+      - name: Compile Native APK via Gradle
         run: |
           cd android
           chmod +x gradlew
           ./gradlew clean
           
-          # Финальная сборка APK
-          ./gradlew assembleRelease -x createBundleReleaseJsAndAssets --no-daemon
+          # Запускаем сборку. Поскольку prebuild отработал штатно, встроенный бандлер Expo выполнится внутри Gradle сам
+          ./gradlew assembleRelease --no-daemon
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
