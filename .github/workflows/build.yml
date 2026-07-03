@@ -20,38 +20,43 @@ jobs:
         with:
           node-version: 20
 
+      - name: Install JavaScript Dependencies
+        run: |
+          # Полная очистка и установка
+          rm -rf node_modules package-lock.json
+          npm install
+          # Принудительная установка expo, чтобы prebuild видел SDK
+          npm install expo@~51.0.0 --save-exact
+          npm install expo-secure-store@~13.0.1 @expo/vector-icons react-native-calendars --save
+
       - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'zulu'
 
-      - name: Setup Official Expo CLI Environment
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          expo-version: latest
+      - name: Verify Dependency Installation
+        run: |
+          # Проверка, видит ли проект пакет expo
+          if [ ! -d "node_modules/expo" ]; then
+            echo "Expo not found, forcing install..."
+            npm install expo@~51.0.0
+          fi
+          npx expo --version
 
       - name: Standard Expo Prebuild
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
           EXPO_NO_DOCTOR: "1"
         run: |
+          # Пребилд теперь гарантированно увидит зависимости
           npx expo prebuild --platform android --clean
 
       - name: Final "Dependency Injection" Fix
         run: |
-          # 1. Заставляем все проекты (включая изолированные) использовать наши репозитории
-          # Это вставка блока 'allprojects' в корневой build.gradle
           sed -i '1i allprojects { buildscript { repositories { google(); mavenCentral() } }; repositories { google(); mavenCentral() } }' android/build.gradle
-          
-          # 2. Добавляем includeBuild в settings.gradle, чтобы плагин был доступен
           echo 'includeBuild("../node_modules/expo-modules-core/android")' >> android/settings.gradle
-          
-          # 3. Принудительный патч модуля, чтобы он не искал плагин, а использовал родительский
           sed -i 's/id "expo-module-gradle-plugin"/id "expo.modules.gradle"/g' node_modules/expo-secure-store/android/build.gradle
-          
-          # 4. Фикс совместимости
           sed -i "s/components.release/components.findByName('release')/g" node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle || true
 
       - name: Compile Native APK via Gradle
