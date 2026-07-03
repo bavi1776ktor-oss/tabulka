@@ -22,10 +22,8 @@ jobs:
 
       - name: Install JavaScript Dependencies
         run: |
-          # 1. Установка базовых зависимостей
+          # Базовая установка зависимостей
           npm install
-          
-          # 2. Фиксируем модули в package.json
           npm install expo-secure-store@~15.0.1 @expo/vector-icons@^14.0.0 react-native-calendars --save
 
       - name: Setup Java JDK
@@ -34,23 +32,23 @@ jobs:
           java-version: '17'
           distribution: 'zulu'
 
+      - name: Setup Official Expo CLI Environment
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          packager-version: latest
+
       - name: Standard Expo Prebuild
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
           EXPO_NO_DOCTOR: "1"
         run: |
-          # Генерируем нативную папку android
+          # Теперь пребилд выполняется под контролем официального экшена Expo
           npx expo prebuild --platform android --clean
-
-      - name: Force Include Expo Gradle Plugin
-        run: |
-          # Инжектируем прямую сборку плагина Expo Modules прямо в корневой settings.gradle.
-          # Это заставит Gradle принудительно скомпилировать и зарегистрировать плагин локально.
-          echo "includeBuild('../node_modules/expo-modules-core/android')" >> android/settings.gradle
 
       - name: Hotfix Expo Gradle 8+ Compatibility
         run: |
-          # Исправляем ошибку совместимости с Gradle 8 в самом ядре
+          # Фикс совместимости Gradle 8+
           sed -i "s/components.release/components.findByName('release')/g" node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle || true
 
       - name: Compile Native APK via Gradle
@@ -59,7 +57,7 @@ jobs:
           chmod +x gradlew
           ./gradlew clean
           
-          # Запускаем сборку
+          # Финальная сборка APK
           ./gradlew assembleRelease --no-daemon
 
       - name: Upload APK Artifact
