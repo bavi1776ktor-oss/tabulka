@@ -18,7 +18,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20 # Поднимаем версию Node.js, чтобы утилиты Expo не ругались на совместимость
 
       - name: Install JavaScript Dependencies
         run: |
@@ -36,14 +36,14 @@ jobs:
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
-          packager-version: latest
+          expo-version: latest # Исправляем packager-version на валидный expo-version
 
       - name: Standard Expo Prebuild
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
           EXPO_NO_DOCTOR: "1"
         run: |
-          # Теперь пребилд выполняется под контролем официального экшена Expo
+          # Пребилд под правильным окружением Node 20
           npx expo prebuild --platform android --clean
 
       - name: Hotfix Expo Gradle 8+ Compatibility
