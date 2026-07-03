@@ -38,13 +38,23 @@ jobs:
         run: |
           npx expo prebuild --platform android
 
-      - name: Force Repository Injection
+      - name: Fix Dependency Isolation
         run: |
-          # Внедряем настройки репозиториев глобально, чтобы каждый модуль их видел
-          sed -i '1i allprojects { repositories { google(); mavenCentral(); maven { url "https://plugins.gradle.org/m2/" } } }' android/build.gradle
+          # 1. Создаем структуру для общего доступа к плагинам
+          mkdir -p android/buildSrc/src/main/kotlin
           
-          # Настраиваем settings.gradle максимально просто
-          echo 'rootProject.name = "tabulka"
+          # 2. Переносим репозитории в build.gradle так, чтобы они были доступны всем
+          sed -i '1i buildscript { repositories { google(); mavenCentral(); maven { url "https://plugins.gradle.org/m2/" } } }' android/build.gradle
+          
+          # 3. Делаем settings.gradle "прозрачным" для плагинов
+          echo 'pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          rootProject.name = "tabulka"
           include ":app"
           includeBuild("../node_modules/expo-modules-core/android")' > android/settings.gradle
 
