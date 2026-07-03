@@ -46,21 +46,19 @@ jobs:
           # Генерируем чистую оригинальную структуру Android
           npx expo prebuild --platform android --clean
 
-      - name: Advanced Plugin Resolution Fix via JS
+      - name: Dependency Substitution Fix via JS
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
             const path = 'android/settings.gradle';
             
-            // Читаем дефолтный, сгенерированный Expo файл настроек
+            // Читаем дефолтный файл настроек Expo
             let content = fs.readFileSync(path, 'utf8');
             
-            // Прописываем стратегию разрешения плагина: если запрашивают expo-module-gradle-plugin,
-            // мы явно говорим Gradle использовать локальный путь в node_modules.
-            const resolutionStrategy = `
+            // Настраиваем жесткую подмену: перенаправляем запрос плагина на встроенный проект
+            const substitution = `
                 repositories {
-                    maven { url new File(settingsDir, "../node_modules/expo-modules-core/android") }
                     google()
                     mavenCentral()
                     gradlePluginPortal()
@@ -68,18 +66,17 @@ jobs:
                 resolutionStrategy {
                     eachPlugin {
                         if (requested.id.id == 'expo-module-gradle-plugin') {
-                            useModule('expo.modules:expo-module-gradle-plugin:+')
+                            useTarget(project(':expo-modules-core'))
                         }
                     }
                 }`;
             
-            // Внедряем эту стратегию прямо внутрь РОДНОГО блока pluginManagement
             if (content.includes('pluginManagement {')) {
-              content = content.replace('pluginManagement {', 'pluginManagement {' + resolutionStrategy);
+              content = content.replace('pluginManagement {', 'pluginManagement {' + substitution);
               fs.writeFileSync(path, content, 'utf8');
-              console.log('Successfully injected advanced resolution strategy into pluginManagement!');
+              console.log('Successfully injected project dependency substitution!');
             } else {
-              throw new Error('pluginManagement block not found in settings.gradle');
+              throw new Error('pluginManagement block not found');
             }
 
       - name: Hotfix Expo Gradle 8+ Compatibility
