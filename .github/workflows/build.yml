@@ -34,11 +34,11 @@ jobs:
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
           EXPO_NO_DOCTOR: "1"
-          EXPO_OFFLINE: "1"
           EAS_NO_ERRORS: "1"
           SOURCEMAP_OUTPUT: "/dev/null"
         run: |
-          # Чистая генерация без внешних шаблонов и лишней сетевой установки
+          # Убираем оффлайн-флаг только на эту строчку, чтобы он скачал шаблон структуры папки,
+          # но запрещаем ставить зависимости через сеть с помощью --no-install
           npx expo prebuild --platform android --no-install
           
           # Переходим и собираем
