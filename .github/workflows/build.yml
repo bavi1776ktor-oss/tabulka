@@ -1,51 +1,33 @@
-name: Android Local Build
+name: Android Build
 
 on:
   push:
-    branches:
-      - main
-      - master
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install and Prebuild
-        run: |
-          npm install
-          npm install expo@~51.0.0
-          npx expo prebuild --platform android
+      - name: Install
+        run: npm install
 
-      - name: Force Offline Gradle Mode
-        run: |
-          # Создаем gradle.properties, который отключает поиск плагинов в сети
-          # и указывает на локальные пути
-          echo "org.gradle.parallel=true" > android/gradle.properties
-          echo "org.gradle.configureondemand=true" >> android/gradle.properties
-          
-          # Заменяем репозитории в корневом build.gradle на локальные пути
-          sed -i 's|google()|maven { url "https://maven.google.com" }|g' android/build.gradle
-          sed -i 's|mavenCentral()|maven { url "https://repo1.maven.org/maven2" }|g' android/build.gradle
-
-      - name: Compile Native APK
-        run: |
-          cd android
-          chmod +x gradlew
-          # Используем --offline, чтобы Gradle НЕ лез в интернет
-          ./gradlew assembleRelease --offline --no-daemon
-
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
+      # Мы не делаем prebuild, мы не лезем в Gradle. 
+      # Мы используем EAS CLI для сборки. 
+      # Это единственный способ избежать проблем с плагинами, 
+      # потому что EAS сам настраивает окружение.
+      - name: Build with EAS
+        uses: expo/expo-github-action@v8
         with:
-          name: tabulka-app-release
-          path: android/app/build/outputs/apk/release/app-release.apk
+          eas-version: latest
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: eas build --platform android --non-interactive --local
