@@ -4,7 +4,6 @@
     "slug": "tabulka",
     "version": "1.0.2",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
       "backgroundColor": "#ffffff"
@@ -15,8 +14,7 @@
     "android": {
       "package": "com.wi_ktor.tabulka",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#2563EB"
       }
     },
     "web": {
