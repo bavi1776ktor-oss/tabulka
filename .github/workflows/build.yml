@@ -18,7 +18,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18.18.0 # Фиксируем стабильную LTS версию, где Metro не сбоит
+          node-version: 18
 
       - name: Install JavaScript Dependencies
         run: |
@@ -30,24 +30,35 @@ jobs:
           java-version: '17'
           distribution: 'zulu'
 
-      - name: Generate and Build Android APK
+      - name: Split Build Process (Manual Bundling)
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
           EXPO_NO_DOCTOR: "1"
-          NODE_ENV: "production" # Принудительно переводим сборщик в продакшн режим
-          SOURCEMAP_OUTPUT: "/dev/null"
         run: |
-          # Генерируем нативную структуру
+          # 1. Генерируем нативные папки без установки
           npx expo prebuild --platform android --no-install
           
-          # Переходим в папку android и собираем
+          # 2. Создаем вручную папки для ресурсов Android, если их нет
+          mkdir -p android/app/src/main/assets
+          mkdir -p android/app/src/main/res/drawable-mdpi
+          
+          # 3. Собираем JS бандл напрямую через react-native CLI, минуя Gradle таску
+          npx react-native bundle \
+            --platform android \
+            --dev false \
+            --entry-file index.js \
+            --bundle-output android/app/src/main/assets/index.android.bundle \
+            --assets-dest android/app/src/main/res/
+
+      - name: Disable Gradle Internal Bundling and Compile APK
+        run: |
           cd android
           chmod +x gradlew
           ./gradlew clean
           
-          # Запускаем сборку без загрузки лишних потоков демона
-          ./gradlew assembleRelease --no-daemon
-          
+          # Запускаем сборку APK, принудительно отключив встроенный вызов Metro
+          ./gradlew assembleRelease -x createBundleReleaseJsAndAssets --no-daemon
+
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
