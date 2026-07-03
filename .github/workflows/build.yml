@@ -22,7 +22,7 @@ jobs:
 
       - name: Install JavaScript Dependencies
         run: |
-          npm ci || npm install
+          npm install
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
@@ -38,15 +38,15 @@ jobs:
           EAS_NO_ERRORS: "1"
           SOURCEMAP_OUTPUT: "/dev/null"
         run: |
-          # Принудительно генерируем нативную папку android
-          npx expo prebuild --platform android --template blank
+          # Чистая генерация без внешних шаблонов и лишней сетевой установки
+          npx expo prebuild --platform android --no-install
           
           # Переходим и собираем
           cd android
           chmod +x gradlew
           ./gradlew clean
           ./gradlew assembleRelease --no-daemon
-
+          
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
