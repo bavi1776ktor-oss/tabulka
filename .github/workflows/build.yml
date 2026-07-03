@@ -22,11 +22,11 @@ jobs:
 
       - name: Install JavaScript Dependencies
         run: |
-          # 1. Базовая установка
+          # 1. Ставим базовые пакеты
           npm install
           
-          # 2. Ставим правильную современную версию secure-store для Expo 51 (без @unimodules)
-          npm install expo-secure-store@~6.0.1 @expo/vector-icons@^14.0.0 react-native-calendars --save
+          # 2. Ставим правильную и точную версию SecureStore для Expo 51 (~15.0.x)
+          npm install expo-secure-store@~15.0.1 @expo/vector-icons@^14.0.0 react-native-calendars --save
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
