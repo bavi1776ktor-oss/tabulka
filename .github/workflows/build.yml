@@ -22,11 +22,11 @@ jobs:
 
       - name: Install JavaScript Dependencies
         run: |
-          # 1. Базовая установка зависимостей
+          # 1. Базовая установка зависимостей из твоего package.json
           npm install
           
-          # 2. Установка необходимых для App.js модулей
-          npm install expo-secure-store@~15.0.1 @expo/vector-icons@^14.0.0 react-native-calendars --save
+          # 2. Устанавливаем ядро модулей Expo вместе с недостающими пакетами, чтобы нативный плагин Gradle встал на свое место автоматически
+          npm install expo-modules-core@~1.12.21 expo-secure-store@~15.0.1 @expo/vector-icons@^14.0.0 react-native-calendars --save
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
@@ -34,26 +34,22 @@ jobs:
           java-version: '17'
           distribution: 'zulu'
 
-      - name: Split Build Process (Native Hotfix)
+      - name: Split Build Process (Expo Standard Build)
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
           EXPO_NO_DOCTOR: "1"
         run: |
-          # 1. Быстрая генерация нативной папки без сброса npm-зависимостей
+          # 1. Чистая генерация нативной папки Android. Теперь со всеми ядрами модулей
           npx expo prebuild --platform android --clean --no-install
           
-          # 2. ЖЕСТКИЙ ПАТЧ: внедряем локальный classpath репозиторий прямо в билд-скрипт проблемного модуля
-          # Это заставит expo-secure-store увидеть свой плагин локально
-          sed -i '1s/^/buildscript { repositories { google(); mavenCentral(); maven { url "${projectDir}\/..\/expo-modules-core\/android" } } dependencies { classpath "expo.modules:expo-module-gradle-plugin:+" } }\n/' node_modules/expo-secure-store/android/build.gradle
-          
-          # 3. Исправление нативного бага Expo плагина для совместимости с Gradle 8+
+          # 2. Исправление нативного бага Expo для совместимости с Gradle 8+
           sed -i "s/components.release/components.findByName('release')/g" node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle || true
           
-          # 4. Создаем папки для готового JS-бандла
+          # 3. Создаем папки для готового JS-бандла
           mkdir -p android/app/src/main/assets
           mkdir -p android/app/src/main/res/drawable-mdpi
           
-          # 5. Собираем JS бандл отдельно силами Expo компилятора
+          # 4. Собираем JS бандл отдельно силами Expo компилятора
           npx expo export:embed \
             --platform android \
             --dev false \
