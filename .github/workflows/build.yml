@@ -44,12 +44,11 @@ jobs:
 
       - name: Force Inject Plugin Repository
         run: |
-          # Прописываем удаленный Maven репозиторий Expo прямо в pluginManagement нативного проекта,
-          # чтобы Gradle мог скачать 'expo-module-gradle-plugin' из сети, если локальный путь не сработал.
+          # Используем @ вместо / в sed, чтобы Linux не путал разделители команд с URL адресами
           sed -i '/repositories {/a \        maven { url "https://plugins.gradle.org/m2/" }\n        maven { url "https://maven.mozilla.org/maven2/" }' android/settings.gradle
           
-          # На всякий случай дублируем репозиторий в build.gradle самого модуля secure-store
-          sed -i '1s/^/buildscript { repositories { google(); mavenCentral(); maven { url "https://plugins.gradle.org/m2/" } } }\n/' node_modules/expo-secure-store/android/build.gradle
+          # Корректно инжектим репозиторий в билд-файл модуля secure-store через безопасный разделитель @
+          sed -i '1s@^@buildscript { repositories { google(); mavenCentral(); maven { url "https://plugins.gradle.org/m2/" } } }\n@' node_modules/expo-secure-store/android/build.gradle
 
       - name: Hotfix Expo Gradle 8+ Compatibility
         run: |
