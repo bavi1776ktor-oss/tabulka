@@ -30,23 +30,20 @@ jobs:
           java-version: '17'
           distribution: 'zulu'
 
-      - name: Split Build Process (Manual Bundling)
+      - name: Split Build Process (Expo Embed Bundling)
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
           EXPO_NO_DOCTOR: "1"
         run: |
-          # 1. Генерируем нативные папки без установки
+          # 1. Генерируем нативные папки android
           npx expo prebuild --platform android --no-install
           
-          # 2. Генерируем стандартный Expo-конфиг Metro, который точно сработает
-          echo "const { getDefaultConfig } = require('@expo/metro-config'); module.exports = getDefaultConfig(__dirname);" > metro.config.js
-          
-          # 3. Создаем вручную папки для ресурсов Android
+          # 2. Создаем папки для бандла и ресурсов
           mkdir -p android/app/src/main/assets
           mkdir -p android/app/src/main/res/drawable-mdpi
           
-          # 4. Собираем JS бандл, используя App.js в качестве точки входа
-          npx react-native bundle \
+          # 3. Собираем бандл через родной сборщик Expo, который знает про @expo/vector-icons
+          npx expo export:embed \
             --platform android \
             --dev false \
             --entry-file App.js \
@@ -59,7 +56,7 @@ jobs:
           chmod +x gradlew
           ./gradlew clean
           
-          # Запускаем сборку APK, принудительно отключив встроенный вызов Metro
+          # Собираем APK, запрещая Gradle запускать бандлер повторно
           ./gradlew assembleRelease -x createBundleReleaseJsAndAssets --no-daemon
 
       - name: Upload APK Artifact
