@@ -25,8 +25,11 @@ jobs:
           npm ci || npm install
 
       - name: Generate Native Android Folder
+        # Включаем жесткий оффлайн-режим для генерации, игнорируя сервера expo.dev
         env:
           EXPO_NO_DOCTOR: "1"
+          EXPO_OFFLINE: "1"
+          EAS_NO_ERRORS: "1"
         run: npx expo prebuild --platform android --clean
 
       - name: Setup Java JDK
@@ -36,13 +39,14 @@ jobs:
           distribution: 'zulu'
 
       - name: Fix Permissions and Build
-        # Добавляем принудительное отключение генерации сорсмапов, чтобы разгрузить Metro
+        # Полностью изолируем локальный Gradle билд от внешних проверок Expo
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
           EXPO_NO_DOCTOR: "1"
+          EXPO_OFFLINE: "1"
           SOURCEMAP_OUTPUT: "/dev/null"
         run: |
           cd android
           chmod +x gradlew
           ./gradlew clean
-          ./gradlew assembleRelease --no-daemon --stacktrace
+          ./gradlew assembleRelease --no-daemon
