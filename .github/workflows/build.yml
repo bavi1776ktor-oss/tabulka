@@ -22,11 +22,11 @@ jobs:
 
       - name: Install JavaScript Dependencies
         run: |
-          # 1. Ставим базовые зависимости из package.json
+          # 1. Базовая установка
           npm install
           
-          # 2. Доставляем абсолютно все скрытые модули, которые использует App.js
-          npm install expo-secure-store@~5.0.1 @expo/vector-icons@^14.0.0 react-native-calendars --save
+          # 2. Ставим правильную современную версию secure-store для Expo 51 (без @unimodules)
+          npm install expo-secure-store@~6.0.1 @expo/vector-icons@^14.0.0 react-native-calendars --save
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
@@ -38,9 +38,8 @@ jobs:
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
           EXPO_NO_DOCTOR: "1"
-          # Убрали EXPO_OFFLINE, чтобы prebuild без таймаутов скачал шаблон структуры папки
         run: |
-          # 1. Чистая генерация нативной папки со всеми автолинками пакетов
+          # 1. Генерация нативной папки
           npx expo prebuild --platform android --clean --no-install
           
           # 2. Создаем папки для ассет-бандла
@@ -61,7 +60,7 @@ jobs:
           chmod +x gradlew
           ./gradlew clean
           
-          # Финальная компиляция APK в обход внутреннего забагованного Metro
+          # Сборка APK без повторного вызова Metro
           ./gradlew assembleRelease -x createBundleReleaseJsAndAssets --no-daemon
 
       - name: Upload APK Artifact
