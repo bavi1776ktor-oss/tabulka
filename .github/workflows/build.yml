@@ -46,22 +46,37 @@ jobs:
           # Генерируем оригинальную структуру Android
           npx expo prebuild --platform android --clean
 
-      - name: Append Build Injection via JS
+      - name: Global Android Buildscript Fix via JS
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
-            const path = 'android/settings.gradle';
+            const path = 'android/build.gradle';
             
-            // Читаем исходный файл настроек Expo
+            // Читаем корневой build.gradle
             let content = fs.readFileSync(path, 'utf8');
             
-            // Команда склейки плагина без версий
-            const injection = '\nincludeBuild("../node_modules/expo-modules-core/android")\n';
+            // Внедряем глобальное правило: ВСЕ проекты и модули должны искать плагины
+            // в локальной папке expo-modules-core, а также в google и mavenCentral.
+            const globalFix = `
+            allprojects {
+                buildscript {
+                    repositories {
+                        maven { url "\${rootProject.projectDir}/../node_modules/expo-modules-core/android" }
+                        google()
+                        mavenCentral()
+                    }
+                }
+                repositories {
+                    google()
+                    mavenCentral()
+                }
+            }
+            `;
             
-            // Дописываем инструкцию в самый КОНЕЦ файла, чтобы не нарушать порядок блоков вверху
-            fs.writeFileSync(path, content + injection, 'utf8');
-            console.log('Successfully appended includeBuild to the end of settings.gradle!');
+            // Записываем это правило в самый верх корневого файла сборки
+            fs.writeFileSync(path, globalFix + content, 'utf8');
+            console.log('Successfully applied global buildscript repositories fix!');
 
       - name: Hotfix Expo Gradle 8+ Compatibility
         run: |
@@ -74,7 +89,7 @@ jobs:
           chmod +x gradlew
           ./gradlew clean
           
-          # Запуск сборки APK
+          # Запуск финальной сборки APK
           ./gradlew assembleRelease --no-daemon
 
       - name: Upload APK Artifact
