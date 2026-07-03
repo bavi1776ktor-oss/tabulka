@@ -22,10 +22,10 @@ jobs:
 
       - name: Install JavaScript Dependencies
         run: |
-          # 1. Ставим базовые пакеты
+          # 1. Базовая установка
           npm install
           
-          # 2. Ставим правильную и точную версию SecureStore для Expo 51 (~15.0.x)
+          # 2. Установка необходимых зависимостей для корректного бандлинга
           npm install expo-secure-store@~15.0.1 @expo/vector-icons@^14.0.0 react-native-calendars --save
 
       - name: Setup Java JDK
@@ -39,14 +39,17 @@ jobs:
           NODE_OPTIONS: "--max-old-space-size=4096"
           EXPO_NO_DOCTOR: "1"
         run: |
-          # 1. Генерация нативной папки
+          # 1. Генерация нативной папки Android
           npx expo prebuild --platform android --clean --no-install
           
-          # 2. Создаем папки для ассет-бандла
+          # 2. Исправление нативного бага Expo плагина для совместимости с Gradle 8+
+          sed -i "s/components.release/components.findByName('release')/g" node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle || true
+          
+          # 3. Создаем папки для ассет-бандла
           mkdir -p android/app/src/main/assets
           mkdir -p android/app/src/main/res/drawable-mdpi
           
-          # 3. Собираем JS бандл через встроенный компилятор Expo
+          # 4. Собираем JS бандл через встроенный компилятор Expo
           npx expo export:embed \
             --platform android \
             --dev false \
