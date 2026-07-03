@@ -44,27 +44,14 @@ jobs:
         run: |
           npx expo prebuild --platform android --clean
 
-      - name: Final Minimalist Settings
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            // Оставляем только самое необходимое
-            const newSettings = `
-            pluginManagement {
-                repositories {
-                    gradlePluginPortal()
-                    google()
-                    mavenCentral()
-                    maven { url '../node_modules/expo-modules-core/android' }
-                }
-            }
-            rootProject.name = 'tabulka'
-            include ':app'
-            includeBuild('../node_modules/expo-modules-core/android')
-            `;
-            fs.writeFileSync('android/settings.gradle', newSettings);
-            console.log('Settings.gradle simplified!');
+      - name: Inject Repository Configuration
+        run: |
+          # Прямая запись в gradle.properties заставляет Gradle видеть репозитории Expo 
+          # как часть своего стандартного процесса поиска плагинов
+          echo "expo.modules.core.path=../node_modules/expo-modules-core/android" >> android/gradle.properties
+          
+          # Добавляем пути в корневой build.gradle через простой echo, чтобы не ломать структуру
+          sed -i '1i buildscript { repositories { google(); mavenCentral(); maven { url "https://plugins.gradle.org/m2/" } } }' android/build.gradle
 
       - name: Hotfix Expo Gradle 8+ Compatibility
         run: |
