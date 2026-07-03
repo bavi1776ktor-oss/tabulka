@@ -22,10 +22,10 @@ jobs:
 
       - name: Install JavaScript Dependencies
         run: |
-          # 1. Базовая установка
+          # 1. Базовая установка зависимостей
           npm install
           
-          # 2. Установка необходимых зависимостей для корректного бандлинга
+          # 2. Установка необходимых для App.js модулей
           npm install expo-secure-store@~15.0.1 @expo/vector-icons@^14.0.0 react-native-calendars --save
 
       - name: Setup Java JDK
@@ -34,22 +34,22 @@ jobs:
           java-version: '17'
           distribution: 'zulu'
 
-      - name: Split Build Process (Expo Full Autolink)
+      - name: Split Build Process (Expo Full Native Prebuild)
         env:
           NODE_OPTIONS: "--max-old-space-size=4096"
           EXPO_NO_DOCTOR: "1"
         run: |
-          # 1. Генерация нативной папки Android
-          npx expo prebuild --platform android --clean --no-install
+          # 1. Полноценная генерация папки android. Expo САМ свяжет все плагины (включая expo-module-gradle-plugin)
+          npx expo prebuild --platform android --clean
           
           # 2. Исправление нативного бага Expo плагина для совместимости с Gradle 8+
           sed -i "s/components.release/components.findByName('release')/g" node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle || true
           
-          # 3. Создаем папки для ассет-бандла
+          # 3. Создаем папки для готового JS-бандла
           mkdir -p android/app/src/main/assets
           mkdir -p android/app/src/main/res/drawable-mdpi
           
-          # 4. Собираем JS бандл через встроенный компилятор Expo
+          # 4. Собираем JS бандл отдельно, чтобы Metro не вис внутри Gradle
           npx expo export:embed \
             --platform android \
             --dev false \
@@ -63,7 +63,7 @@ jobs:
           chmod +x gradlew
           ./gradlew clean
           
-          # Сборка APK без повторного вызова Metro
+          # Собираем готовый APK, используя уже сгенерированные и связанные плагины
           ./gradlew assembleRelease -x createBundleReleaseJsAndAssets --no-daemon
 
       - name: Upload APK Artifact
