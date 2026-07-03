@@ -46,7 +46,7 @@ jobs:
           # Генерируем оригинальную структуру Android
           npx expo prebuild --platform android --clean
 
-      - name: Ultimate JS Injection to Plugin Management
+      - name: Include Build Injection via JS
         uses: actions/github-script@v7
         with:
           script: |
@@ -56,23 +56,13 @@ jobs:
             // Читаем сгенерированный файл настроек Expo
             let content = fs.readFileSync(path, 'utf8');
             
-            // Добавляем локальный путь к плагину Expo И стандартные репозитории для Kotlin
-            const injection = `
-                repositories {
-                    maven { url new File(settingsDir, "../node_modules/expo-modules-core/android") }
-                    google()
-                    mavenCentral()
-                    gradlePluginPortal()
-                }`;
+            // Вместо репозиториев, мы подключаем сам исходный код плагина как составную часть сборки.
+            // Это решает проблему "Plugin not found (dependency must include a version number)"
+            const injection = '\nincludeBuild("../node_modules/expo-modules-core/android")\n';
             
-            // Внедряем правильную цепочку поиска внутрь блока pluginManagement
-            if (content.includes('pluginManagement {')) {
-              content = content.replace('pluginManagement {', 'pluginManagement {' + injection);
-              fs.writeFileSync(path, content, 'utf8');
-              console.log('Successfully configured full repository chain inside pluginManagement!');
-            } else {
-              throw new Error('pluginManagement block not found');
-            }
+            // Записываем инструкцию в самый верх файла
+            fs.writeFileSync(path, injection + content, 'utf8');
+            console.log('Successfully injected includeBuild for Expo module plugin!');
 
       - name: Hotfix Expo Gradle 8+ Compatibility
         run: |
