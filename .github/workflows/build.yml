@@ -26,26 +26,21 @@ jobs:
           java-version: '17'
           distribution: 'zulu'
 
-      - name: Standard Expo Prebuild
-        env:
-          NODE_OPTIONS: "--max-old-space-size=4096"
-          EXPO_NO_DOCTOR: "1"
+      - name: Prepare and Export JS Bundle
         run: |
           npm install
+          # Принудительная очистка и подготовка JS-бандла перед сборкой Gradle
+          rm -rf .expo
+          npx expo export --platform android --dump-asset-map
           npx expo prebuild --platform android --clean
 
       - name: Patch Native Dependencies
         run: |
-          # Вместо правки файлов настроек, мы патчим сам плагин, 
-          # чтобы он не требовал внешних репозиториев для поиска артефактов
           sed -i "s/components.release/components.findByName('release')/g" node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle || true
-          
-          # Убираем жесткую привязку к плагину в secure-store, переключая его на локальную сборку
-          sed -i 's/id("expo-module-gradle-plugin")/id("expo.modules.gradle")/g' node_modules/expo-secure-store/android/build.gradle || true
+          sed -i 's/id("expo-module-gradle-plugin")/id("expo.modules.gradle")/g" node_modules/expo-secure-store/android/build.gradle || true
 
       - name: Compile Native APK via Gradle
         env:
-          # Передаем путь к модулям напрямую в Gradle, минуя настройки репозиториев
           ORG_GRADLE_PROJECT_expoModulesCorePath: "../node_modules/expo-modules-core/android"
         run: |
           cd android
