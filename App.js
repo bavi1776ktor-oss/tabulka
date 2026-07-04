@@ -740,13 +740,36 @@ export default function App() {
           </View>
           <TouchableOpacity style={lang === 'uk' ? styles.langCircleUk : styles.langCircleUkDimmed} onPress={() => handleSelectLanguage('uk')}><Text style={styles.langCircleText}>У</Text></TouchableOpacity>
         </View>
+        
         <View style={styles.weekDaysRow}>{t.weekDays.map((day, index) => (<Text key={index} style={(day === 'Сб' || day === 'Вс' || day === 'Нд') ? styles.weekDayTextWeekend : styles.weekDayTextNormal}>{day}</Text>))}</View>
-        {isLoadingData ? (<View style={styles.centerLoading}><ActivityIndicator size="large" color="#0052CC" /></View>) : (<ScrollView contentContainerStyle={styles.calendarGrid}>{renderCalendarGrid()}</ScrollView>)}
+        
+        {isLoadingData ? (
+          <View style={styles.centerLoading}><ActivityIndicator size="large" color="#0052CC" /></View>
+        ) : (
+          <ScrollView contentContainerStyle={styles.calendarGrid}>{renderCalendarGrid()}</ScrollView>
+        )}
+
+        {isCurrentModeTrial && (
+          <View style={styles.inlineActivationBlock}>
+            <TextInput 
+              placeholder={t.placeholderKey} 
+              autoCapitalize="characters" 
+              style={styles.inlineActivationInput} 
+              value={inputPassword} 
+              onChangeText={setInputPassword} 
+            />
+            <TouchableOpacity style={styles.inlineActivationBtn} onPress={handleLogin}>
+              <Text style={styles.inlineActivationBtnText}>{t.btnActivate.toUpperCase()}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={styles.statsContainer}>
           <Text style={styles.statsText}>{t.statsWorkDays}: {stats.workDays}</Text>
           <Text style={styles.statsText}>{t.statsWeekendDays}: {stats.weekendDays}</Text>
           <Text style={styles.totalText}>{t.statsTotalSum}: {stats.totalSum}</Text>
         </View>
+        
         <TouchableOpacity style={styles.archiveButton} onPress={() => setArchiveModalVisible(true)}><Text style={styles.archiveButtonText}>{t.btnArchive}</Text></TouchableOpacity>
         <TouchableOpacity style={styles.pdfButton} onPress={exportToPDF}><Text style={styles.pdfButtonText}>{t.btnSavePdf}</Text></TouchableOpacity>
 
@@ -796,137 +819,4 @@ export default function App() {
                     );
                   })
                 ) : (
-                  <Text style={styles.noRecordsText}>{t.noRecordsText}</Text>
-                )}
-              </ScrollView>
-              <TouchableOpacity style={[styles.btn, styles.btnCancel, { width: '100%', marginTop: 10 }]} onPress={() => setArchiveModalVisible(false)}>
-                <Text style={styles.btnText}>{t.btnClose}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-
-        <Modal visible={requestModalVisible} transparent={true} animationType="fade">
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={[styles.modalTitle, { color: '#10B981' }]}>{t.requestFullVersionHeader}</Text>
-              <TextInput placeholder={t.placeholderName} style={styles.authInputMargin} value={clientName} onChangeText={setClientName} />
-              <TextInput placeholder={t.placeholderPhone} keyboardType="phone-pad" style={styles.authInputMarginLarge} value={clientPhone} onChangeText={setClientPhone} />
-              <TouchableOpacity style={styles.authBtnSend} onPress={handleSendSupportRequest}><Text style={styles.authButtonText}>{t.btnSendRequest}</Text></TouchableOpacity>
-              <View style={styles.noticeContainer}><Text style={styles.noticeSubText}>{t.noticeText}</Text></View>
-              <TouchableOpacity style={[styles.btnCancel, { width: '100%', marginTop: 12 }]} onPress={() => setRequestModalVisible(false)}><Text style={styles.btnText}>{t.btnCancel}</Text></TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-      </View>
-    </SafeAreaView>
-  );
-}
-
-const styles = StyleSheet.create({
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F9FAFB' },
-  authContainer: { flex: 1, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' },
-  langStartCard: { width: width * 0.85, backgroundColor: '#FFF', padding: 24, borderRadius: 16, alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB' },
-  langStartTitle: { fontSize: 18, fontWeight: 'bold', color: '#111827', marginBottom: 20, textAlign: 'center' },
-  langStartBtnRu: { width: '100%', padding: 14, borderRadius: 10, alignItems: 'center', backgroundColor: '#0052CC', marginBottom: 12 },
-  langStartBtnUk: { width: '100%', padding: 14, borderRadius: 10, alignItems: 'center', backgroundColor: '#10B981' },
-  authCardExpired: { width: width * 0.9, backgroundColor: '#FFF', padding: 22, borderRadius: 16, borderWidth: 1.5, borderColor: '#EF4444' },
-  authTitleExpired: { fontSize: 18, fontWeight: 'bold', color: '#EF4444', marginBottom: 15, textAlign: 'center' },
-  authSubtitleBold: { fontSize: 14, color: '#4B5563', marginBottom: 8, textAlign: 'left', fontWeight: 'bold' },
-  authInput: { borderBottomWidth: 1, borderColor: '#D1D5DB', paddingVertical: 6, fontSize: 16, marginBottom: 16, textAlign: 'center' },
-  authInputMargin: { borderBottomWidth: 1, borderColor: '#D1D5DB', paddingVertical: 6, fontSize: 16, marginBottom: 10, textAlign: 'center' },
-  authInputMarginLarge: { borderBottomWidth: 1, borderColor: '#D1D5DB', paddingVertical: 6, fontSize: 16, marginBottom: 15, textAlign: 'center' },
-  authBtnSend: { padding: 13, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#10B981', marginBottom: 10 },
-  authBtnActivate: { padding: 13, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0052CC' },
-  authButtonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold', textAlign: 'center' },
-  separator: { marginVertical: 15, borderBottomWidth: 1, borderColor: '#E5E7EB' },
-  safeArea: { flex: 1, backgroundColor: '#F9FAFB', paddingTop: 30 },
-  container: { flex: 1, paddingHorizontal: 16 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  headerTimeBlock: { flex: 1.2 },
-  dateText: { fontSize: 14, color: '#6B7280', fontWeight: 'bold' },
-  timeText: { fontSize: 22, fontWeight: 'bold', color: '#111827' },
-  logoutButton: { paddingVertical: 4, paddingHorizontal: 8, backgroundColor: '#EF4444', borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
-  logoutText: { color: '#FFF', fontSize: 12, fontWeight: 'bold', textAlign: 'center' },
-  trialTopRequestBtn: { backgroundColor: '#10B981', padding: 10, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 15 },
-  trialTopRequestBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 14, textAlign: 'center' },
-  monthSelectorRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  monthTitleWrapper: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
-  monthTitle: { fontSize: 16, fontWeight: 'bold', color: '#374151', textAlign: 'center', marginRight: 8 },
-  todayButton: { paddingVertical: 4, paddingHorizontal: 8, backgroundColor: '#0052CC', borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
-  todayButtonText: { color: '#FFF', fontSize: 11, fontWeight: 'bold', textAlign: 'center' },
-  langCircleText: { color: '#FFF', fontSize: 14, fontWeight: 'bold', textAlign: 'center' },
-  langCircleRu: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0052CC' },
-  langCircleRuDimmed: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0052CC', opacity: 0.35 },
-  langCircleUk: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: '#10B981' },
-  langCircleUkDimmed: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: '#10B981', opacity: 0.35 },
-  weekDaysRow: { flexDirection: 'row', marginBottom: 8 },
-  weekDayTextNormal: { width: (width - 32) / 7 - 8, marginHorizontal: 4, textAlign: 'center', fontWeight: 'bold', color: '#6B7280' },
-  weekDayTextWeekend: { width: (width - 32) / 7 - 8, marginHorizontal: 4, textAlign: 'center', fontWeight: 'bold', color: '#EF4444' },
-  calendarGrid: { flexDirection: 'row', flexWrap: 'wrap' },
-  calendarRow: { flexDirection: 'row', justifyContent: 'flex-start', width: '100%' },
-  emptyCell: { width: (width - 32) / 7 - 8, height: 46, margin: 4 },
-  weekendCell: { width: (width - 32) / 7 - 8, height: 46, margin: 4, justifyContent: 'center', alignItems: 'center', borderRadius: 8, borderWidth: 1, backgroundColor: '#FFF', borderColor: '#E5E7EB' },
-  workDayCell: { width: (width - 32) / 7 - 8, height: 46, margin: 4, justifyContent: 'center', alignItems: 'center', borderRadius: 8, borderWidth: 1, backgroundColor: '#0052CC', borderColor: '#0052CC' },
-  dayText: { fontSize: 16, fontWeight: 'bold', color: '#111827', textAlign: 'center' },
-  workDayText: { fontSize: 15, fontWeight: 'bold', color: '#FFF', textAlign: 'center' },
-  cellSumSubtext: { fontSize: 11, color: '#A3E635', fontWeight: 'bold', marginTop: -2, textAlign: 'center' },
-  statsContainer: { backgroundColor: '#FFF', padding: 14, borderRadius: 12, marginTop: 10, borderWidth: 1, borderColor: '#E5E7EB' },
-  statsText: { fontSize: 14, color: '#111827', fontWeight: 'bold' },
-  totalText: { fontSize: 16, fontWeight: 'bold', marginTop: 4, color: '#111827' },
-  archiveButton: { backgroundColor: '#0052CC', padding: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
-  archiveButtonText: { color: '#FFF', fontWeight: 'bold', textAlign: 'center' },
-  pdfButton: { backgroundColor: '#10B981', padding: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
-  pdfButtonText: { color: '#FFF', fontWeight: 'bold', textAlign: 'center' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
-  modalContent: { width: width * 0.9, backgroundColor: '#FFF', padding: 20, borderRadius: 16 },
-  modalTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
-  subSectionTitle: { fontSize: 13, fontWeight: 'bold', color: '#4B5563', marginBottom: 5 },
-  miniRecordsList: { maxHeight: 200, backgroundColor: '#F3F4F6', borderRadius: 8, padding: 8, marginBottom: 12 },
-  miniRecordRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4, borderBottomWidth: 1, borderColor: '#E5E7EB' },
-  miniRecordText: { fontSize: 14, color: '#111827', fontWeight: 'bold' },
-  miniDeleteBtn: { paddingHorizontal: 8, paddingVertical: 2 },
-  miniDeleteBtnText: { fontSize: 14, color: '#EF4444', fontWeight: 'bold' },
-  noRecordsText: { fontSize: 13, color: '#9CA3AF', textAlign: 'center', marginVertical: 10, fontWeight: 'bold' },
-  inputGroupRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
-  inputInline: { flex: 1, borderBottomWidth: 1, borderColor: '#0052CC', paddingVertical: 10, fontSize: 16, textAlign: 'center' },
-  btnAddRecordRow: { backgroundColor: '#0052CC', padding: 14, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 15 },
-  btnAddRecordRowText: { color: '#FFF', fontWeight: 'bold', fontSize: 16, textAlign: 'center' },
-  modalButtons: { flexDirection: 'row', justifyContent: 'space-between' },
-  btn: { padding: 12, borderRadius: 8, minWidth: 80, alignItems: 'center', justifyContent: 'center' },
-  btnSave: { backgroundColor: '#0052CC', flex: 1, marginRight: 5, alignItems: 'center', justifyContent: 'center', padding: 12, borderRadius: 8 },
-  btnCancel: { backgroundColor: '#9CA3AF', alignItems: 'center', justifyContent: 'center', padding: 12, borderRadius: 8, minWidth: 80 },
-  btnText: { color: '#FFF', fontWeight: 'bold', textAlign: 'center' },
-  noticeContainer: { backgroundColor: '#0052CC', padding: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  noticeSubText: { fontSize: 16, fontWeight: 'bold', color: '#FFF', textAlign: 'center' },
-  centerLoading: { flex: 1, justifyContent: 'center', alignItems: 'center', minHeight: 200 },
-  
-  toastOverlay: { 
-    position: 'absolute', 
-    top: 0, left: 0, right: 0, bottom: 0, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    zIndex: 99999,
-    backgroundColor: 'rgba(0,0,0,0.1)' 
-  },
-  toastCard: { 
-    width: width * 0.8,
-    backgroundColor: '#F3F4F6', 
-    padding: 20, 
-    borderRadius: 12, 
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4
-  },
-  toastText: { 
-    color: '#EF4444', 
-    fontWeight: 'bold', 
-    textAlign: 'center', 
-    fontSize: 15,
-    lineHeight: 22
-  }
-});
+                  <Text style={styles.noRecordsText
