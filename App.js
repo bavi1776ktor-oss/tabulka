@@ -146,7 +146,7 @@ const translations = {
     selectLangTitle: "Оберіть мову (Укр)",
     errorTitle: "Помилка",
     networkErrorTitle: "Помилка мережі",
-    networkErrorMsg: "Не вдалося оновити дані з базы",
+    networkErrorMsg: "Не вдалося оновити дані з бази",
     activationErrorTitle: "Помилка активації",
     lockTitle: "Блокування",
     noticeTitle: "Сповіщення",
@@ -540,84 +540,4 @@ export default function App() {
       }
     });
     const formattedTitle = t.pdfTitle.replace('{month}', monthStr);
-    const htmlContent = `<html><head><style>body{font-family:'Helvetica';padding:20px;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:8px;text-align:center;}</style></head><body><h1>${formattedTitle}</h1><table><tr><th>${t.pdfColDay}</th><th>${t.pdfColStatus}</th><th>${t.pdfColRate}</th><th>${t.pdfColHours}</th><th>${t.pdfColSum}</th></tr>${tableRows}</table></body></html>`;
-    try {
-      const { uri } = await Print.printToFileAsync({ html: htmlContent });
-      await Sharing.shareAsync(uri);
-    } catch (error) {
-      Alert.alert(t.errorTitle, t.alertPdfError);
-    }
-  };
-
-  const renderCalendarGrid = () => {
-    const days = getDaysInMonth(currentMonth);
-    if (days.length === 0) return null;
-    const firstDayDate = new Date(days[0]);
-    let startOfWeekOffset = firstDayDate.getDay(); 
-    startOfWeekOffset = startOfWeekOffset === 0 ? 6 : startOfWeekOffset - 1;
-    const gridCells = [];
-    for (let i = 0; i < startOfWeekOffset; i++) {
-      gridCells.push(<View key={`empty-${i}`} style={styles.emptyCell} />);
-    }
-    days.forEach((dateStr) => {
-      const dayData = workData[dateStr];
-      const dayTotal = getDayTotal(dayData);
-      const isWorkDay = dayTotal > 0;
-      const dayNum = dateStr.split('-')[2];
-      gridCells.push(
-        <TouchableOpacity key={dateStr} style={isWorkDay ? styles.workDayCell : styles.weekendCell} onPress={() => handleDayPress(dateStr)}>
-          <Text style={isWorkDay ? styles.workDayText : styles.dayText}>{parseInt(dayNum, 10)}</Text>
-          {isWorkDay && (<Text style={styles.cellSumSubtext}>{dayTotal}</Text>)}
-        </TouchableOpacity>
-      );
-    });
-    const rows = [];
-    for (let i = 0; i < gridCells.length; i += 7) {
-      rows.push(<View key={`row-${i}`} style={styles.calendarRow}>{gridCells.slice(i, i + 7)}</View>);
-    }
-    return rows;
-  };
-
-  if (isAuthChecking) {
-    return (<View style={styles.loadingContainer}><ActivityIndicator size="large" color="#0052CC" /></View>);
-  }
-
-  if (isTrialExpired) {
-    return (
-      <SafeAreaView style={styles.authContainer}>
-        <View style={styles.authCardExpired}>
-          <Text style={styles.authTitleExpired}>{t.trialExpiredTitle}</Text>
-          <Text style={styles.authSubtitleBold}>{t.requestFullVersion}</Text>
-          <TextInput placeholder={t.placeholderName} style={styles.authInputMargin} value={clientName} onChangeText={setClientName} />
-          <TextInput placeholder={t.placeholderPhone} keyboardType="phone-pad" style={styles.authInputMarginLarge} value={clientPhone} onChangeText={setClientPhone} />
-          <TouchableOpacity style={styles.authBtnSend} onPress={handleSendSupportRequest}><Text style={styles.authButtonText}>{t.btnSendRequest}</Text></TouchableOpacity>
-          <View style={styles.noticeContainer}><Text style={styles.noticeSubText}>{t.noticeText}</Text></View>
-          <View style={styles.separator} />
-          <Text style={styles.authSubtitleBold}>{t.enterKeyTitle}</Text>
-          <TextInput placeholder={t.placeholderKey} autoCapitalize="characters" style={styles.authInput} value={inputPassword} onChangeText={setInputPassword} />
-          <TouchableOpacity style={styles.authBtnActivate} onPress={handleLogin}><Text style={styles.authButtonText}>{t.btnActivate}</Text></TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      {trialNotice && (
-        <View style={styles.toastOverlay}>
-          <View style={styles.toastCard}>
-            <Text style={styles.toastText}>{t.toastTrialActive.replace('{days}', daysLeft)}</Text>
-          </View>
-        </View>
-      )}
-
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <View style={styles.headerTimeBlock}>
-            <Text style={styles.dateText}>{currentTime.toLocaleDateString(t.locale)}</Text>
-            <Text style={styles.timeText}>{currentTime.toLocaleTimeString(t.locale, { hour: '2-digit', minute: '2-digit' })}</Text>
-          </View>
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}><Text style={styles.logoutText}>{t.btnExit}</Text></TouchableOpacity>
-        </View>
-        <View style={styles.monthSelectorRow}>
-          <TouchableOpacity style={lang
+    const htmlContent = `<html><head><style>body{font-family:'Helvetica';padding:20px
