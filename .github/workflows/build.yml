@@ -1,18 +1,8 @@
-# 2. ЖЕСТКИЙ ХАК: Корректно настраиваем репозитории без дублирования блоков
+# 2. ЖЕСТКИЙ ХАК: Безопасное внедрение репозитория плагинов
       - name: Patch Generated Gradle
         run: |
-          # Перезаписываем settings.gradle, создавая ОДИН чистый блок pluginManagement
-          echo 'pluginManagement {
-              repositories {
-                  google()
-                  mavenCentral()
-                  gradlePluginPortal()
-              }
-          }' > android/settings.gradle.tmp
+          # Внедряем портал плагинов прямо внутрь существующего блока repositories в settings.gradle
+          sed -i '/repositories {/a \        gradlePluginPortal()' android/settings.gradle
           
-          # Находим оригинальный файл и дописываем все включения (include) обратно, пропуская старый блок
-          tail -n +10 android/settings.gradle >> android/settings.gradle.tmp
-          mv android/settings.gradle.tmp android/settings.gradle
-          
-          # Добавляем репозитории в build.gradle
+          # Добавляем репозитории в корневой build.gradle
           sed -i '1i buildscript { repositories { google(); mavenCentral(); maven { url "https://plugins.gradle.org/m2/" } } }' android/build.gradle
