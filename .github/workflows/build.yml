@@ -36,13 +36,17 @@ jobs:
       - name: Generate Android Folder
         run: npx expo prebuild --platform android --no-install
 
-      # 2. ЖЕСТКИЙ ХАК: Чиним поиск плагинов Expo и баг "SoftwareComponent 'release'"
+      # 2. ЖЕСТКИЙ ХАК: Вычисляем путь силами Bash и прописываем в конфиги
       - name: Patch Generated Gradle
         run: |
-          # Внедряем портал плагинов и локальный путь Expo внутрь settings.gradle
-          sed -i '/repositories {/a \        gradlePluginPortal()\n        maven { url new File(["node", "--print", "require.resolve(\"expo/package.json\")"].execute().text.trim(), "../utils/utils.gradle").getParent() }\n        google()\n        mavenCentral()' android/settings.gradle
+          # Находим реальный абсолютный путь к папке utils в expo
+          EXPO_UTILS_DIR=$(node -e 'console.log(require("path").dirname(require.resolve("expo/package.json")) + "/utils")')
+          echo "Found Expo utils path: $EXPO_UTILS_DIR"
           
-          # ФИКС КРИТИЧЕСКОЙ ОШИБКИ EXPO + GRADLE 8.8
+          # Перезаписываем блок repositories в settings.gradle, вставляя этот жесткий путь напрямую
+          sed -i "/repositories {/a \        maven { url '$EXPO_UTILS_DIR' }\n        gradlePluginPortal()" android/settings.gradle
+          
+          # ФИКС КРИТИЧЕСКОЙ ОШИБКИ EXPO + GRADLE 8.8 (SoftwareComponent 'release')
           sed -i 's/components.release/components.findByName("release")/g' node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle
 
       # 3. Собираем приложение
