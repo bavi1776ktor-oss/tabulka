@@ -17,15 +17,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 
-const { width } = Dimensions.get('window');
-const TRIAL_DURATION_SECONDS = 7 * 24 * 60 * 60;
+const { width, height } = Dimensions.get('window');
+const TRIAL_DURATION_SECONDS = 5 * 24 * 60 * 60; 
 const MY_TARGET_EMAIL = "kluh2026@gmail.com"; 
 const FIREBASE_REST_URL = "https://my-apk-protection-default-rtdb.firebaseio.com";
 
 const translations = {
   ru: {
     locale: 'ru-RU',
-    trialExpiredTitle: "Срок пробного тестирования (7 дней) окончен",
+    trialExpiredTitle: "Срок пробного тестирования (5 дней) окончен",
     requestFullVersion: "Запросить полную версию:",
     requestFullVersionHeader: "Запросить полную версию",
     placeholderName: "Ваше Имя",
@@ -48,8 +48,8 @@ const translations = {
     btnSave: "Сохранить",
     btnCancel: "Отмена",
     btnClose: "Закрыть",
-    archiveEarnings: "Заработок",
-    toastTrialActive: "⏱ АКТИВЕН ТЕСТОВЫЙ ПЕРИОД (ОСТАЛОСЬ {days} ДН.)",
+    archiveEarnings: "Заработок за месяц",
+    toastTrialActive: "⏱ АКТИВЕН ТЕСТОВЫЙ ПЕРИОД\n(ОСТАЛОСЬ {days} ДН.)",
     pdfTitle: "Отчет — {month}",
     pdfStatusWork: "Рабочий",
     pdfStatusWeekend: "Выходной",
@@ -65,7 +65,7 @@ const translations = {
     alertFormatShort: "Слишком короткий ключ активации.",
     alertSuccessTitle: "Успешно",
     alertSuccessMessage: "Приложение успешно активировано!",
-    alertKeyUsed: "Этот ключ уже закреплен за другим устройством!",
+    alertKeyUsed: "Этот ключ уже заблокирован или исчерпан лимит устройств!",
     alertKeyBlock: "Этот ключ заблокирован администратором.",
     alertKeyNotFound: "Ключ не найден в базе данных.",
     alertInputError: "Введите корректные числа",
@@ -78,7 +78,7 @@ const translations = {
     subSectionTitle: "Работы за день:",
     dayTotalText: "Всего за день:",
     btnAddRecord: "+ Добавить запись",
-    selectLangTitle: "Выберите язык (Рус)",
+    selectLangTitle: "Выберите язык / Оберіть мову",
     errorTitle: "Ошибка",
     networkErrorTitle: "Ошибка сети",
     networkErrorMsg: "Не удалось обновить данные из базы",
@@ -86,17 +86,18 @@ const translations = {
     lockTitle: "Блокировка",
     noticeTitle: "Уведомление",
     networkSendError: "Не удалось отправить данные",
-    hourUnit: "ч."
+    hourUnit: "ч.",
+    archiveTitle: "Архив заработка"
   },
   uk: {
     locale: 'uk-UA',
-    trialExpiredTitle: "Термін дії пробного періоду (7 днів) закінчився",
+    trialExpiredTitle: "Термін дії пробного періоду (5 днів) закінчився",
     requestFullVersion: "Надіслати запит на повну версію:",
     requestFullVersionHeader: "Запитувати повну версію",
     placeholderName: "Ваше Ім'я",
     placeholderPhone: "Телефон",
     btnSendRequest: "Надіслати запит",
-    noticeText: "Введіть Ваше ім'я та телефон. Очікуйте, Вам зателефонують.",
+    noticeText: "Введіть Ваше ім'я та телефон. Очікуйте, Вам зателевонують.",
     enterKeyTitle: "Ввести ключ активації:",
     placeholderKey: "Ключ активації (постійний)",
     btnActivate: "Актувати",
@@ -113,8 +114,8 @@ const translations = {
     btnSave: "Зберегти",
     btnCancel: "Скасувати",
     btnClose: "Закрити",
-    archiveEarnings: "Заробіток",
-    toastTrialActive: "⏱ АКТИВНИЙ ТЕСТОВИЙ ПЕРІОД (ЗАЛИШИЛОСЯ {days} ДН.)",
+    archiveEarnings: "Заробіток за місяць",
+    toastTrialActive: "⏱ АКТИВНИЙ ТЕСТОВІЙ ПЕРІОД\n(ЗАЛИШИЛОСЯ {days} ДН.)",
     pdfTitle: "Звіт — {month}",
     pdfStatusWork: "Робочий",
     pdfStatusWeekend: "Вихідний",
@@ -130,20 +131,20 @@ const translations = {
     alertFormatShort: "Занадто короткий ключ активації.",
     alertSuccessTitle: "Успішно",
     alertSuccessMessage: "Додаток успешно активовано!",
-    alertKeyUsed: "Цей ключ вже закріплений за іншим пристроєм!",
+    alertKeyUsed: "Цей ключ вже заблокований або вичерпано ліміт пристроїв!",
     alertKeyBlock: "Цей ключ заблокований адміністратором.",
     alertKeyNotFound: "Ключ не знайдено в базі даних.",
     alertInputError: "Введіть коректні числа",
     alertPdfError: "Не вдалося створити PDF",
     alertRequestSaved: "Дані записані в базу. На вашому пристрої не знайдено налаштованого поштового додатка для прямої відправки.",
-    alertMailError: "Запит успішно збережено в Firebase, но не вдалося запустити поштовий додаток.",
+    alertMailError: "Запит успешно збережено в Firebase, но не вдалося запустити поштовий додаток.",
     alertFillFields: "Будь ласка, заповніть Ім'я та Телефон для зв'язку",
     btnToday: "Сьогодні",
     noRecordsText: "Немає записів за цей день",
     subSectionTitle: "Роботи за день:",
     dayTotalText: "Всього за день:",
-    btnAddRecord: "+ Додати запис",
-    selectLangTitle: "Оберіть мову (Укр)",
+    btnAddRecord: "+ Добавить запись",
+    selectLangTitle: "Выберите язык / Оберіть мову",
     errorTitle: "Помилка",
     networkErrorTitle: "Помилка мережі",
     networkErrorMsg: "Не вдалося оновити дані з бази",
@@ -151,16 +152,16 @@ const translations = {
     lockTitle: "Блокування",
     noticeTitle: "Сповіщення",
     networkSendError: "Не вдалося надіслати дані",
-    hourUnit: "год."
+    hourUnit: "год.",
+    archiveTitle: "Архів заробітку"
   }
 };
 
 export default function App() {
   const [lang, setLang] = useState(null);
-  const [langModalVisible, setLangModalVisible] = useState(false);
   const [password, setPassword] = useState(null); 
   const [inputPassword, setInputPassword] = useState(''); 
-  const [isAuthChecking, setIsAuthChecking] = useState(true); 
+  const [isAuthChecking, setIsAuthChecking] = useState(false); 
   const [isLoadingData, setIsLoadingData] = useState(false); 
   const [currentTime, setCurrentTime] = useState(new Date());
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -172,31 +173,31 @@ export default function App() {
   const [hours, setHours] = useState('');
   const [trialNotice, setTrialNotice] = useState(false); 
   const [isTrialExpired, setIsTrialExpired] = useState(false); 
-  const [daysLeft, setDaysLeft] = useState(7);
+  const [daysLeft, setDaysLeft] = useState(5);
   const [requestModalVisible, setRequestModalVisible] = useState(false);
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('+38 (');
+  const [archiveData, setArchiveData] = useState({});
 
   const t = translations[lang || 'ru'];
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
-    initLanguageAndAuth();
+    checkInitialLanguage();
     return () => clearInterval(timer);
   }, []);
 
-  const initLanguageAndAuth = async () => {
+  const checkInitialLanguage = async () => {
     try {
       const savedLang = await AsyncStorage.getItem('@tabulka_lang');
       if (savedLang === 'ru' || savedLang === 'uk') {
         setLang(savedLang);
-      } else {
-        setLangModalVisible(true);
+        setIsAuthChecking(true);
+        checkSavedPassword(savedLang);
       }
     } catch (e) {
-      setLang('ru');
+      // Экран выбора языка
     }
-    checkSavedPassword();
   };
 
   const getUniqueDeviceId = async () => {
@@ -216,9 +217,10 @@ export default function App() {
     try {
       await AsyncStorage.setItem('@tabulka_lang', selectedLang);
       setLang(selectedLang);
-      setLangModalVisible(false);
+      setIsAuthChecking(true);
+      checkSavedPassword(selectedLang);
     } catch (e) {
-      Alert.alert(translations[selectedLang || 'ru'].errorTitle, "Error saving language");
+      Alert.alert("Error", "Error saving language");
     }
   };
 
@@ -259,56 +261,99 @@ export default function App() {
     }
   };
 
+  const fetchArchiveData = async (currentPassword) => {
+    if (!currentPassword) return;
+    try {
+      const response = await fetch(`${FIREBASE_REST_URL}/tabulka_lists/${currentPassword}.json`);
+      const allData = await response.json();
+      
+      const summary = {};
+      const today = new Date();
+      
+      for (let i = 0; i < 12; i++) {
+        const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+        const key = `${d.getFullYear()}_${d.getMonth()}`;
+        
+        let monthSum = 0;
+        const daysData = allData ? allData[key] : null;
+        if (daysData && typeof daysData === 'object') {
+          Object.keys(daysData).forEach(dayKey => {
+            const dayContent = daysData[dayKey];
+            if (dayContent && dayContent.records) {
+              monthSum += dayContent.records.reduce((sum, rec) => sum + (rec.rate * rec.hours), 0);
+            }
+          });
+        }
+        summary[key] = monthSum;
+      }
+      setArchiveData(summary);
+    } catch (e) {
+      // Тихое подавление
+    }
+  };
+
   useEffect(() => {
     if (password) {
       fetchWorkData(password);
+      fetchArchiveData(password);
     } else {
       setWorkData({});
     }
   }, [password, currentMonth]);
 
-  const checkSavedPassword = async () => {
+  const checkSavedPassword = async (currentLang) => {
+    const localT = translations[currentLang || 'ru'];
     try {
       const deviceId = await getUniqueDeviceId();
       const savedPass = await AsyncStorage.getItem('@tabulka_password');
+      
       if (savedPass) {
         const response = await fetch(`${FIREBASE_REST_URL}/activation_keys/${savedPass}.json`);
         const keyData = await response.json();
         if (keyData) {
-          if (keyData.status === "used" && keyData.deviceId === deviceId) {
-            setPassword(savedPass);
-            setIsAuthChecking(false);
-            return; 
+          if (savedPass.startsWith("FAMILY-")) {
+            const registeredDevices = keyData.devices || {};
+            if (keyData.status === "used" && registeredDevices[deviceId] === true) {
+              setPassword(savedPass);
+              setIsAuthChecking(false);
+              return;
+            }
+          } else {
+            if (keyData.status === "used" && keyData.deviceId === deviceId) {
+              setPassword(savedPass);
+              setIsAuthChecking(false);
+              return; 
+            }
           }
         }
       }
+      
       const trialResponse = await fetch(`${FIREBASE_REST_URL}/trial_devices/${deviceId}.json`);
-      const trialData = await trialResponse.json();
+      let trialData = await trialResponse.json();
       const currentTimeSeconds = Math.floor(Date.now() / 1000);
-      if (trialData) {
-        const timePassed = currentTimeSeconds - trialData.startedAt;
-        const remainingSeconds = TRIAL_DURATION_SECONDS - timePassed;
-        if (remainingSeconds <= 0) {
-          setIsTrialExpired(true);
-        } else {
-          const calculatedDays = Math.ceil(remainingSeconds / (24 * 60 * 60));
-          setDaysLeft(calculatedDays);
-          setPassword("TRIAL_MODE_" + deviceId);
-          setTrialNotice(true);
-          setTimeout(() => setTrialNotice(false), 4000);
-        }
-      } else {
+      
+      if (!trialData) {
+        trialData = { startedAt: currentTimeSeconds, deviceId: deviceId };
         await fetch(`${FIREBASE_REST_URL}/trial_devices/${deviceId}.json`, {
           method: 'PUT',
-          body: JSON.stringify({ startedAt: currentTimeSeconds, deviceId: deviceId })
+          body: JSON.stringify(trialData)
         });
-        setDaysLeft(7);
+      }
+      
+      const timePassed = currentTimeSeconds - trialData.startedAt;
+      const remainingSeconds = TRIAL_DURATION_SECONDS - timePassed;
+      
+      if (remainingSeconds <= 0) {
+        setIsTrialExpired(true);
+      } else {
+        const calculatedDays = Math.ceil(remainingSeconds / (24 * 60 * 60));
+        setDaysLeft(calculatedDays);
         setPassword("TRIAL_MODE_" + deviceId);
         setTrialNotice(true);
         setTimeout(() => setTrialNotice(false), 4000);
       }
     } catch (e) {
-      Alert.alert(t.errorTitle, "Auth check failed");
+      Alert.alert(localT.errorTitle, "Auth check failed");
     } finally {
       setIsAuthChecking(false);
     }
@@ -327,28 +372,67 @@ export default function App() {
       const keyData = await response.json();
       if (keyData) {
         const currentStatus = keyData.status || "free";
-        const currentDeviceId = keyData.deviceId || "";
-        if (currentStatus === "free" && currentDeviceId === "") {
-          await fetch(`${FIREBASE_REST_URL}/activation_keys/${trimmed}.json`, {
-            method: 'PATCH',
-            body: JSON.stringify({ status: "used", deviceId: deviceId })
-          });
-          await AsyncStorage.setItem('@tabulka_password', trimmed);
-          setIsTrialExpired(false); 
-          setPassword(trimmed);
-          setInputPassword('');
-          Alert.alert(t.alertSuccessTitle, t.alertSuccessMessage);
-        } else if (currentStatus === "used") {
-          if (currentDeviceId && currentDeviceId === deviceId) {
+        
+        if (trimmed.startsWith("FAMILY-")) {
+          const registeredDevices = keyData.devices || {};
+          const currentDeviceCount = Object.keys(registeredDevices).length;
+          const maxAllowed = keyData.maxDevices || 5;
+
+          if (registeredDevices[deviceId] === true) {
             await AsyncStorage.setItem('@tabulka_password', trimmed);
             setIsTrialExpired(false);
             setPassword(trimmed);
             setInputPassword('');
+            return;
+          }
+
+          if (currentStatus === "blocked") {
+            Alert.alert(t.lockTitle, t.alertKeyBlock);
+            return;
+          }
+
+          if (currentDeviceCount < maxAllowed) {
+            await fetch(`${FIREBASE_REST_URL}/activation_keys/${trimmed}/devices/${deviceId}.json`, {
+              method: 'PUT',
+              body: JSON.stringify(true)
+            });
+            await fetch(`${FIREBASE_REST_URL}/activation_keys/${trimmed}.json`, {
+              method: 'PATCH',
+              body: JSON.stringify({ status: "used" })
+            });
+
+            await AsyncStorage.setItem('@tabulka_password', trimmed);
+            setIsTrialExpired(false); 
+            setPassword(trimmed);
+            setInputPassword('');
+            Alert.alert(t.alertSuccessTitle, t.alertSuccessMessage);
           } else {
             Alert.alert(t.activationErrorTitle, t.alertKeyUsed);
           }
         } else {
-          Alert.alert(t.lockTitle, t.alertKeyBlock);
+          const currentDeviceId = keyData.deviceId || "";
+          if (currentStatus === "free" && currentDeviceId === "") {
+            await fetch(`${FIREBASE_REST_URL}/activation_keys/${trimmed}.json`, {
+              method: 'PATCH',
+              body: JSON.stringify({ status: "used", deviceId: deviceId })
+            });
+            await AsyncStorage.setItem('@tabulka_password', trimmed);
+            setIsTrialExpired(false); 
+            setPassword(trimmed);
+            setInputPassword('');
+            Alert.alert(t.alertSuccessTitle, t.alertSuccessMessage);
+          } else if (currentStatus === "used") {
+            if (currentDeviceId && currentDeviceId === deviceId) {
+              await AsyncStorage.setItem('@tabulka_password', trimmed);
+              setIsTrialExpired(false);
+              setPassword(trimmed);
+              setInputPassword('');
+            } else {
+              Alert.alert(t.activationErrorTitle, t.alertKeyUsed);
+            }
+          } else {
+            Alert.alert(t.lockTitle, t.alertKeyBlock);
+          }
         }
       } else {
         Alert.alert(t.noticeTitle, t.alertKeyNotFound);
@@ -402,7 +486,8 @@ export default function App() {
           await AsyncStorage.removeItem('@tabulka_password');
           setIsTrialExpired(false);
           setPassword(null);
-          checkSavedPassword(); 
+          await AsyncStorage.removeItem('@tabulka_lang');
+          setLang(null);
         }
       }
     ]);
@@ -473,6 +558,7 @@ export default function App() {
       setModalVisible(false);
       setSelectedDate(null);
       fetchWorkData(password);
+      fetchArchiveData(password);
     } catch (e) {
       Alert.alert(t.networkErrorTitle, t.networkSendError);
     }
@@ -578,6 +664,29 @@ export default function App() {
     return rows;
   };
 
+  const selectMonthFromArchive = (monthKey) => {
+    const [year, monthIdx] = monthKey.split('_');
+    const targetDate = new Date(parseInt(year), parseInt(monthIdx), 1);
+    setCurrentMonth(targetDate);
+    setArchiveModalVisible(false);
+  };
+
+  if (!lang) {
+    return (
+      <SafeAreaView style={styles.authContainer}>
+        <View style={styles.langStartCard}>
+          <Text style={styles.langStartTitle}>Выберите язык / Оберіть мову</Text>
+          <TouchableOpacity style={styles.langStartBtnRu} onPress={() => handleSelectLanguage('ru')}>
+            <Text style={styles.authButtonText}>Русский</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.langStartBtnUk} onPress={() => handleSelectLanguage('uk')}>
+            <Text style={styles.authButtonText}>Українська</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   if (isAuthChecking) {
     return (<View style={styles.loadingContainer}><ActivityIndicator size="large" color="#0052CC" /></View>);
   }
@@ -587,11 +696,6 @@ export default function App() {
       <SafeAreaView style={styles.authContainer}>
         <View style={styles.authCardExpired}>
           <Text style={styles.authTitleExpired}>{t.trialExpiredTitle}</Text>
-          <Text style={styles.authSubtitleBold}>{t.requestFullVersion}</Text>
-          <TextInput placeholder={t.placeholderName} style={styles.authInputMargin} value={clientName} onChangeText={setClientName} />
-          <TextInput placeholder={t.placeholderPhone} keyboardType="phone-pad" style={styles.authInputMarginLarge} value={clientPhone} onChangeText={setClientPhone} />
-          <TouchableOpacity style={styles.authBtnSend} onPress={handleSendSupportRequest}><Text style={styles.authButtonText}>{t.btnSendRequest}</Text></TouchableOpacity>
-          <View style={styles.noticeContainer}><Text style={styles.noticeSubText}>{t.noticeText}</Text></View>
           <View style={styles.separator} />
           <Text style={styles.authSubtitleBold}>{t.enterKeyTitle}</Text>
           <TextInput placeholder={t.placeholderKey} autoCapitalize="characters" style={styles.authInput} value={inputPassword} onChangeText={setInputPassword} />
@@ -601,13 +705,18 @@ export default function App() {
     );
   }
 
+  const isCurrentModeTrial = password && password.startsWith("TRIAL_MODE_");
+
   return (
     <SafeAreaView style={styles.safeArea}>
       {trialNotice && (
-        <View style={styles.toast}>
-          <Text style={styles.toastText}>{t.toastTrialActive.replace('{days}', daysLeft)}</Text>
+        <View style={styles.toastOverlay}>
+          <View style={styles.toastCard}>
+            <Text style={styles.toastText}>{t.toastTrialActive.replace('{days}', daysLeft)}</Text>
+          </View>
         </View>
       )}
+
       <View style={styles.container}>
         <View style={styles.header}>
           <View style={styles.headerTimeBlock}>
@@ -616,6 +725,13 @@ export default function App() {
           </View>
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}><Text style={styles.logoutText}>{t.btnExit}</Text></TouchableOpacity>
         </View>
+
+        {isCurrentModeTrial && (
+          <TouchableOpacity style={styles.trialTopRequestBtn} onPress={() => setRequestModalVisible(true)}>
+            <Text style={styles.trialTopRequestBtnText}>{t.requestFullVersionHeader.toUpperCase()}</Text>
+          </TouchableOpacity>
+        )}
+
         <View style={styles.monthSelectorRow}>
           <TouchableOpacity style={lang === 'ru' ? styles.langCircleRu : styles.langCircleRuDimmed} onPress={() => handleSelectLanguage('ru')}><Text style={styles.langCircleText}>Р</Text></TouchableOpacity>
           <View style={styles.monthTitleWrapper}>
@@ -661,6 +777,47 @@ export default function App() {
             </View>
           </View>
         </Modal>
+
+        <Modal visible={archiveModalVisible} transparent={true} animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>{t.archiveTitle}</Text>
+              <ScrollView style={[styles.miniRecordsList, { maxHeight: 320 }]}>
+                {Object.keys(archiveData).length > 0 ? (
+                  Object.keys(archiveData).sort().reverse().map((monthKey) => {
+                    const [year, monthIdx] = monthKey.split('_');
+                    const dummyDate = new Date(parseInt(year), parseInt(monthIdx), 1);
+                    const formattedMonth = dummyDate.toLocaleString(t.locale, { month: 'long', year: 'numeric' });
+                    return (
+                      <TouchableOpacity key={monthKey} style={styles.miniRecordRow} onPress={() => selectMonthFromArchive(monthKey)}>
+                        <Text style={[styles.miniRecordText, { textTransform: 'capitalize', color: '#0052CC' }]}>{formattedMonth}:</Text>
+                        <Text style={[styles.miniRecordText, { fontWeight: 'bold' }]}>{archiveData[monthKey]}</Text>
+                      </TouchableOpacity>
+                    );
+                  })
+                ) : (
+                  <Text style={styles.noRecordsText}>{t.noRecordsText}</Text>
+                )}
+              </ScrollView>
+              <TouchableOpacity style={[styles.btn, styles.btnCancel, { width: '100%', marginTop: 10 }]} onPress={() => setArchiveModalVisible(false)}>
+                <Text style={styles.btnText}>{t.btnClose}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal visible={requestModalVisible} transparent={true} animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={[styles.modalTitle, { color: '#10B981' }]}>{t.requestFullVersionHeader}</Text>
+              <TextInput placeholder={t.placeholderName} style={styles.authInputMargin} value={clientName} onChangeText={setClientName} />
+              <TextInput placeholder={t.placeholderPhone} keyboardType="phone-pad" style={styles.authInputMarginLarge} value={clientPhone} onChangeText={setClientPhone} />
+              <TouchableOpacity style={styles.authBtnSend} onPress={handleSendSupportRequest}><Text style={styles.authButtonText}>{t.btnSendRequest}</Text></TouchableOpacity>
+              <View style={styles.noticeContainer}><Text style={styles.noticeSubText}>{t.noticeText}</Text></View>
+              <TouchableOpacity style={[styles.btnCancel, { width: '100%', marginTop: 12 }]} onPress={() => setRequestModalVisible(false)}><Text style={styles.btnText}>{t.btnCancel}</Text></TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </View>
     </SafeAreaView>
   );
@@ -669,8 +826,12 @@ export default function App() {
 const styles = StyleSheet.create({
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F9FAFB' },
   authContainer: { flex: 1, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' },
+  langStartCard: { width: width * 0.85, backgroundColor: '#FFF', padding: 24, borderRadius: 16, alignItems: 'center', borderWidth: 1, borderColor: '#E5E7EB' },
+  langStartTitle: { fontSize: 18, fontWeight: 'bold', color: '#111827', marginBottom: 20, textAlign: 'center' },
+  langStartBtnRu: { width: '100%', padding: 14, borderRadius: 10, alignItems: 'center', backgroundColor: '#0052CC', marginBottom: 12 },
+  langStartBtnUk: { width: '100%', padding: 14, borderRadius: 10, alignItems: 'center', backgroundColor: '#10B981' },
   authCardExpired: { width: width * 0.9, backgroundColor: '#FFF', padding: 22, borderRadius: 16, borderWidth: 1.5, borderColor: '#EF4444' },
-  authTitleExpired: { fontSize: 20, fontWeight: 'bold', color: '#EF4444', marginBottom: 15, textAlign: 'center' },
+  authTitleExpired: { fontSize: 18, fontWeight: 'bold', color: '#EF4444', marginBottom: 15, textAlign: 'center' },
   authSubtitleBold: { fontSize: 14, color: '#4B5563', marginBottom: 8, textAlign: 'left', fontWeight: 'bold' },
   authInput: { borderBottomWidth: 1, borderColor: '#D1D5DB', paddingVertical: 6, fontSize: 16, marginBottom: 16, textAlign: 'center' },
   authInputMargin: { borderBottomWidth: 1, borderColor: '#D1D5DB', paddingVertical: 6, fontSize: 16, marginBottom: 10, textAlign: 'center' },
@@ -681,12 +842,14 @@ const styles = StyleSheet.create({
   separator: { marginVertical: 15, borderBottomWidth: 1, borderColor: '#E5E7EB' },
   safeArea: { flex: 1, backgroundColor: '#F9FAFB', paddingTop: 30 },
   container: { flex: 1, paddingHorizontal: 16 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   headerTimeBlock: { flex: 1.2 },
   dateText: { fontSize: 14, color: '#6B7280', fontWeight: 'bold' },
   timeText: { fontSize: 22, fontWeight: 'bold', color: '#111827' },
   logoutButton: { paddingVertical: 4, paddingHorizontal: 8, backgroundColor: '#EF4444', borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
   logoutText: { color: '#FFF', fontSize: 12, fontWeight: 'bold', textAlign: 'center' },
+  trialTopRequestBtn: { backgroundColor: '#10B981', padding: 10, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 15 },
+  trialTopRequestBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 14, textAlign: 'center' },
   monthSelectorRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   monthTitleWrapper: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   monthTitle: { fontSize: 16, fontWeight: 'bold', color: '#374151', textAlign: 'center', marginRight: 8 },
@@ -736,15 +899,34 @@ const styles = StyleSheet.create({
   btnText: { color: '#FFF', fontWeight: 'bold', textAlign: 'center' },
   noticeContainer: { backgroundColor: '#0052CC', padding: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   noticeSubText: { fontSize: 16, fontWeight: 'bold', color: '#FFF', textAlign: 'center' },
-  toast: { 
+  centerLoading: { flex: 1, justifyContent: 'center', alignItems: 'center', minHeight: 200 },
+  
+  toastOverlay: { 
     position: 'absolute', 
-    top: 50, 
-    left: 20, 
-    right: 20, 
-    backgroundColor: '#F59E0B', 
-    padding: 15, 
-    borderRadius: 10, 
-    zIndex: 99999 
+    top: 0, left: 0, right: 0, bottom: 0, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    zIndex: 99999,
+    backgroundColor: 'rgba(0,0,0,0.1)' 
   },
-  toastText: { color: '#FFF', fontWeight: 'bold', textAlign: 'center', fontSize: 14 }
+  toastCard: { 
+    width: width * 0.8,
+    backgroundColor: '#F3F4F6', 
+    padding: 20, 
+    borderRadius: 12, 
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4
+  },
+  toastText: { 
+    color: '#EF4444', 
+    fontWeight: 'bold', 
+    textAlign: 'center', 
+    fontSize: 15,
+    lineHeight: 22
+  }
 });
