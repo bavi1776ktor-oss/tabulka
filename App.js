@@ -18,7 +18,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 
 const { width, height } = Dimensions.get('window');
-const TRIAL_DURATION_SECONDS = 5 * 24 * 60 * 60; // Изменено на 5 дней
+const TRIAL_DURATION_SECONDS = 5 * 24 * 60 * 60; 
 const MY_TARGET_EMAIL = "kluh2026@gmail.com"; 
 const FIREBASE_REST_URL = "https://my-apk-protection-default-rtdb.firebaseio.com";
 
@@ -142,11 +142,11 @@ const translations = {
     noRecordsText: "Немає записів за цей день",
     subSectionTitle: "Роботи за день:",
     dayTotalText: "Всього за день:",
-    btnAddRecord: "+ Добавить запись",
+    btnAddRecord: "+ Додати запис",
     selectLangTitle: "Оберіть мову (Укр)",
     errorTitle: "Помилка",
     networkErrorTitle: "Помилка мережі",
-    networkErrorMsg: "Не вдалося оновити дані з бази",
+    networkErrorMsg: "Не вдалося оновити дані з базы",
     activationErrorTitle: "Помилка активації",
     lockTitle: "Блокування",
     noticeTitle: "Сповіщення",
@@ -603,7 +603,6 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* ПЕРЕНЕСЕННОЕ УВЕДОМЛЕНИЕ: КРАСНЫЙ ШРИФТ, СЕРЫЙ ФОН, ПО ЦЕНТРУ */}
       {trialNotice && (
         <View style={styles.toastOverlay}>
           <View style={styles.toastCard}>
@@ -621,27 +620,4 @@ export default function App() {
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}><Text style={styles.logoutText}>{t.btnExit}</Text></TouchableOpacity>
         </View>
         <View style={styles.monthSelectorRow}>
-          <TouchableOpacity style={lang === 'ru' ? styles.langCircleRu : styles.langCircleRuDimmed} onPress={() => handleSelectLanguage('ru')}><Text style={styles.langCircleText}>Р</Text></TouchableOpacity>
-          <View style={styles.monthTitleWrapper}>
-            <Text style={styles.monthTitle}>{currentMonth.toLocaleString(t.locale, { month: 'long', year: 'numeric' }).toUpperCase()}</Text>
-            <TouchableOpacity style={styles.todayButton} onPress={() => setCurrentMonth(new Date())}><Text style={styles.todayButtonText}>{t.btnToday.toUpperCase()}</Text></TouchableOpacity>
-          </View>
-          <TouchableOpacity style={lang === 'uk' ? styles.langCircleUk : styles.langCircleUkDimmed} onPress={() => handleSelectLanguage('uk')}><Text style={styles.langCircleText}>У</Text></TouchableOpacity>
-        </View>
-        <View style={styles.weekDaysRow}>{t.weekDays.map((day, index) => (<Text key={index} style={(day === 'Сб' || day === 'Вс' || day === 'Нд') ? styles.weekDayTextWeekend : styles.weekDayTextNormal}>{day}</Text>))}</View>
-        {isLoadingData ? (<View style={styles.centerLoading}><ActivityIndicator size="large" color="#0052CC" /></View>) : (<ScrollView contentContainerStyle={styles.calendarGrid}>{renderCalendarGrid()}</ScrollView>)}
-        <View style={styles.statsContainer}>
-          <Text style={styles.statsText}>{t.statsWorkDays}: {stats.workDays}</Text>
-          <Text style={styles.statsText}>{t.statsWeekendDays}: {stats.weekendDays}</Text>
-          <Text style={styles.totalText}>{t.statsTotalSum}: {stats.totalSum}</Text>
-        </View>
-        <TouchableOpacity style={styles.archiveButton} onPress={() => setArchiveModalVisible(true)}><Text style={styles.archiveButtonText}>{t.btnArchive}</Text></TouchableOpacity>
-        <TouchableOpacity style={styles.pdfButton} onPress={exportToPDF}><Text style={styles.pdfButtonText}>{t.btnSavePdf}</Text></TouchableOpacity>
-
-        <Modal visible={modalVisible} transparent={true} animationType="fade">
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>{t.modalDayTitle}: {selectedDate ? selectedDate.split('-')[2] : ''}</Text>
-              <Text style={styles.subSectionTitle}>{t.subSectionTitle}</Text>
-              <ScrollView style={styles.miniRecordsList}>
-                {workData[selectedDate]?.records && workData[selectedDate].records.length > 0 ? (
+          <TouchableOpacity style={lang
