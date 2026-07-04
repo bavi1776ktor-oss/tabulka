@@ -18,11 +18,10 @@ import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
-// Ссылка на твою базу Firebase REST API
 const FIREBASE_REST_URL = "https://tabulka-c93d5-default-rtdb.europe-west1.firebasedatabase.app";
 const SECURE_STORE_KEY = "user_activation_key_tabulka";
+const DEVICE_UUID_KEY = "user_device_uuid_tabulka"; // Ключ для вечного ID устройства
 
-// Локализация приложения (Русский и Украинский)
 const translations = {
   ru: {
     authTitle: "Активация приложения",
@@ -57,7 +56,7 @@ const translations = {
     errEmptyKey: "Будь ласка, введіть ключ активації.",
     errInvalidKey: "Ключ не знайдено або він недійсний.",
     errDeviceLocked: "Цей ключ вже закріплений за іншим пристроєм!",
-    toastWelcome: "Активація успішна! Ласкаво просимо.",
+    toastWelcome: "Активація успешна! Ласкаво просимо.",
     agendaTitle: "Облік робочих днів",
     dayTotalText: "Всього за день:",
     btnAddRecord: "+ Додати запис",
@@ -66,8 +65,8 @@ const translations = {
     btnSaveDay: "Зберегти день",
     btnCancel: "Скасувати",
     alertConfirmDelete: "Видалити запись?",
-    alertDeleteMsg: "Ви впевнені, що хочете видалити цей робочий рядок?",
-    btnDelete: "Видалити",
+    alertDeleteMsg: "Ви впевнені, что хочете видалити цей робочий рядок?",
+    btnDelete: "Вилучити",
     msgNoRecords: "Немає записів за цей день",
     msgLoading: "Завантаження даних...",
     msgSaving: "Збереження...",
@@ -76,41 +75,46 @@ const translations = {
   }
 };
 
-// Выбор языка системы (по умолчанию uk, если украинский регион, иначе ru)
 const systemLang = 'uk'; 
 const t = translations[systemLang] || translations.ru;
 
 export default function App() {
-  // Состояния авторизации
   const [password, setPassword] = useState(null);
   const [inputValue, setInputValue] = useState('');
   const [isAuthChecking, setIsAuthChecking] = useState(true);
   const [isActivating, setIsActivating] = useState(false);
 
-  // Состояния календаря и записей
   const [workData, setWorkData] = useState({});
   const [selectedDate, setSelectedDate] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false);
 
-  // Временные поля ввода для модалки дня
   const [rate, setRate] = useState('');
   const [hours, setHours] = useState('');
   const [tempRecords, setTempRecords] = useState([]);
 
-  // Календарь: текущий рабочий месяц для отображения структуры
   const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().split('T')[0].substring(0, 7));
 
-  // Получение железного ID устройства
+  // НАДЕЖНЫЙ СПОСОБ ОПРЕДЕЛЕНИЯ УНИКАЛЬНОГО ID УСТРОЙСТВА
   const getUniqueDeviceId = async () => {
     try {
-      return Application.androidId || "generic_android_device";
+      // 1. Пробуем взять родной Android ID
+      if (Application.androidId) {
+        return Application.androidId;
+      }
+      // 2. Если его нет (баг сборки), проверяем наш сгенерированный UUID в памяти
+      let savedUUID = await SecureStore.getItemAsync(DEVICE_UUID_KEY);
+      if (!savedUUID) {
+        // Если это первый запуск и Android ID пуст — создаем свой уникальный маркер
+        savedUUID = "dev_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+        await SecureStore.setItemAsync(DEVICE_UUID_KEY, savedUUID);
+      }
+      return savedUUID;
     } catch (e) {
-      return "DEVICE_GENERIC_ERROR";
+      return "DEVICE_GENERIC_FALLBACK_ID";
     }
   };
 
-  // Проверка сохраненного ключа при старте
   useEffect(() => {
     async function checkSavedPassword() {
       try {
@@ -123,10 +127,13 @@ export default function App() {
           if (keyData && keyData.status === "used") {
             const deviceId = await getUniqueDeviceId();
             
+            // СЕМЕЙНЫЙ ДОСТУП (Пропускает без привязки к одному ID)
             if (keyData.isFamily || trimmed.startsWith("FAMILY_")) {
               setPassword(trimmed);
               await fetchWorkData(trimmed);
-            } else if (keyData.deviceId === deviceId) {
+            } 
+            // ОБЫЧНЫЙ ДОСТУП (Проверяет конкретное устройство)
+            else if (keyData.deviceId === deviceId) {
               setPassword(trimmed);
               await fetchWorkData(trimmed);
             } else {
@@ -145,7 +152,6 @@ export default function App() {
     checkSavedPassword();
   }, [currentMonth]);
 
-  // Загрузка рабочих записей из ветки конкретного ключа
   const fetchWorkData = async (userKey) => {
     if (!userKey) return;
     setIsLoadingData(true);
@@ -164,7 +170,6 @@ export default function App() {
     }
   };
 
-  // Мгновенный точечный перезапрос данных одного дня при открытии модалки (для Live-синхронизации)
   const refreshSingleDayData = async (dateStr, userKey) => {
     if (!userKey || !dateStr) return;
     try {
@@ -194,7 +199,6 @@ export default function App() {
     }
   };
 
-  // Процесс активации нового ключа
   const handleActivation = async () => {
     const trimmed = inputValue.trim();
     if (!trimmed) {
@@ -215,6 +219,7 @@ export default function App() {
 
       const deviceId = await getUniqueDeviceId();
 
+      // Активация семейного ключа (пишем флаг isFamily)
       if (trimmed.startsWith("FAMILY_")) {
         await fetch(`${FIREBASE_REST_URL}/activation_keys/${trimmed}.json`, {
           method: 'PATCH',
@@ -225,6 +230,7 @@ export default function App() {
         Alert.alert(t.authTitle, t.toastWelcome);
         await fetchWorkData(trimmed);
       } 
+      // Активация обычного ключа (привязываем девайс)
       else {
         if (keyData.status === "free") {
           await fetch(`${FIREBASE_REST_URL}/activation_keys/${trimmed}.json`, {
@@ -250,7 +256,6 @@ export default function App() {
     }
   };
 
-  // Открытие модального окна дня
   const handleDayPress = async (day) => {
     const dateStr = day.dateString;
     setSelectedDate(dateStr);
@@ -272,7 +277,6 @@ export default function App() {
     await refreshSingleDayData(dateStr, password);
   };
 
-  // Добавление временной строки работы в модалке
   const handleAddRecord = () => {
     const parsedRate = parseFloat(rate);
     const parsedHours = parseFloat(hours);
@@ -293,7 +297,6 @@ export default function App() {
     setHours('');
   };
 
-  // Удаление строки работы
   const handleDeleteRecord = (id) => {
     Alert.alert(t.alertConfirmDelete, t.alertDeleteMsg, [
       { text: t.btnCancel, style: 'cancel' },
@@ -307,7 +310,6 @@ export default function App() {
     ]);
   };
 
-  // Подсчет общей суммы за день
   const getDayTotal = (dayData) => {
     if (!dayData || !dayData.records) return 0;
     return dayData.records.reduce((sum, rec) => sum + rec.total, 0);
@@ -317,7 +319,6 @@ export default function App() {
     return tempRecords.reduce((sum, rec) => sum + rec.total, 0);
   };
 
-  // Сохранение изменений дня в Firebase
   const handleSaveDay = async () => {
     if (!selectedDate || !password) return;
 
@@ -358,7 +359,6 @@ export default function App() {
     }
   };
 
-  // Преобразование внутренней структуры данных Firebase для компонента Agenda
   const formatAgendaItems = () => {
     const items = {};
     const year = currentMonth.substring(0, 4);
@@ -451,6 +451,7 @@ export default function App() {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>{selectedDate}</Text>
 
+            {/* СПИСОК: Увеличена высота (maxHeight: 250), чтобы легко вмещалось 6 записей */}
             <ScrollView style={styles.miniRecordsList} nestedScrollEnabled={true}>
               {tempRecords.length === 0 ? (
                 <Text style={styles.noRecordsText}>{t.msgNoRecords}</Text>
@@ -472,6 +473,7 @@ export default function App() {
               <Text style={styles.dayTotalText}>{t.dayTotalText} {getTempTotal()}</Text>
             </View>
 
+            {/* ПЕРЕСТАНОВКА: Теперь инпуты идут СВЕРХУ кнопки добавления */}
             <View style={styles.inputGroupRow}>
               <TextInput
                 placeholder={t.placeholderRate}
@@ -491,6 +493,7 @@ export default function App() {
               />
             </View>
 
+            {/* Кнопка добавления записи стала ниже полей ввода */}
             <TouchableOpacity style={styles.btnAddRecordRow} onPress={handleAddRecord}>
               <Text style={styles.btnAddRecordRowText}>{t.btnAddRecord}</Text>
             </TouchableOpacity>
@@ -540,7 +543,10 @@ const styles = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
   modalContent: { backgroundColor: '#fff', width: width * 0.9, maxWidth: 450, borderRadius: 16, padding: 20, elevation: 10 },
   modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#111827', marginBottom: 14, textAlign: 'center' },
-  miniRecordsList: { maxHeight: 160, backgroundColor: '#F3F4F6', borderRadius: 8, padding: 8, marginBottom: 8 },
+  
+  // Увеличили максимальную высоту контейнера списка до 250, чтобы влезало 6 строк
+  miniRecordsList: { maxHeight: 250, backgroundColor: '#F3F4F6', borderRadius: 8, padding: 8, marginBottom: 8 },
+  
   noRecordsText: { color: '#9CA3AF', textAlign: 'center', marginVertical: 12, fontSize: 14 },
   miniRecordRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6, marginBottom: 6, borderWidth: 1, borderColor: '#E5E7EB' },
   miniRecordText: { fontSize: 15, color: '#374151' },
