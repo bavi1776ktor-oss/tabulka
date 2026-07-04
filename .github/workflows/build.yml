@@ -26,33 +26,43 @@ jobs:
       - name: Install JS Dependencies
         run: npm install
 
-      # Специфическая установка для Expo, чтобы плагины сели на свои места в системе
+      # Установка модулей Expo
       - name: Install Missing Expo Modules
         run: |
           npm install react-native-calendars
           npx expo install expo-secure-store expo-application -- --fix
 
-      # Проверяем сборку JS (это точно пройдет)
+      # ЖЕСТКИЙ ФИКС: Создаем пустую папку assets и фейковые картинки, чтобы prebuild не падал
+      - name: Create Dummy Assets
+        run: |
+          mkdir -p assets
+          touch assets/icon.png
+          touch assets/splash.png
+          touch assets/adaptive-icon.png
+
+      # Проверяем сборку JS
       - name: Verify JS Bundle
         run: npx expo export --platform android
 
-      # 1. Генерируем папку android
+      # 1. Генерируем папку android с чистого листа
       - name: Generate Android Folder
-        run: npx expo prebuild --platform android --no-install
+        run: |
+          rm -rf android
+          npx expo prebuild --platform android --no-install
 
-      # 2. Лечим баг совместимости Expo + Gradle 8.8 (SoftwareComponent 'release')
+      # 2. Лечим баг совместимости Expo + Gradle 8.8
       - name: Patch Expo Modules Core
         run: |
           sed -i 's/components.release/components.findByName("release")/g' node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle
 
-      # 3. Собираем APK локально силами GitHub
+      # 3. Собираем APK
       - name: Compile APK
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon
 
-      # 4. Выкатываем готовый APK в артефакты GitHub
+      # 4. Выкатываем готовый APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
