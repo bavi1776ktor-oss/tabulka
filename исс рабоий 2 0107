@@ -114,7 +114,7 @@ const translations = {
     btnCancel: "Скасувати",
     btnClose: "Закрити",
     archiveEarnings: "Заробіток",
-    toastTrialActive: "⏱ АКТИВНИЙ ТЕСТОВИЙ ПЕРИОД (ЗАЛИШИЛОСЯ {days} ДН.)",
+    toastTrialActive: "⏱ АКТИВНИЙ ТЕСТОВИЙ ПЕРІОД (ЗАЛИШИЛОСЯ {days} ДН.)",
     pdfTitle: "Звіт — {month}",
     pdfStatusWork: "Робочий",
     pdfStatusWeekend: "Вихідний",
@@ -295,7 +295,7 @@ export default function App() {
           setDaysLeft(calculatedDays);
           setPassword("TRIAL_MODE_" + deviceId);
           setTrialNotice(true);
-          setTimeout(() => setTrialNotice(false), 3000);
+          setTimeout(() => setTrialNotice(false), 4000);
         }
       } else {
         await fetch(`${FIREBASE_REST_URL}/trial_devices/${deviceId}.json`, {
@@ -305,7 +305,7 @@ export default function App() {
         setDaysLeft(7);
         setPassword("TRIAL_MODE_" + deviceId);
         setTrialNotice(true);
-        setTimeout(() => setTrialNotice(false), 3000);
+        setTimeout(() => setTrialNotice(false), 4000);
       }
     } catch (e) {
       Alert.alert(t.errorTitle, "Auth check failed");
@@ -333,7 +333,6 @@ export default function App() {
             method: 'PATCH',
             body: JSON.stringify({ status: "used", deviceId: deviceId })
           });
-          await fetch(`${FIREBASE_REST_URL}/support_requests/${deviceId}.json`, { method: 'DELETE' });
           await AsyncStorage.setItem('@tabulka_password', trimmed);
           setIsTrialExpired(false); 
           setPassword(trimmed);
@@ -341,7 +340,6 @@ export default function App() {
           Alert.alert(t.alertSuccessTitle, t.alertSuccessMessage);
         } else if (currentStatus === "used") {
           if (currentDeviceId && currentDeviceId === deviceId) {
-            await fetch(`${FIREBASE_REST_URL}/support_requests/${deviceId}.json`, { method: 'DELETE' });
             await AsyncStorage.setItem('@tabulka_password', trimmed);
             setIsTrialExpired(false);
             setPassword(trimmed);
@@ -605,6 +603,11 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      {trialNotice && (
+        <View style={styles.toast}>
+          <Text style={styles.toastText}>{t.toastTrialActive.replace('{days}', daysLeft)}</Text>
+        </View>
+      )}
       <View style={styles.container}>
         <View style={styles.header}>
           <View style={styles.headerTimeBlock}>
@@ -732,5 +735,16 @@ const styles = StyleSheet.create({
   btnCancel: { backgroundColor: '#9CA3AF', alignItems: 'center', justifyContent: 'center', padding: 12, borderRadius: 8, minWidth: 80 },
   btnText: { color: '#FFF', fontWeight: 'bold', textAlign: 'center' },
   noticeContainer: { backgroundColor: '#0052CC', padding: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  noticeSubText: { fontSize: 16, fontWeight: 'bold', color: '#FFF', textAlign: 'center' }
+  noticeSubText: { fontSize: 16, fontWeight: 'bold', color: '#FFF', textAlign: 'center' },
+  toast: { 
+    position: 'absolute', 
+    top: 50, 
+    left: 20, 
+    right: 20, 
+    backgroundColor: '#F59E0B', 
+    padding: 15, 
+    borderRadius: 10, 
+    zIndex: 99999 
+  },
+  toastText: { color: '#FFF', fontWeight: 'bold', textAlign: 'center', fontSize: 14 }
 });
