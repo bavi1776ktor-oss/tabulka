@@ -1,23 +1,29 @@
 {
   "expo": {
-    "name": "Табулька",
-    "slug": "tabulka",
-    "version": "1.0.2",
+    "name": "tabulka",
+    "slug": "smeta",
+    "owner": "wi_ktor",
+    "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
     "ios": {
       "supportsTablet": true
     },
     "android": {
-      "package": "com.wi_ktor.tabulka",
       "adaptiveIcon": {
-        "backgroundColor": "#2563EB"
-      }
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.wi_ktor.tabulka"
     },
-    "extra": {
-      "eas": {
-        "projectId": "dd418464-c229-417b-8459-6cd959778705"
-      }
+    "web": {
+      "favicon": "./assets/favicon.png"
     }
   }
 }
