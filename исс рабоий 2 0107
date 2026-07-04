@@ -740,13 +740,36 @@ export default function App() {
           </View>
           <TouchableOpacity style={lang === 'uk' ? styles.langCircleUk : styles.langCircleUkDimmed} onPress={() => handleSelectLanguage('uk')}><Text style={styles.langCircleText}>У</Text></TouchableOpacity>
         </View>
+        
         <View style={styles.weekDaysRow}>{t.weekDays.map((day, index) => (<Text key={index} style={(day === 'Сб' || day === 'Вс' || day === 'Нд') ? styles.weekDayTextWeekend : styles.weekDayTextNormal}>{day}</Text>))}</View>
-        {isLoadingData ? (<View style={styles.centerLoading}><ActivityIndicator size="large" color="#0052CC" /></View>) : (<ScrollView contentContainerStyle={styles.calendarGrid}>{renderCalendarGrid()}</ScrollView>)}
+        
+        {isLoadingData ? (
+          <View style={styles.centerLoading}><ActivityIndicator size="large" color="#0052CC" /></View>
+        ) : (
+          <ScrollView contentContainerStyle={styles.calendarGrid}>{renderCalendarGrid()}</ScrollView>
+        )}
+
+        {isCurrentModeTrial && (
+          <View style={styles.inlineActivationBlock}>
+            <TextInput 
+              placeholder={t.placeholderKey} 
+              autoCapitalize="characters" 
+              style={styles.inlineActivationInput} 
+              value={inputPassword} 
+              onChangeText={setInputPassword} 
+            />
+            <TouchableOpacity style={styles.inlineActivationBtn} onPress={handleLogin}>
+              <Text style={styles.inlineActivationBtnText}>{t.btnActivate.toUpperCase()}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={styles.statsContainer}>
           <Text style={styles.statsText}>{t.statsWorkDays}: {stats.workDays}</Text>
           <Text style={styles.statsText}>{t.statsWeekendDays}: {stats.weekendDays}</Text>
           <Text style={styles.totalText}>{t.statsTotalSum}: {stats.totalSum}</Text>
         </View>
+        
         <TouchableOpacity style={styles.archiveButton} onPress={() => setArchiveModalVisible(true)}><Text style={styles.archiveButtonText}>{t.btnArchive}</Text></TouchableOpacity>
         <TouchableOpacity style={styles.pdfButton} onPress={exportToPDF}><Text style={styles.pdfButtonText}>{t.btnSavePdf}</Text></TouchableOpacity>
 
@@ -871,6 +894,42 @@ const styles = StyleSheet.create({
   dayText: { fontSize: 16, fontWeight: 'bold', color: '#111827', textAlign: 'center' },
   workDayText: { fontSize: 15, fontWeight: 'bold', color: '#FFF', textAlign: 'center' },
   cellSumSubtext: { fontSize: 11, color: '#A3E635', fontWeight: 'bold', marginTop: -2, textAlign: 'center' },
+  
+  inlineActivationBlock: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    backgroundColor: '#FFF', 
+    padding: 10, 
+    borderRadius: 12, 
+    marginTop: 12, 
+    borderWidth: 1, 
+    borderColor: '#E5E7EB' 
+  },
+  inlineActivationInput: { 
+    flex: 1, 
+    borderBottomWidth: 1, 
+    borderColor: '#D1D5DB', 
+    paddingVertical: 6, 
+    paddingHorizontal: 8,
+    fontSize: 14, 
+    marginRight: 10,
+    textAlign: 'center'
+  },
+  inlineActivationBtn: { 
+    backgroundColor: '#0052CC', 
+    paddingVertical: 10, 
+    paddingHorizontal: 14, 
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  inlineActivationBtnText: { 
+    color: '#FFF', 
+    fontSize: 12, 
+    fontWeight: 'bold' 
+  },
+
   statsContainer: { backgroundColor: '#FFF', padding: 14, borderRadius: 12, marginTop: 10, borderWidth: 1, borderColor: '#E5E7EB' },
   statsText: { fontSize: 14, color: '#111827', fontWeight: 'bold' },
   totalText: { fontSize: 16, fontWeight: 'bold', marginTop: 4, color: '#111827' },
