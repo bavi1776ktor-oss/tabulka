@@ -22,13 +22,13 @@ jobs:
           java-version: '17'
           distribution: 'zulu'
 
-      # Доустанавливаем недостающие пакеты, которые просит твой App.js
+      # Ставим зависимости
       - name: Install JS Dependencies
         run: |
           npm install
           npm install react-native-calendars expo-secure-store expo-application
 
-      # Проверка бандла
+      # Проверка бандла (это мы уже прошли успешно!)
       - name: Verify JS Bundle
         run: npx expo export --platform android
 
@@ -36,11 +36,16 @@ jobs:
       - name: Generate Android Folder
         run: npx expo prebuild --platform android --no-install
 
-      # 2. ЖЕСТКИЙ ХАК: Безопасное внедрение репозитория плагинов
+      # 2. ЖЕСТКИЙ ХАК: Чиним репозитории и лечим баг "SoftwareComponent 'release'"
       - name: Patch Generated Gradle
         run: |
+          # Фикс репозиториев
           sed -i '/repositories {/a \        gradlePluginPortal()' android/settings.gradle
           sed -i '1i buildscript { repositories { google(); mavenCentral(); maven { url "https://plugins.gradle.org/m2/" } } }' android/build.gradle
+          
+          # ФИКС КРИТИЧЕСКОЙ ОШИБКИ EXPO + GRADLE 8.8
+          # Заменяем устаревший вызов components.release на корректный синтаксис
+          sed -i 's/components.release/components.findByName("release")/g' node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle
 
       # 3. Собираем приложение
       - name: Compile APK
