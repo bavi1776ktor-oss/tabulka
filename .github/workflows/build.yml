@@ -22,13 +22,13 @@ jobs:
           java-version: '17'
           distribution: 'zulu'
 
-      # Ставим все зависимости, включая жестко забытый календарь
+      # Доустанавливаем недостающие пакеты, которые просит твой App.js
       - name: Install JS Dependencies
         run: |
           npm install
-          npm install react-native-calendars
+          npm install react-native-calendars expo-secure-store expo-application
 
-      # Проверяем, что теперь Metro доволен и ошибок нет
+      # Проверка бандла
       - name: Verify JS Bundle
         run: npx expo export --platform android
 
