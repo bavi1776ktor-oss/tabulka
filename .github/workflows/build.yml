@@ -25,6 +25,11 @@ jobs:
       - name: Install JS Dependencies
         run: npm install
 
+      # ТЕСТОВЫЙ ШАГ: Проверяем JS-код на вшивость до того, как запустится Gradle
+      # Если в коде есть битый импорт или синтаксический бред, этот шаг упадет и покажет ФАЙЛ и СТРОКУ
+      - name: Verify JS Bundle
+        run: npx expo export --platform android
+
       # 1. Генерируем папку android с нуля
       - name: Generate Android Folder
         run: npx expo prebuild --platform android --no-install
@@ -32,10 +37,7 @@ jobs:
       # 2. ЖЕСТКИЙ ХАК: Безопасное внедрение репозитория плагинов
       - name: Patch Generated Gradle
         run: |
-          # Внедряем портал плагинов прямо внутрь существующего блока repositories в settings.gradle
           sed -i '/repositories {/a \        gradlePluginPortal()' android/settings.gradle
-          
-          # Добавляем репозитории в корневой build.gradle
           sed -i '1i buildscript { repositories { google(); mavenCentral(); maven { url "https://plugins.gradle.org/m2/" } } }' android/build.gradle
 
       # 3. Собираем приложение
