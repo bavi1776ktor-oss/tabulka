@@ -1,8 +1,7 @@
 {
   "expo": {
     "name": "tabulka",
-    "slug": "smeta",
-    "owner": "wi_ktor",
+    "slug": "tabulka",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -24,11 +23,6 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    },
-    "extra": {
-      "eas": {
-        "projectId": "ce1bace4-4541-4c1d-8819-404edf5ae9e5"
-      }
     }
   }
 }
