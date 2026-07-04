@@ -93,7 +93,7 @@ const translations = {
     locale: 'uk-UA',
     trialExpiredTitle: "Термін дії пробного періоду (5 днів) закінчився",
     requestFullVersion: "Надіслати запит на повну версію:",
-    requestFullVersionHeader: "Запитувати повну версію",
+    requestFullVersionHeader: "Запросити повну версию",
     placeholderName: "Ваше Ім'я",
     placeholderPhone: "Телефон",
     btnSendRequest: "Надіслати запит",
@@ -143,7 +143,7 @@ const translations = {
     noRecordsText: "Немає записів за цей день",
     subSectionTitle: "Роботи за день:",
     dayTotalText: "Всього за день:",
-    btnAddRecord: "+ Добавить запись",
+    btnAddRecord: "+ Додати запис",
     selectLangTitle: "Выберите язык / Оберіть мову",
     errorTitle: "Помилка",
     networkErrorTitle: "Помилка мережі",
@@ -792,6 +792,7 @@ export default function App() {
                 <TextInput placeholder={t.placeholderRate} keyboardType="numeric" style={[styles.inputInline, { marginRight: 15 }]} value={rate} onChangeText={setRate} />
                 <TextInput placeholder={t.placeholderHours} keyboardType="numeric" style={styles.inputInline} value={hours} onChangeText={setHours} />
               </View>
+              {/* 5555: Поле ввода под календарем */}
               <TouchableOpacity style={styles.btnAddRecordRow} onPress={handleAddRecord}><Text style={styles.btnAddRecordRowText}>{t.btnAddRecord}</Text></TouchableOpacity>
               <View style={styles.modalButtons}>
                 <TouchableOpacity style={styles.btnSave} onPress={saveDayAndClose}><Text style={styles.btnText}>{t.btnSave}</Text></TouchableOpacity>
