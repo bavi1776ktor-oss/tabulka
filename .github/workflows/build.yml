@@ -1,4 +1,35 @@
-# 2. ЖЕСТКИЙ ХАК: Безопасное внедрение репозитория плагинов
+name: Build Android APK From Scratch
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'zulu'
+
+      - name: Install JS Dependencies
+        run: npm install
+
+      # 1. Генерируем папку android с нуля
+      - name: Generate Android Folder
+        run: npx expo prebuild --platform android --no-install
+
+      # 2. ЖЕСТКИЙ ХАК: Безопасное внедрение репозитория плагинов
       - name: Patch Generated Gradle
         run: |
           # Внедряем портал плагинов прямо внутрь существующего блока repositories в settings.gradle
@@ -6,3 +37,16 @@
           
           # Добавляем репозитории в корневой build.gradle
           sed -i '1i buildscript { repositories { google(); mavenCentral(); maven { url "https://plugins.gradle.org/m2/" } } }' android/build.gradle
+
+      # 3. Собираем приложение
+      - name: Compile APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release
+          path: android/app/build/outputs/apk/release/app-release.apk
