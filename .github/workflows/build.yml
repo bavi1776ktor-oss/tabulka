@@ -32,13 +32,13 @@ jobs:
           npm install react-native-calendars
           npx expo install expo-secure-store expo-application -- --fix
 
-      # ЖЕСТКИЙ ФИКС: Создаем пустую папку assets и фейковые картинки, чтобы prebuild не падал
-      - name: Create Dummy Assets
+      # ЖЕСТКИЙ ФИКС: Скачиваем реальные крошечные 1x1 PNG картинки, чтобы Jimp не ругался на пустой буфер
+      - name: Download Valid Dummy Assets
         run: |
           mkdir -p assets
-          touch assets/icon.png
-          touch assets/splash.png
-          touch assets/adaptive-icon.png
+          curl -s -o assets/icon.png "https://upload.wikimedia.org/wikipedia/commons/c/ca/1x1.png"
+          curl -s -o assets/splash.png "https://upload.wikimedia.org/wikipedia/commons/c/ca/1x1.png"
+          curl -s -o assets/adaptive-icon.png "https://upload.wikimedia.org/wikipedia/commons/c/ca/1x1.png"
 
       # Проверяем сборку JS
       - name: Verify JS Bundle
