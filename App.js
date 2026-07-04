@@ -390,4 +390,347 @@ export default function App() {
       }
     } catch (e) {
       setRequestModalVisible(false);
-      Alert.alert(t
+      Alert.alert(t.noticeTitle, t.alertMailError);
+    }
+  };
+
+  const handleLogout = () => {
+    Alert.alert(t.alertExitTitle, t.alertExitMessage, [
+      { text: t.alertExitCancel, style: "cancel" },
+      { 
+        text: t.btnExit, 
+        style: "destructive",
+        onPress: async () => {
+          await AsyncStorage.removeItem('@tabulka_password');
+          setIsTrialExpired(false);
+          setPassword(null);
+          checkSavedPassword(); 
+        }
+      }
+    ]);
+  };
+
+  const getDayTotal = (dayData) => {
+    if (!dayData || !dayData.records) return 0;
+    return dayData.records.reduce((sum, rec) => sum + (rec.rate * rec.hours), 0);
+  };
+
+  const getDayHours = (dayData) => {
+    if (!dayData || !dayData.records) return 0;
+    return dayData.records.reduce((sum, rec) => sum + rec.hours, 0);
+  };
+
+  const handleDayPress = (dateStr) => {
+    setSelectedDate(dateStr);
+    setRate('');
+    setHours('');
+    setModalVisible(true);
+  };
+
+  const handleAddRecord = () => {
+    const numRate = parseFloat(rate);
+    const numHours = parseFloat(hours);
+    if (!rate || !hours || isNaN(numRate) || isNaN(numHours) || numRate <= 0 || numHours <= 0) {
+      Alert.alert(t.errorTitle, t.alertInputError);
+      return;
+    }
+    const currentDayData = workData[selectedDate] || { records: [] };
+    const newRecord = {
+      id: Date.now().toString() + '_' + Math.random(),
+      rate: numRate,
+      hours: numHours
+    };
+    const updatedDayData = {
+      ...currentDayData,
+      records: [...(currentDayData.records || []), newRecord]
+    };
+    setWorkData({ ...workData, [selectedDate]: updatedDayData });
+    setRate('');
+    setHours('');
+  };
+
+  const handleDeleteRecord = (recordId) => {
+    const currentDayData = workData[selectedDate];
+    if (!currentDayData || !currentDayData.records) return;
+    const updatedRecords = currentDayData.records.filter(rec => rec.id !== recordId);
+    setWorkData({ ...workData, [selectedDate]: { ...currentDayData, records: updatedRecords } });
+  };
+
+  const saveDayAndClose = async () => {
+    if (!selectedDate) return;
+    const viewYear = currentMonth.getFullYear();
+    const viewMonth = currentMonth.getMonth();
+    const dayDataToSave = workData[selectedDate] || { records: [] };
+    try {
+      if (dayDataToSave.records.length === 0) {
+        await fetch(`${FIREBASE_REST_URL}/tabulka_lists/${password}/${viewYear}_${viewMonth}/${selectedDate}.json`, {
+          method: 'DELETE'
+        });
+      } else {
+        await fetch(`${FIREBASE_REST_URL}/tabulka_lists/${password}/${viewYear}_${viewMonth}/${selectedDate}.json`, {
+          method: 'PUT',
+          body: JSON.stringify(dayDataToSave)
+        });
+      }
+      setModalVisible(false);
+      setSelectedDate(null);
+      fetchWorkData(password);
+    } catch (e) {
+      Alert.alert(t.networkErrorTitle, t.networkSendError);
+    }
+  };
+
+  const getDaysInMonth = (date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const days = new Date(year, month + 1, 0).getDate();
+    return Array.from({ length: days }, (_, i) => {
+      const dayNum = i + 1;
+      return `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+    });
+  };
+
+  const calculateStatsForPeriod = (daysList) => {
+    let wDays = 0; 
+    let wkDays = 0; 
+    let tSum = 0;
+    const today = new Date(); 
+    today.setHours(0, 0, 0, 0);
+    const activeWorkDaysInMonth = daysList.filter(day => workData[day] && getDayTotal(workData[day]) > 0);
+    if (activeWorkDaysInMonth.length === 0) {
+      return { workDays: 0, weekendDays: 0, totalSum: 0 };
+    }
+    const firstWorkDayNum = Math.min(...activeWorkDaysInMonth.map(d => parseInt(d.split('-')[2])));
+    let lastWorkDayNum = Math.max(...activeWorkDaysInMonth.map(d => parseInt(d.split('-')[2])));
+    const sampleDay = daysList[0]; 
+    const [viewYear, viewMonth] = sampleDay.split('-').map(Number);
+    if (viewYear === today.getFullYear() && (viewMonth - 1) === today.getMonth()) {
+      if (today.getDate() > lastWorkDayNum) {
+        lastWorkDayNum = today.getDate();
+      }
+    }
+    daysList.forEach(day => {
+      const dayNum = parseInt(day.split('-')[2]);
+      const dayTotal = getDayTotal(workData[day]);
+      if (dayTotal > 0) { 
+        wDays++; 
+        tSum += dayTotal; 
+      } else { 
+        if (dayNum >= firstWorkDayNum && dayNum <= lastWorkDayNum) {
+          wkDays++; 
+        }
+      }
+    });
+    return { workDays: wDays, weekendDays: wkDays, totalSum: tSum };
+  };
+
+  const stats = calculateStatsForPeriod(getDaysInMonth(currentMonth));
+
+  const exportToPDF = async () => {
+    const days = getDaysInMonth(currentMonth);
+    const monthStr = currentMonth.toLocaleString(t.locale, { month: 'long', year: 'numeric' });
+    let tableRows = '';
+    days.forEach(day => {
+      const data = workData[day];
+      const dayNum = day.split('-')[2];
+      const totalSum = getDayTotal(data);
+      const totalHours = getDayHours(data);
+      if (totalSum > 0) {
+        tableRows += `<tr><td>${dayNum}</td><td>${t.pdfStatusWork}</td><td>-</td><td>${totalHours}</td><td>${totalSum}</td></tr>`;
+      } else {
+        tableRows += `<tr><td>${dayNum}</td><td>${t.pdfStatusWeekend}</td><td>-</td><td>-</td><td>-</td></tr>`;
+      }
+    });
+    const formattedTitle = t.pdfTitle.replace('{month}', monthStr);
+    const htmlContent = `<html><head><style>body{font-family:'Helvetica';padding:20px;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ccc;padding:8px;text-align:center;}</style></head><body><h1>${formattedTitle}</h1><table><tr><th>${t.pdfColDay}</th><th>${t.pdfColStatus}</th><th>${t.pdfColRate}</th><th>${t.pdfColHours}</th><th>${t.pdfColSum}</th></tr>${tableRows}</table></body></html>`;
+    try {
+      const { uri } = await Print.printToFileAsync({ html: htmlContent });
+      await Sharing.shareAsync(uri);
+    } catch (error) {
+      Alert.alert(t.errorTitle, t.alertPdfError);
+    }
+  };
+
+  const renderCalendarGrid = () => {
+    const days = getDaysInMonth(currentMonth);
+    if (days.length === 0) return null;
+    const firstDayDate = new Date(days[0]);
+    let startOfWeekOffset = firstDayDate.getDay(); 
+    startOfWeekOffset = startOfWeekOffset === 0 ? 6 : startOfWeekOffset - 1;
+    const gridCells = [];
+    for (let i = 0; i < startOfWeekOffset; i++) {
+      gridCells.push(<View key={`empty-${i}`} style={styles.emptyCell} />);
+    }
+    days.forEach((dateStr) => {
+      const dayData = workData[dateStr];
+      const dayTotal = getDayTotal(dayData);
+      const isWorkDay = dayTotal > 0;
+      const dayNum = dateStr.split('-')[2];
+      gridCells.push(
+        <TouchableOpacity key={dateStr} style={isWorkDay ? styles.workDayCell : styles.weekendCell} onPress={() => handleDayPress(dateStr)}>
+          <Text style={isWorkDay ? styles.workDayText : styles.dayText}>{parseInt(dayNum, 10)}</Text>
+          {isWorkDay && (<Text style={styles.cellSumSubtext}>{dayTotal}</Text>)}
+        </TouchableOpacity>
+      );
+    });
+    const rows = [];
+    for (let i = 0; i < gridCells.length; i += 7) {
+      rows.push(<View key={`row-${i}`} style={styles.calendarRow}>{gridCells.slice(i, i + 7)}</View>);
+    }
+    return rows;
+  };
+
+  if (isAuthChecking) {
+    return (<View style={styles.loadingContainer}><ActivityIndicator size="large" color="#0052CC" /></View>);
+  }
+
+  if (isTrialExpired) {
+    return (
+      <SafeAreaView style={styles.authContainer}>
+        <View style={styles.authCardExpired}>
+          <Text style={styles.authTitleExpired}>{t.trialExpiredTitle}</Text>
+          <Text style={styles.authSubtitleBold}>{t.requestFullVersion}</Text>
+          <TextInput placeholder={t.placeholderName} style={styles.authInputMargin} value={clientName} onChangeText={setClientName} />
+          <TextInput placeholder={t.placeholderPhone} keyboardType="phone-pad" style={styles.authInputMarginLarge} value={clientPhone} onChangeText={setClientPhone} />
+          <TouchableOpacity style={styles.authBtnSend} onPress={handleSendSupportRequest}><Text style={styles.authButtonText}>{t.btnSendRequest}</Text></TouchableOpacity>
+          <View style={styles.noticeContainer}><Text style={styles.noticeSubText}>{t.noticeText}</Text></View>
+          <View style={styles.separator} />
+          <Text style={styles.authSubtitleBold}>{t.enterKeyTitle}</Text>
+          <TextInput placeholder={t.placeholderKey} autoCapitalize="characters" style={styles.authInput} value={inputPassword} onChangeText={setInputPassword} />
+          <TouchableOpacity style={styles.authBtnActivate} onPress={handleLogin}><Text style={styles.authButtonText}>{t.btnActivate}</Text></TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <View style={styles.headerTimeBlock}>
+            <Text style={styles.dateText}>{currentTime.toLocaleDateString(t.locale)}</Text>
+            <Text style={styles.timeText}>{currentTime.toLocaleTimeString(t.locale, { hour: '2-digit', minute: '2-digit' })}</Text>
+          </View>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}><Text style={styles.logoutText}>{t.btnExit}</Text></TouchableOpacity>
+        </View>
+        <View style={styles.monthSelectorRow}>
+          <TouchableOpacity style={lang === 'ru' ? styles.langCircleRu : styles.langCircleRuDimmed} onPress={() => handleSelectLanguage('ru')}><Text style={styles.langCircleText}>Р</Text></TouchableOpacity>
+          <View style={styles.monthTitleWrapper}>
+            <Text style={styles.monthTitle}>{currentMonth.toLocaleString(t.locale, { month: 'long', year: 'numeric' }).toUpperCase()}</Text>
+            <TouchableOpacity style={styles.todayButton} onPress={() => setCurrentMonth(new Date())}><Text style={styles.todayButtonText}>{t.btnToday.toUpperCase()}</Text></TouchableOpacity>
+          </View>
+          <TouchableOpacity style={lang === 'uk' ? styles.langCircleUk : styles.langCircleUkDimmed} onPress={() => handleSelectLanguage('uk')}><Text style={styles.langCircleText}>У</Text></TouchableOpacity>
+        </View>
+        <View style={styles.weekDaysRow}>{t.weekDays.map((day, index) => (<Text key={index} style={(day === 'Сб' || day === 'Вс' || day === 'Нд') ? styles.weekDayTextWeekend : styles.weekDayTextNormal}>{day}</Text>))}</View>
+        {isLoadingData ? (<View style={styles.centerLoading}><ActivityIndicator size="large" color="#0052CC" /></View>) : (<ScrollView contentContainerStyle={styles.calendarGrid}>{renderCalendarGrid()}</ScrollView>)}
+        <View style={styles.statsContainer}>
+          <Text style={styles.statsText}>{t.statsWorkDays}: {stats.workDays}</Text>
+          <Text style={styles.statsText}>{t.statsWeekendDays}: {stats.weekendDays}</Text>
+          <Text style={styles.totalText}>{t.statsTotalSum}: {stats.totalSum}</Text>
+        </View>
+        <TouchableOpacity style={styles.archiveButton} onPress={() => setArchiveModalVisible(true)}><Text style={styles.archiveButtonText}>{t.btnArchive}</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.pdfButton} onPress={exportToPDF}><Text style={styles.pdfButtonText}>{t.btnSavePdf}</Text></TouchableOpacity>
+
+        <Modal visible={modalVisible} transparent={true} animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>{t.modalDayTitle}: {selectedDate ? selectedDate.split('-')[2] : ''}</Text>
+              <Text style={styles.subSectionTitle}>{t.subSectionTitle}</Text>
+              <ScrollView style={styles.miniRecordsList}>
+                {workData[selectedDate]?.records && workData[selectedDate].records.length > 0 ? (
+                  workData[selectedDate].records.map((rec) => (
+                    <View key={rec.id} style={styles.miniRecordRow}>
+                      <Text style={styles.miniRecordText}>{rec.rate} × {rec.hours} {t.hourUnit} = {rec.rate * rec.hours}</Text>
+                      <TouchableOpacity onPress={() => handleDeleteRecord(rec.id)} style={styles.miniDeleteBtn}><Text style={styles.miniDeleteBtnText}>🗑</Text></TouchableOpacity>
+                    </View>
+                  ))
+                ) : (<Text style={styles.noRecordsText}>{t.noRecordsText}</Text>)}
+              </ScrollView>
+              <View style={styles.inputGroupRow}>
+                <TextInput placeholder={t.placeholderRate} keyboardType="numeric" style={[styles.inputInline, { marginRight: 15 }]} value={rate} onChangeText={setRate} />
+                <TextInput placeholder={t.placeholderHours} keyboardType="numeric" style={styles.inputInline} value={hours} onChangeText={setHours} />
+              </View>
+              <TouchableOpacity style={styles.btnAddRecordRow} onPress={handleAddRecord}><Text style={styles.btnAddRecordRowText}>{t.btnAddRecord}</Text></TouchableOpacity>
+              <View style={styles.modalButtons}>
+                <TouchableOpacity style={styles.btnSave} onPress={saveDayAndClose}><Text style={styles.btnText}>{t.btnSave}</Text></TouchableOpacity>
+                <TouchableOpacity style={[styles.btn, styles.btnCancel]} onPress={() => { setModalVisible(false); setSelectedDate(null); fetchWorkData(password); }}><Text style={styles.btnText}>{t.btnCancel}</Text></TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F9FAFB' },
+  authContainer: { flex: 1, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' },
+  authCardExpired: { width: width * 0.9, backgroundColor: '#FFF', padding: 22, borderRadius: 16, borderWidth: 1.5, borderColor: '#EF4444' },
+  authTitleExpired: { fontSize: 20, fontWeight: 'bold', color: '#EF4444', marginBottom: 15, textAlign: 'center' },
+  authSubtitleBold: { fontSize: 14, color: '#4B5563', marginBottom: 8, textAlign: 'left', fontWeight: 'bold' },
+  authInput: { borderBottomWidth: 1, borderColor: '#D1D5DB', paddingVertical: 6, fontSize: 16, marginBottom: 16, textAlign: 'center' },
+  authInputMargin: { borderBottomWidth: 1, borderColor: '#D1D5DB', paddingVertical: 6, fontSize: 16, marginBottom: 10, textAlign: 'center' },
+  authInputMarginLarge: { borderBottomWidth: 1, borderColor: '#D1D5DB', paddingVertical: 6, fontSize: 16, marginBottom: 15, textAlign: 'center' },
+  authBtnSend: { padding: 13, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#10B981', marginBottom: 10 },
+  authBtnActivate: { padding: 13, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0052CC' },
+  authButtonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold', textAlign: 'center' },
+  separator: { marginVertical: 15, borderBottomWidth: 1, borderColor: '#E5E7EB' },
+  safeArea: { flex: 1, backgroundColor: '#F9FAFB', paddingTop: 30 },
+  container: { flex: 1, paddingHorizontal: 16 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
+  headerTimeBlock: { flex: 1.2 },
+  dateText: { fontSize: 14, color: '#6B7280', fontWeight: 'bold' },
+  timeText: { fontSize: 22, fontWeight: 'bold', color: '#111827' },
+  logoutButton: { paddingVertical: 4, paddingHorizontal: 8, backgroundColor: '#EF4444', borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+  logoutText: { color: '#FFF', fontSize: 12, fontWeight: 'bold', textAlign: 'center' },
+  monthSelectorRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  monthTitleWrapper: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
+  monthTitle: { fontSize: 16, fontWeight: 'bold', color: '#374151', textAlign: 'center', marginRight: 8 },
+  todayButton: { paddingVertical: 4, paddingHorizontal: 8, backgroundColor: '#0052CC', borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+  todayButtonText: { color: '#FFF', fontSize: 11, fontWeight: 'bold', textAlign: 'center' },
+  langCircleText: { color: '#FFF', fontSize: 14, fontWeight: 'bold', textAlign: 'center' },
+  langCircleRu: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0052CC' },
+  langCircleRuDimmed: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0052CC', opacity: 0.35 },
+  langCircleUk: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: '#10B981' },
+  langCircleUkDimmed: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: '#10B981', opacity: 0.35 },
+  weekDaysRow: { flexDirection: 'row', marginBottom: 8 },
+  weekDayTextNormal: { width: (width - 32) / 7 - 8, marginHorizontal: 4, textAlign: 'center', fontWeight: 'bold', color: '#6B7280' },
+  weekDayTextWeekend: { width: (width - 32) / 7 - 8, marginHorizontal: 4, textAlign: 'center', fontWeight: 'bold', color: '#EF4444' },
+  calendarGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  calendarRow: { flexDirection: 'row', justifyContent: 'flex-start', width: '100%' },
+  emptyCell: { width: (width - 32) / 7 - 8, height: 46, margin: 4 },
+  weekendCell: { width: (width - 32) / 7 - 8, height: 46, margin: 4, justifyContent: 'center', alignItems: 'center', borderRadius: 8, borderWidth: 1, backgroundColor: '#FFF', borderColor: '#E5E7EB' },
+  workDayCell: { width: (width - 32) / 7 - 8, height: 46, margin: 4, justifyContent: 'center', alignItems: 'center', borderRadius: 8, borderWidth: 1, backgroundColor: '#0052CC', borderColor: '#0052CC' },
+  dayText: { fontSize: 16, fontWeight: 'bold', color: '#111827', textAlign: 'center' },
+  workDayText: { fontSize: 15, fontWeight: 'bold', color: '#FFF', textAlign: 'center' },
+  cellSumSubtext: { fontSize: 11, color: '#A3E635', fontWeight: 'bold', marginTop: -2, textAlign: 'center' },
+  statsContainer: { backgroundColor: '#FFF', padding: 14, borderRadius: 12, marginTop: 10, borderWidth: 1, borderColor: '#E5E7EB' },
+  statsText: { fontSize: 14, color: '#111827', fontWeight: 'bold' },
+  totalText: { fontSize: 16, fontWeight: 'bold', marginTop: 4, color: '#111827' },
+  archiveButton: { backgroundColor: '#0052CC', padding: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
+  archiveButtonText: { color: '#FFF', fontWeight: 'bold', textAlign: 'center' },
+  pdfButton: { backgroundColor: '#10B981', padding: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
+  pdfButtonText: { color: '#FFF', fontWeight: 'bold', textAlign: 'center' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
+  modalContent: { width: width * 0.9, backgroundColor: '#FFF', padding: 20, borderRadius: 16 },
+  modalTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
+  subSectionTitle: { fontSize: 13, fontWeight: 'bold', color: '#4B5563', marginBottom: 5 },
+  miniRecordsList: { maxHeight: 200, backgroundColor: '#F3F4F6', borderRadius: 8, padding: 8, marginBottom: 12 },
+  miniRecordRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4, borderBottomWidth: 1, borderColor: '#E5E7EB' },
+  miniRecordText: { fontSize: 14, color: '#111827', fontWeight: 'bold' },
+  miniDeleteBtn: { paddingHorizontal: 8, paddingVertical: 2 },
+  miniDeleteBtnText: { fontSize: 14, color: '#EF4444', fontWeight: 'bold' },
+  noRecordsText: { fontSize: 13, color: '#9CA3AF', textAlign: 'center', marginVertical: 10, fontWeight: 'bold' },
+  inputGroupRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
+  inputInline: { flex: 1, borderBottomWidth: 1, borderColor: '#0052CC', paddingVertical: 10, fontSize: 16, textAlign: 'center' },
+  btnAddRecordRow: { backgroundColor: '#0052CC', padding: 14, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 15 },
+  btnAddRecordRowText: { color: '#FFF', fontWeight: 'bold', fontSize: 16, textAlign: 'center' },
+  modalButtons: { flexDirection: 'row', justifyContent: 'space-between' },
+  btn: { padding: 12, borderRadius: 8, minWidth: 80, alignItems: 'center', justifyContent: 'center' },
+  btnSave: { backgroundColor: '#0052CC', flex: 1, marginRight: 5, alignItems: 'center', justifyContent: 'center', padding: 12, borderRadius: 8 },
+  btnCancel: { backgroundColor: '#9CA3AF', alignItems: 'center', justifyContent: 'center', padding: 12, borderRadius: 8, minWidth: 80 },
+  btnText: { color: '#FFF', fontWeight: 'bold', textAlign: 'center' },
+  noticeContainer: { backgroundColor: '#0052CC', padding: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  noticeSubText: { fontSize: 16, fontWeight: 'bold', color: '#FFF', textAlign: 'center' }
+});
