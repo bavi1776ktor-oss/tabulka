@@ -97,7 +97,7 @@ const translations = {
     placeholderName: "Ваше Ім'я",
     placeholderPhone: "Телефон",
     btnSendRequest: "Надіслати запит",
-    noticeText: "Введіть Ваше ім'я та телефон. Очікуйте, Вам зателефонують.",
+    noticeText: "Введіть Ваше ім'я та телефон. Очікуйте, Вам зателевонують.",
     enterKeyTitle: "Ввести ключ активації:",
     placeholderKey: "Ключ активації (постійний)",
     btnActivate: "Актувати",
@@ -143,7 +143,7 @@ const translations = {
     noRecordsText: "Немає записів за цей день",
     subSectionTitle: "Роботи за день:",
     dayTotalText: "Всього за день:",
-    btnAddRecord: "+ Додати запис",
+    btnAddRecord: "+ Добавить запись",
     selectLangTitle: "Выберите язык / Оберіть мову",
     errorTitle: "Помилка",
     networkErrorTitle: "Помилка мережі",
@@ -196,7 +196,7 @@ export default function App() {
         checkSavedPassword(savedLang);
       }
     } catch (e) {
-      // Оставляем lang = null, покажет экран выбора
+      // Экран выбора языка
     }
   };
 
@@ -262,29 +262,33 @@ export default function App() {
   };
 
   const fetchArchiveData = async (currentPassword) => {
-    if (!currentPassword || currentPassword.startsWith("TRIAL_MODE_")) return;
+    if (!currentPassword) return;
     try {
       const response = await fetch(`${FIREBASE_REST_URL}/tabulka_lists/${currentPassword}.json`);
       const allData = await response.json();
-      if (allData) {
-        const summary = {};
-        Object.keys(allData).forEach(monthKey => {
-          let monthSum = 0;
-          const daysData = allData[monthKey];
-          if (daysData && typeof daysData === 'object') {
-            Object.keys(daysData).forEach(dayKey => {
-              const dayContent = daysData[dayKey];
-              if (dayContent && dayContent.records) {
-                monthSum += dayContent.records.reduce((sum, rec) => sum + (rec.rate * rec.hours), 0);
-              }
-            });
-          }
-          summary[monthKey] = monthSum;
-        });
-        setArchiveData(summary);
+      
+      const summary = {};
+      const today = new Date();
+      
+      for (let i = 0; i < 12; i++) {
+        const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+        const key = `${d.getFullYear()}_${d.getMonth()}`;
+        
+        let monthSum = 0;
+        const daysData = allData ? allData[key] : null;
+        if (daysData && typeof daysData === 'object') {
+          Object.keys(daysData).forEach(dayKey => {
+            const dayContent = daysData[dayKey];
+            if (dayContent && dayContent.records) {
+              monthSum += dayContent.records.reduce((sum, rec) => sum + (rec.rate * rec.hours), 0);
+            }
+          });
+        }
+        summary[key] = monthSum;
       }
+      setArchiveData(summary);
     } catch (e) {
-      // Тихое подавление ошибок для архива
+      // Тихое подавление
     }
   };
 
@@ -610,6 +614,13 @@ export default function App() {
     return rows;
   };
 
+  const selectMonthFromArchive = (monthKey) => {
+    const [year, monthIdx] = monthKey.split('_');
+    const targetDate = new Date(parseInt(year), parseInt(monthIdx), 1);
+    setCurrentMonth(targetDate);
+    setArchiveModalVisible(false);
+  };
+
   if (!lang) {
     return (
       <SafeAreaView style={styles.authContainer}>
@@ -631,27 +642,9 @@ export default function App() {
   }
 
   if (isTrialExpired) {
-    if (requestModalVisible) {
-      return (
-        <SafeAreaView style={styles.authContainer}>
-          <View style={styles.authCardExpired}>
-            <Text style={styles.authTitleExpired}>{t.requestFullVersionHeader}</Text>
-            <TextInput placeholder={t.placeholderName} style={styles.authInputMargin} value={clientName} onChangeText={setClientName} />
-            <TextInput placeholder={t.placeholderPhone} keyboardType="phone-pad" style={styles.authInputMarginLarge} value={clientPhone} onChangeText={setClientPhone} />
-            <TouchableOpacity style={styles.authBtnSend} onPress={handleSendSupportRequest}><Text style={styles.authButtonText}>{t.btnSendRequest}</Text></TouchableOpacity>
-            <View style={styles.noticeContainer}><Text style={styles.noticeSubText}>{t.noticeText}</Text></View>
-            <TouchableOpacity style={[styles.archiveButton, { marginTop: 15 }]} onPress={() => setRequestModalVisible(false)}><Text style={styles.archiveButtonText}>{t.btnCancel}</Text></TouchableOpacity>
-          </View>
-        </SafeAreaView>
-      );
-    }
-
     return (
       <SafeAreaView style={styles.authContainer}>
         <View style={styles.authCardExpired}>
-          <TouchableOpacity style={[styles.authBtnSend, { marginBottom: 15 }]} onPress={() => setRequestModalVisible(true)}>
-            <Text style={styles.authButtonText}>{t.requestFullVersionHeader}</Text>
-          </TouchableOpacity>
           <Text style={styles.authTitleExpired}>{t.trialExpiredTitle}</Text>
           <View style={styles.separator} />
           <Text style={styles.authSubtitleBold}>{t.enterKeyTitle}</Text>
@@ -661,6 +654,8 @@ export default function App() {
       </SafeAreaView>
     );
   }
+
+  const isCurrentModeTrial = password && password.startsWith("TRIAL_MODE_");
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -680,6 +675,13 @@ export default function App() {
           </View>
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}><Text style={styles.logoutText}>{t.btnExit}</Text></TouchableOpacity>
         </View>
+
+        {isCurrentModeTrial && (
+          <TouchableOpacity style={styles.trialTopRequestBtn} onPress={() => setRequestModalVisible(true)}>
+            <Text style={styles.trialTopRequestBtnText}>{t.requestFullVersionHeader.toUpperCase()}</Text>
+          </TouchableOpacity>
+        )}
+
         <View style={styles.monthSelectorRow}>
           <TouchableOpacity style={lang === 'ru' ? styles.langCircleRu : styles.langCircleRuDimmed} onPress={() => handleSelectLanguage('ru')}><Text style={styles.langCircleText}>Р</Text></TouchableOpacity>
           <View style={styles.monthTitleWrapper}>
@@ -730,17 +732,17 @@ export default function App() {
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>{t.archiveTitle}</Text>
-              <ScrollView style={[styles.miniRecordsList, { maxHeight: 300 }]}>
+              <ScrollView style={[styles.miniRecordsList, { maxHeight: 320 }]}>
                 {Object.keys(archiveData).length > 0 ? (
                   Object.keys(archiveData).sort().reverse().map((monthKey) => {
                     const [year, monthIdx] = monthKey.split('_');
                     const dummyDate = new Date(parseInt(year), parseInt(monthIdx), 1);
                     const formattedMonth = dummyDate.toLocaleString(t.locale, { month: 'long', year: 'numeric' });
                     return (
-                      <View key={monthKey} style={styles.miniRecordRow}>
-                        <Text style={[styles.miniRecordText, { textTransform: 'capitalize' }]}>{formattedMonth}:</Text>
-                        <Text style={[styles.miniRecordText, { color: '#0052CC' }]}>{archiveData[monthKey]}</Text>
-                      </View>
+                      <TouchableOpacity key={monthKey} style={styles.miniRecordRow} onPress={() => selectMonthFromArchive(monthKey)}>
+                        <Text style={[styles.miniRecordText, { textTransform: 'capitalize', color: '#0052CC' }]}>{formattedMonth}:</Text>
+                        <Text style={[styles.miniRecordText, { fontWeight: 'bold' }]}>{archiveData[monthKey]}</Text>
+                      </TouchableOpacity>
                     );
                   })
                 ) : (
@@ -750,6 +752,19 @@ export default function App() {
               <TouchableOpacity style={[styles.btn, styles.btnCancel, { width: '100%', marginTop: 10 }]} onPress={() => setArchiveModalVisible(false)}>
                 <Text style={styles.btnText}>{t.btnClose}</Text>
               </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal visible={requestModalVisible} transparent={true} animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={[styles.modalTitle, { color: '#10B981' }]}>{t.requestFullVersionHeader}</Text>
+              <TextInput placeholder={t.placeholderName} style={styles.authInputMargin} value={clientName} onChangeText={setClientName} />
+              <TextInput placeholder={t.placeholderPhone} keyboardType="phone-pad" style={styles.authInputMarginLarge} value={clientPhone} onChangeText={setClientPhone} />
+              <TouchableOpacity style={styles.authBtnSend} onPress={handleSendSupportRequest}><Text style={styles.authButtonText}>{t.btnSendRequest}</Text></TouchableOpacity>
+              <View style={styles.noticeContainer}><Text style={styles.noticeSubText}>{t.noticeText}</Text></View>
+              <TouchableOpacity style={[styles.btnCancel, { width: '100%', marginTop: 12 }]} onPress={() => setRequestModalVisible(false)}><Text style={styles.btnText}>{t.btnCancel}</Text></TouchableOpacity>
             </View>
           </View>
         </Modal>
@@ -777,12 +792,14 @@ const styles = StyleSheet.create({
   separator: { marginVertical: 15, borderBottomWidth: 1, borderColor: '#E5E7EB' },
   safeArea: { flex: 1, backgroundColor: '#F9FAFB', paddingTop: 30 },
   container: { flex: 1, paddingHorizontal: 16 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   headerTimeBlock: { flex: 1.2 },
   dateText: { fontSize: 14, color: '#6B7280', fontWeight: 'bold' },
   timeText: { fontSize: 22, fontWeight: 'bold', color: '#111827' },
   logoutButton: { paddingVertical: 4, paddingHorizontal: 8, backgroundColor: '#EF4444', borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
   logoutText: { color: '#FFF', fontSize: 12, fontWeight: 'bold', textAlign: 'center' },
+  trialTopRequestBtn: { backgroundColor: '#10B981', padding: 10, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 15 },
+  trialTopRequestBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 14, textAlign: 'center' },
   monthSelectorRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   monthTitleWrapper: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   monthTitle: { fontSize: 16, fontWeight: 'bold', color: '#374151', textAlign: 'center', marginRight: 8 },
