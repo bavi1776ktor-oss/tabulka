@@ -22,11 +22,13 @@ jobs:
           java-version: '17'
           distribution: 'zulu'
 
+      # Ставим все зависимости, включая жестко забытый календарь
       - name: Install JS Dependencies
-        run: npm install
+        run: |
+          npm install
+          npm install react-native-calendars
 
-      # ТЕСТОВЫЙ ШАГ: Проверяем JS-код на вшивость до того, как запустится Gradle
-      # Если в коде есть битый импорт или синтаксический бред, этот шаг упадет и покажет ФАЙЛ и СТРОКУ
+      # Проверяем, что теперь Metro доволен и ошибок нет
       - name: Verify JS Bundle
         run: npx expo export --platform android
 
