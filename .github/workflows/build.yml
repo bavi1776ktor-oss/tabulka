@@ -1,52 +1,18 @@
-name: Build Android APK From Scratch
-
-on:
-  push:
-    branches: [ main, master ]
-  workflow_dispatch:
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          
-      - name: Setup Java JDK
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'zulu'
-
-      - name: Install JS Dependencies
-        run: npm install
-
-      # 1. Генерируем папку android с нуля
-      - name: Generate Android Folder
-        run: npx expo prebuild --platform android --no-install
-
-      # 2. ЖЕСТКИЙ ХАК: Исправляем пути к плагинам прямо в сгенерированных файлах
+# 2. ЖЕСТКИЙ ХАК: Корректно настраиваем репозитории без дублирования блоков
       - name: Patch Generated Gradle
         run: |
-          # Добавляем центральный репозиторий плагинов во все места, где Gradle может их искать
-          sed -i '1i pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }' android/settings.gradle
+          # Перезаписываем settings.gradle, создавая ОДИН чистый блок pluginManagement
+          echo 'pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }' > android/settings.gradle.tmp
           
-          # Явно прописываем репозитории для сборки в корневой build.gradle
+          # Находим оригинальный файл и дописываем все включения (include) обратно, пропуская старый блок
+          tail -n +10 android/settings.gradle >> android/settings.gradle.tmp
+          mv android/settings.gradle.tmp android/settings.gradle
+          
+          # Добавляем репозитории в build.gradle
           sed -i '1i buildscript { repositories { google(); mavenCentral(); maven { url "https://plugins.gradle.org/m2/" } } }' android/build.gradle
-
-      # 3. Собираем приложение
-      - name: Compile APK
-        run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-release
-          path: android/app/build/outputs/apk/release/app-release.apk
