@@ -28,7 +28,7 @@ jobs:
           npm install
           npm install react-native-calendars expo-secure-store expo-application
 
-      # Проверка бандла (это мы уже прошли успешно!)
+      # Проверка бандла
       - name: Verify JS Bundle
         run: npx expo export --platform android
 
@@ -36,15 +36,13 @@ jobs:
       - name: Generate Android Folder
         run: npx expo prebuild --platform android --no-install
 
-      # 2. ЖЕСТКИЙ ХАК: Чиним репозитории и лечим баг "SoftwareComponent 'release'"
+      # 2. ЖЕСТКИЙ ХАК: Чиним поиск плагинов Expo и баг "SoftwareComponent 'release'"
       - name: Patch Generated Gradle
         run: |
-          # Фикс репозиториев
-          sed -i '/repositories {/a \        gradlePluginPortal()' android/settings.gradle
-          sed -i '1i buildscript { repositories { google(); mavenCentral(); maven { url "https://plugins.gradle.org/m2/" } } }' android/build.gradle
+          # Внедряем портал плагинов и локальный путь Expo внутрь settings.gradle
+          sed -i '/repositories {/a \        gradlePluginPortal()\n        maven { url new File(["node", "--print", "require.resolve(\"expo/package.json\")"].execute().text.trim(), "../utils/utils.gradle").getParent() }\n        google()\n        mavenCentral()' android/settings.gradle
           
           # ФИКС КРИТИЧЕСКОЙ ОШИБКИ EXPO + GRADLE 8.8
-          # Заменяем устаревший вызов components.release на корректный синтаксис
           sed -i 's/components.release/components.findByName("release")/g' node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle
 
       # 3. Собираем приложение
