@@ -65,7 +65,7 @@ const translations = {
     alertFormatShort: "Слишком короткий ключ активации.",
     alertSuccessTitle: "Успешно",
     alertSuccessMessage: "Приложение успешно активировано!",
-    alertKeyUsed: "Этот ключ уже закреплен за другим устройством!",
+    alertKeyUsed: "Этот ключ уже заблокирован или исчерпан лимит устройств!",
     alertKeyBlock: "Этот ключ заблокирован администратором.",
     alertKeyNotFound: "Ключ не найден в базе данных.",
     alertInputError: "Введите корректные числа",
@@ -115,7 +115,7 @@ const translations = {
     btnCancel: "Скасувати",
     btnClose: "Закрити",
     archiveEarnings: "Заробіток за місяць",
-    toastTrialActive: "⏱ АКТИВНИЙ ТЕСТОВИЙ ПЕРІОД\n(ЗАЛИШИЛОСЯ {days} ДН.)",
+    toastTrialActive: "⏱ АКТИВНИЙ ТЕСТОВІЙ ПЕРІОД\n(ЗАЛИШИЛОСЯ {days} ДН.)",
     pdfTitle: "Звіт — {month}",
     pdfStatusWork: "Робочий",
     pdfStatusWeekend: "Вихідний",
@@ -131,7 +131,7 @@ const translations = {
     alertFormatShort: "Занадто короткий ключ активації.",
     alertSuccessTitle: "Успішно",
     alertSuccessMessage: "Додаток успешно активовано!",
-    alertKeyUsed: "Цей ключ вже закріплений за іншим пристроєм!",
+    alertKeyUsed: "Цей ключ вже заблокований або вичерпано ліміт пристроїв!",
     alertKeyBlock: "Цей ключ заблокований адміністратором.",
     alertKeyNotFound: "Ключ не знайдено в базі даних.",
     alertInputError: "Введіть коректні числа",
@@ -310,10 +310,21 @@ export default function App() {
       if (savedPass) {
         const response = await fetch(`${FIREBASE_REST_URL}/activation_keys/${savedPass}.json`);
         const keyData = await response.json();
-        if (keyData && keyData.status === "used" && keyData.deviceId === deviceId) {
-          setPassword(savedPass);
-          setIsAuthChecking(false);
-          return; 
+        if (keyData) {
+          if (savedPass.startsWith("FAMILY-")) {
+            const registeredDevices = keyData.devices || {};
+            if (keyData.status === "used" && registeredDevices[deviceId] === true) {
+              setPassword(savedPass);
+              setIsAuthChecking(false);
+              return;
+            }
+          } else {
+            if (keyData.status === "used" && keyData.deviceId === deviceId) {
+              setPassword(savedPass);
+              setIsAuthChecking(false);
+              return; 
+            }
+          }
         }
       }
       
@@ -361,28 +372,67 @@ export default function App() {
       const keyData = await response.json();
       if (keyData) {
         const currentStatus = keyData.status || "free";
-        const currentDeviceId = keyData.deviceId || "";
-        if (currentStatus === "free" && currentDeviceId === "") {
-          await fetch(`${FIREBASE_REST_URL}/activation_keys/${trimmed}.json`, {
-            method: 'PATCH',
-            body: JSON.stringify({ status: "used", deviceId: deviceId })
-          });
-          await AsyncStorage.setItem('@tabulka_password', trimmed);
-          setIsTrialExpired(false); 
-          setPassword(trimmed);
-          setInputPassword('');
-          Alert.alert(t.alertSuccessTitle, t.alertSuccessMessage);
-        } else if (currentStatus === "used") {
-          if (currentDeviceId && currentDeviceId === deviceId) {
+        
+        if (trimmed.startsWith("FAMILY-")) {
+          const registeredDevices = keyData.devices || {};
+          const currentDeviceCount = Object.keys(registeredDevices).length;
+          const maxAllowed = keyData.maxDevices || 5;
+
+          if (registeredDevices[deviceId] === true) {
             await AsyncStorage.setItem('@tabulka_password', trimmed);
             setIsTrialExpired(false);
             setPassword(trimmed);
             setInputPassword('');
+            return;
+          }
+
+          if (currentStatus === "blocked") {
+            Alert.alert(t.lockTitle, t.alertKeyBlock);
+            return;
+          }
+
+          if (currentDeviceCount < maxAllowed) {
+            await fetch(`${FIREBASE_REST_URL}/activation_keys/${trimmed}/devices/${deviceId}.json`, {
+              method: 'PUT',
+              body: JSON.stringify(true)
+            });
+            await fetch(`${FIREBASE_REST_URL}/activation_keys/${trimmed}.json`, {
+              method: 'PATCH',
+              body: JSON.stringify({ status: "used" })
+            });
+
+            await AsyncStorage.setItem('@tabulka_password', trimmed);
+            setIsTrialExpired(false); 
+            setPassword(trimmed);
+            setInputPassword('');
+            Alert.alert(t.alertSuccessTitle, t.alertSuccessMessage);
           } else {
             Alert.alert(t.activationErrorTitle, t.alertKeyUsed);
           }
         } else {
-          Alert.alert(t.lockTitle, t.alertKeyBlock);
+          const currentDeviceId = keyData.deviceId || "";
+          if (currentStatus === "free" && currentDeviceId === "") {
+            await fetch(`${FIREBASE_REST_URL}/activation_keys/${trimmed}.json`, {
+              method: 'PATCH',
+              body: JSON.stringify({ status: "used", deviceId: deviceId })
+            });
+            await AsyncStorage.setItem('@tabulka_password', trimmed);
+            setIsTrialExpired(false); 
+            setPassword(trimmed);
+            setInputPassword('');
+            Alert.alert(t.alertSuccessTitle, t.alertSuccessMessage);
+          } else if (currentStatus === "used") {
+            if (currentDeviceId && currentDeviceId === deviceId) {
+              await AsyncStorage.setItem('@tabulka_password', trimmed);
+              setIsTrialExpired(false);
+              setPassword(trimmed);
+              setInputPassword('');
+            } else {
+              Alert.alert(t.activationErrorTitle, t.alertKeyUsed);
+            }
+          } else {
+            Alert.alert(t.lockTitle, t.alertKeyBlock);
+          }
         }
       } else {
         Alert.alert(t.noticeTitle, t.alertKeyNotFound);
