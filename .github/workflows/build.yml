@@ -16,14 +16,14 @@ jobs:
         with:
           node-version: 20
 
-      { "name": "Install Dependencies", "run": "npm install && npm install -g eas-cli" }
+      - name: Install Dependencies
+        run: |
+          npm install
+          npm install -g eas-cli
 
-      # На всякий случай удаляем локальную папку android, чтобы не путать облачный сборщик
       - name: Clean Local Android
         run: rm -rf android
 
-      # Запуск сборки в облаке Expo
-      # Флаг --local-credentials сгенерирует подпись автоматически прямо на сервере
       - name: Build APK via EAS
         run: |
           eas build --platform android --profile preview --non-interactive
