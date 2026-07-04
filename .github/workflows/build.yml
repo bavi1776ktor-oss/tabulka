@@ -1,33 +1,52 @@
-name: Android Build
+name: Build Android APK From Scratch
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
+      
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'zulu'
 
-      - name: Install
+      - name: Install JS Dependencies
         run: npm install
 
-      # Мы не делаем prebuild, мы не лезем в Gradle. 
-      # Мы используем EAS CLI для сборки. 
-      # Это единственный способ избежать проблем с плагинами, 
-      # потому что EAS сам настраивает окружение.
-      - name: Build with EAS
-        uses: expo/expo-github-action@v8
+      # 1. Генерируем папку android с нуля
+      - name: Generate Android Folder
+        run: npx expo prebuild --platform android --no-install
+
+      # 2. ЖЕСТКИЙ ХАК: Исправляем пути к плагинам прямо в сгенерированных файлах
+      - name: Patch Generated Gradle
+        run: |
+          # Добавляем центральный репозиторий плагинов во все места, где Gradle может их искать
+          sed -i '1i pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }' android/settings.gradle
+          
+          # Явно прописываем репозитории для сборки в корневой build.gradle
+          sed -i '1i buildscript { repositories { google(); mavenCentral(); maven { url "https://plugins.gradle.org/m2/" } } }' android/build.gradle
+
+      # 3. Собираем приложение
+      - name: Compile APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
-          eas-version: latest
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: eas build --platform android --non-interactive --local
+          name: app-release
+          path: android/app/build/outputs/apk/release/app-release.apk
