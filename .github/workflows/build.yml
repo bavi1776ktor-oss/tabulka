@@ -1,4 +1,4 @@
-name: EAS Remote Build
+name: Build Android APK Locally
 
 on:
   push:
@@ -15,17 +15,46 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'zulu'
 
-      - name: Install Dependencies
+      # Ставим базовые зависимости
+      - name: Install JS Dependencies
+        run: npm install
+
+      # Специфическая установка для Expo, чтобы плагины сели на свои места в системе
+      - name: Install Missing Expo Modules
         run: |
-          npm install
-          npm install -g eas-cli
+          npm install react-native-calendars
+          npx expo install expo-secure-store expo-application -- --fix
 
-      - name: Clean Local Android
-        run: rm -rf android
+      # Проверяем сборку JS (это точно пройдет)
+      - name: Verify JS Bundle
+        run: npx expo export --platform android
 
-      - name: Build APK via EAS
+      # 1. Генерируем папку android
+      - name: Generate Android Folder
+        run: npx expo prebuild --platform android --no-install
+
+      # 2. Лечим баг совместимости Expo + Gradle 8.8 (SoftwareComponent 'release')
+      - name: Patch Expo Modules Core
         run: |
-          eas build --platform android --profile preview --non-interactive
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          sed -i 's/components.release/components.findByName("release")/g' node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle
+
+      # 3. Собираем APK локально силами GitHub
+      - name: Compile APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      # 4. Выкатываем готовый APK в артефакты GitHub
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release
+          path: android/app/build/outputs/apk/release/app-release.apk
