@@ -1,25 +1,30 @@
 {
   "expo": {
-    "name": "tabulka",
+    "name": "Tabulka",
     "slug": "tabulka",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/tabulka_icon.png",
     "userInterfaceStyle": "light",
-    "icon": "./assets/icon.png",
     "splash": {
-      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
-      "package": "com.wi_ktor.tabulka"
-    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/tabulka_icon.png",
+        "backgroundColor": "#072146"
+      },
+      "package": "com.yourname.tabulka"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
     }
   }
 }
