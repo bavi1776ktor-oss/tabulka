@@ -328,19 +328,30 @@ export default function App() {
         }
       }
       
-      const trialResponse = await fetch(`${FIREBASE_REST_URL}/trial_devices/${deviceId}.json`);
-      let trialData = await trialResponse.json();
+      // ИСПРАВЛЕННЫЙ БЛОК: Сначала ищем дату старта триала локально на устройстве
+      let trialStartStr = await AsyncStorage.getItem('@tabulka_trial_start');
+      let startTimestamp = trialStartStr ? parseInt(trialStartStr) : null;
       const currentTimeSeconds = Math.floor(Date.now() / 1000);
-      
-      if (!trialData) {
-        trialData = { startedAt: currentTimeSeconds, deviceId: deviceId };
-        await fetch(`${FIREBASE_REST_URL}/trial_devices/${deviceId}.json`, {
-          method: 'PUT',
-          body: JSON.stringify(trialData)
-        });
+
+      // Если локально нет, проверяем Firebase
+      if (!startTimestamp) {
+        const trialResponse = await fetch(`${FIREBASE_REST_URL}/trial_devices/${deviceId}.json`);
+        let trialData = await trialResponse.json();
+        
+        if (trialData && trialData.startedAt) {
+          startTimestamp = trialData.startedAt;
+        } else {
+          startTimestamp = currentTimeSeconds;
+          await fetch(`${FIREBASE_REST_URL}/trial_devices/${deviceId}.json`, {
+            method: 'PUT',
+            body: JSON.stringify({ startedAt: startTimestamp, deviceId: deviceId })
+          });
+        }
+        // Надежно сохраняем на самом устройстве
+        await AsyncStorage.setItem('@tabulka_trial_start', startTimestamp.toString());
       }
       
-      const timePassed = currentTimeSeconds - trialData.startedAt;
+      const timePassed = currentTimeSeconds - startTimestamp;
       const remainingSeconds = TRIAL_DURATION_SECONDS - timePassed;
       
       if (remainingSeconds <= 0) {
@@ -484,6 +495,7 @@ export default function App() {
         style: "destructive",
         onPress: async () => {
           await AsyncStorage.removeItem('@tabulka_password');
+          await AsyncStorage.removeItem('@tabulka_trial_start');
           setIsTrialExpired(false);
           setPassword(null);
           await AsyncStorage.removeItem('@tabulka_lang');
