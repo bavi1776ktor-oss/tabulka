@@ -256,7 +256,7 @@ export default function App() {
       }
     } catch (error) {
       Alert.alert(t.networkErrorTitle, t.networkErrorMsg);
-    } fill_out_always: finally {
+    } finally {
       setIsLoadingData(false);
     }
   };
