@@ -111,7 +111,7 @@ const translations = {
     modalDayTitle: "День",
     placeholderRate: "Ставка",
     placeholderHours: "Години",
-    btnSave: "Зберегти",
+    btnSave: "Скасувати",
     btnCancel: "Скасувати",
     btnClose: "Закрити",
     archiveEarnings: "Заробіток за місяць",
@@ -256,7 +256,7 @@ export default function App() {
       }
     } catch (error) {
       Alert.alert(t.networkErrorTitle, t.networkErrorMsg);
-    } finally {
+    } fill_out_always: finally {
       setIsLoadingData(false);
     }
   };
@@ -328,12 +328,10 @@ export default function App() {
         }
       }
       
-      // ИСПРАВЛЕННЫЙ БЛОК: Сначала ищем дату старта триала локально на устройстве
       let trialStartStr = await AsyncStorage.getItem('@tabulka_trial_start');
       let startTimestamp = trialStartStr ? parseInt(trialStartStr) : null;
       const currentTimeSeconds = Math.floor(Date.now() / 1000);
 
-      // Если локально нет, проверяем Firebase
       if (!startTimestamp) {
         const trialResponse = await fetch(`${FIREBASE_REST_URL}/trial_devices/${deviceId}.json`);
         let trialData = await trialResponse.json();
@@ -347,7 +345,6 @@ export default function App() {
             body: JSON.stringify({ startedAt: startTimestamp, deviceId: deviceId })
           });
         }
-        // Надежно сохраняем на самом устройстве
         await AsyncStorage.setItem('@tabulka_trial_start', startTimestamp.toString());
       }
       
@@ -708,11 +705,29 @@ export default function App() {
       <SafeAreaView style={styles.authContainer}>
         <View style={styles.authCardExpired}>
           <Text style={styles.authTitleExpired}>{t.trialExpiredTitle}</Text>
+          
+          <TouchableOpacity style={styles.trialTopRequestBtn} onPress={() => setRequestModalVisible(true)}>
+            <Text style={styles.trialTopRequestBtnText}>{t.requestFullVersionHeader.toUpperCase()}</Text>
+          </TouchableOpacity>
+
           <View style={styles.separator} />
           <Text style={styles.authSubtitleBold}>{t.enterKeyTitle}</Text>
           <TextInput placeholder={t.placeholderKey} autoCapitalize="characters" style={styles.authInput} value={inputPassword} onChangeText={setInputPassword} />
           <TouchableOpacity style={styles.authBtnActivate} onPress={handleLogin}><Text style={styles.authButtonText}>{t.btnActivate}</Text></TouchableOpacity>
         </View>
+
+        <Modal visible={requestModalVisible} transparent={true} animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={[styles.modalTitle, { color: '#10B981' }]}>{t.requestFullVersionHeader}</Text>
+              <TextInput placeholder={t.placeholderName} style={styles.authInputMargin} value={clientName} onChangeText={setClientName} />
+              <TextInput placeholder={t.placeholderPhone} keyboardType="phone-pad" style={styles.authInputMarginLarge} value={clientPhone} onChangeText={setClientPhone} />
+              <TouchableOpacity style={styles.authBtnSend} onPress={handleSendSupportRequest}><Text style={styles.authButtonText}>{t.btnSendRequest}</Text></TouchableOpacity>
+              <View style={styles.noticeContainer}><Text style={styles.noticeSubText}>{t.noticeText}</Text></View>
+              <TouchableOpacity style={[styles.btnCancel, { width: '100%', marginTop: 12 }]} onPress={() => setRequestModalVisible(false)}><Text style={styles.btnText}>{t.btnCancel}</Text></TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     );
   }
