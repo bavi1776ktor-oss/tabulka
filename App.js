@@ -4,308 +4,511 @@ import {
   Text, 
   View, 
   TouchableOpacity, 
-  ScrollView, 
   Modal, 
   TextInput, 
-  Alert, 
-  Dimensions, 
-  SafeAreaView,
-  ActivityIndicator
+  ScrollView, 
+  SafeAreaView, 
+  Dimensions,
+  Alert,
+  ActivityIndicator,
+  Linking
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
+const TRIAL_DURATION_SECONDS = 5 * 24 * 60 * 60; 
+const MY_TARGET_EMAIL = "kluh2026@gmail.com"; 
+const FIREBASE_REST_URL = "https://my-apk-protection-default-rtdb.firebaseio.com";
 
-const FIREBASE_REST_URL = "https://tabulkawork-default-rtdb.europe-west1.firebasedatabase.app";
-
-const localization = {
+const translations = {
   ru: {
     locale: 'ru-RU',
+    trialExpiredTitle: "Срок пробного тестирования (5 дней) окончен",
+    requestFullVersion: "Запросить полную версию:",
+    requestFullVersionHeader: "Запросить полную версию",
+    placeholderName: "Ваше Имя",
+    placeholderPhone: "Телефон",
+    btnSendRequest: "Отправить запрос",
+    noticeText: "Введите Ваше имя и телефон. Ожидайте, Вам перезвонят.",
+    enterKeyTitle: "Ввести постоянный ключ:",
+    placeholderKey: "Постоянный ключ активации",
+    btnActivate: "Активировать",
+    btnExit: "Выход",
     weekDays: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'],
-    statsWorkDays: 'Отработано дней',
-    statsWeekendDays: 'Выходных дней',
-    statsTotalSum: 'Итого сумма',
-    btnArchive: 'АРХИВ МЕСЯЦЕВ',
-    btnSavePdf: 'СОХРАНИТЬ В PDF',
-    btnToday: 'Сегодня',
-    btnExit: 'Выйти',
-    modalDayTitle: 'День',
-    subSectionTitle: 'Записи за этот day:',
-    noRecordsText: 'Нет записей',
-    placeholderRate: 'Ставка',
-    placeholderHours: 'Часы',
-    placeholderName: 'Ваше Имя',
-    placeholderPhone: 'Номер телефона',
-    placeholderKey: 'КЛЮЧ АКТИВАЦИИ',
-    hourUnit: 'ч',
-    btnAddRecord: 'ДОБАВИТЬ ЗАПИСЬ',
-    btnSave: 'Сохранить',
-    btnCancel: 'Отмена',
-    btnClose: 'Закрыть',
-    archiveTitle: 'Архив заработка',
-    networkErrorTitle: 'Ошибка сети',
-    networkSendError: 'Не удалось сохранить данные на сервере.',
-    errorTitle: 'Ошибка',
-    alertPdfError: 'Не удалось сгенерировать или поделиться PDF.',
-    pdfTitle: 'Отчет за {month}',
-    pdfStatusWork: 'Рабочий',
-    pdfStatusWeekend: 'Выходной',
-    pdfColDay: 'День',
-    pdfColStatus: 'Статус',
-    pdfColRate: 'Ставка',
-    pdfColHours: 'Часы',
-    pdfColSum: 'Сумма',
-    trialExpiredTitle: 'СРОК ДЕЙСТВИЯ ТЕСТОВОЙ ВЕРСИИ ИСТЕК',
-    requestFullVersionHeader: 'Запросить полную версию',
-    btnSendRequest: 'ОТПРАВИТЬ ЗАЯВКУ',
-    noticeText: 'Заявка отправлена разработчику',
-    btnActivate: 'АКТИВИРОВАТЬ КЛЮЧ',
-    toastTrialActive: 'Внимание!\nЭто тестовая версия.\nОсталось дней: {days}'
+    statsWorkDays: "Рабочих дней",
+    statsWeekendDays: "Выходных дней",
+    statsTotalSum: "Сумма",
+    btnArchive: "Архив",
+    btnSavePdf: "Сохранить PDF",
+    modalDayTitle: "День",
+    placeholderRate: "Ставка",
+    placeholderHours: "Часы",
+    btnSave: "Сохранить",
+    btnCancel: "Отмена",
+    btnClose: "Закрыть",
+    archiveEarnings: "Заработок за месяц",
+    toastTrialActive: "⏱ АКТИВЕН ТЕСТОВЫЙ ПЕРИОД\n(ОСТАЛОСЬ {days} ДН.)",
+    pdfTitle: "Отчет — {month}",
+    pdfStatusWork: "Рабочий",
+    pdfStatusWeekend: "Выходной",
+    pdfColDay: "День",
+    pdfColStatus: "Статус",
+    pdfColRate: "Ставка",
+    pdfColHours: "Часы",
+    pdfColSum: "Сумма",
+    alertExitTitle: "Выход",
+    alertExitMessage: "Выйти из профиля?",
+    alertExitCancel: "Отмена",
+    alertFormatError: "Неверный формат",
+    alertFormatShort: "Слишком короткий ключ активации.",
+    alertSuccessTitle: "Успешно",
+    alertSuccessMessage: "Приложение успешно активировано!",
+    alertKeyUsed: "Этот ключ уже заблокирован или исчерпан лимит устройств!",
+    alertKeyBlock: "Этот ключ заблокирован администратором.",
+    alertKeyNotFound: "Ключ не найден в базе данных.",
+    alertInputError: "Введите корректные числа",
+    alertPdfError: "Не удалось создать PDF",
+    alertRequestSaved: "Данные записаны в базу. На вашем устройстве не найдено настроенное приложение почты для прямой отправки.",
+    alertMailError: "Запрос успешно сохранен в Firebase, но не удалось запустить почтовое приложение.",
+    alertFillFields: "Пожалуйста, заполните Имя и Телефон для связи",
+    btnToday: "Сегодня",
+    noRecordsText: "Нет записей за этот день",
+    subSectionTitle: "Работы за день:",
+    dayTotalText: "Всего за день:",
+    btnAddRecord: "+ Добавить запись",
+    selectLangTitle: "Выберите язык / Оберіть мову",
+    errorTitle: "Ошибка",
+    networkErrorTitle: "Ошибка сети",
+    networkErrorMsg: "Не удалось обновить данные из базы",
+    activationErrorTitle: "Ошибка активации",
+    lockTitle: "Блокировка",
+    noticeTitle: "Уведомление",
+    networkSendError: "Не удалось отправить данные",
+    hourUnit: "ч.",
+    archiveTitle: "Архив заработка"
   },
   uk: {
     locale: 'uk-UA',
-    weekDays: ['Пн', 'Вв', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'],
-    statsWorkDays: 'Відпрацьовано днів',
-    statsWeekendDays: 'Вихідних днів',
-    statsTotalSum: 'Всього сума',
-    btnArchive: 'АРХІВ МІСЯЦІВ',
-    btnSavePdf: 'ЗБЕРЕГТИ В PDF',
-    btnToday: 'Сьогодні',
-    btnExit: 'Вийти',
-    modalDayTitle: 'День',
-    subSectionTitle: 'Записи за цей день:',
-    noRecordsText: 'Немає записів',
-    placeholderRate: 'Ставка',
-    placeholderHours: 'Години',
-    placeholderName: 'Ваше Ім\'я',
-    placeholderPhone: 'Номер телефону',
-    placeholderKey: 'КЛЮЧ АКТИВАЦІЇ',
-    hourUnit: 'г',
-    btnAddRecord: 'ДОДАТИ ЗАПИС',
-    btnSave: 'Зберегти',
-    btnCancel: 'Скасувати',
-    btnClose: 'Закрити',
-    archiveTitle: 'Архів заробітку',
-    networkErrorTitle: 'Помилка мережі',
-    networkSendError: 'Не вдалося зберегти дані на сервері.',
-    errorTitle: 'Помилка',
-    alertPdfError: 'Не вдалося згенерувати або поділитися PDF.',
-    pdfTitle: 'Звіт за {month}',
-    pdfStatusWork: 'Робочий',
-    pdfStatusWeekend: 'Вихідний',
-    pdfColDay: 'День',
-    pdfColStatus: 'Статус',
-    pdfColRate: 'Ставка',
-    pdfColHours: 'Години',
-    pdfColSum: 'Сума',
-    trialExpiredTitle: 'ТЕРМІН ДІЇ ТЕСТОВОЇ ВЕРСИИ ЗАКІНЧИВСЯ',
-    requestFullVersionHeader: 'Запросити повну версію',
-    btnSendRequest: 'ВІДПРАВИТИ ЗАЯВКУ',
-    noticeText: 'Заявку відправлено розробнику',
-    btnActivate: 'АКТИВУВАТИ КЛЮЧ',
-    toastTrialActive: 'Увага!\nЦе тестова версія.\nЗалишилось днів: {days}'
+    trialExpiredTitle: "Термін дії пробного періоду (5 дней) закінчився",
+    requestFullVersion: "Надіслати запит на повну версію:",
+    requestFullVersionHeader: "Запросити повну версию",
+    placeholderName: "Ваше Ім'я",
+    placeholderPhone: "Телефон",
+    btnSendRequest: "Надіслати запит",
+    noticeText: "Введіть Ваше ім'я та телефон. Очікуйте, Вам зателевонують.",
+    enterKeyTitle: "Ввести ключ активації:",
+    placeholderKey: "Ключ активації (постійний)",
+    btnActivate: "Актувати",
+    btnExit: "Вихід",
+    weekDays: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'],
+    statsWorkDays: "Робочих днів",
+    statsWeekendDays: "Вихідних днів",
+    statsTotalSum: "Сума",
+    btnArchive: "Архів",
+    btnSavePdf: "Зберегти PDF",
+    modalDayTitle: "День",
+    placeholderRate: "Ставка",
+    placeholderHours: "Години",
+    btnSave: "Зберегти",
+    btnCancel: "Скасувати",
+    btnClose: "Закрити",
+    archiveEarnings: "Заробіток за місяць",
+    toastTrialActive: "⏱ АКТИВНИЙ ТЕСТОВІЙ ПЕРІОД\n(ЗАЛИШИЛОСЯ {days} ДН.)",
+    pdfTitle: "Звіт — {month}",
+    pdfStatusWork: "Робочий",
+    pdfStatusWeekend: "Вихідний",
+    pdfColDay: "День",
+    pdfColStatus: "Статус",
+    pdfColRate: "Ставка",
+    pdfColHours: "Години",
+    pdfColSum: "Сума",
+    alertExitTitle: "Вихід",
+    alertExitMessage: "Вийти з профілю?",
+    alertExitCancel: "Скасувати",
+    alertFormatError: "Неправильний формат",
+    alertFormatShort: "Занадто короткий ключ активації.",
+    alertSuccessTitle: "Успішно",
+    alertSuccessMessage: "Додаток успешно активовано!",
+    alertKeyUsed: "Цей ключ вже заблокований або вичерпано ліміт пристроїв!",
+    alertKeyBlock: "Цей ключ заблокований адміністратором.",
+    alertKeyNotFound: "Ключ не знайдено в базі даних.",
+    alertInputError: "Введіть коректні числа",
+    alertPdfError: "Не вдалося створити PDF",
+    alertRequestSaved: "Дані записані в базу. На вашому пристрої не знайдено налаштованого поштового додатка для прямої відправки.",
+    alertMailError: "Запит успешно збережено в Firebase, но не вдалося запустити поштовий додаток.",
+    alertFillFields: "Будь ласка, заповніть Ім'я та Телефон для зв'язку",
+    btnToday: "Сьогодні",
+    noRecordsText: "Немає записів за цей день",
+    subSectionTitle: "Роботи за день:",
+    dayTotalText: "Всього за день:",
+    btnAddRecord: "+ Додати запис",
+    selectLangTitle: "Выберите язык / Оберіть мову",
+    errorTitle: "Помилка",
+    networkErrorTitle: "Помилка мережі",
+    networkErrorMsg: "Не вдалося оновити дані з бази",
+    activationErrorTitle: "Помилка активації",
+    lockTitle: "Блокування",
+    noticeTitle: "Сповіщення",
+    networkSendError: "Не вдалося надіслати дані",
+    hourUnit: "год.",
+    archiveTitle: "Архів заробітку"
   }
 };
 
 export default function App() {
   const [lang, setLang] = useState(null);
-  const [password, setPassword] = useState(null);
-  const [inputPassword, setInputPassword] = useState('');
+  const [password, setPassword] = useState(null); 
+  const [inputPassword, setInputPassword] = useState(''); 
+  const [isAuthChecking, setIsAuthChecking] = useState(false); 
+  const [isLoadingData, setIsLoadingData] = useState(false); 
+  const [currentTime, setCurrentTime] = useState(new Date());
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [workData, setWorkData] = useState({});
-  const [archiveData, setArchiveData] = useState({});
-  const [isLoadingData, setIsLoadingData] = useState(false);
-  const [isAuthChecking, setIsAuthChecking] = useState(true);
-
-  const [modalVisible, setModalVisible] = useState(false);
+  const [workData, setWorkData] = useState({}); 
   const [selectedDate, setSelectedDate] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [archiveModalVisible, setArchiveModalVisible] = useState(false); 
   const [rate, setRate] = useState('');
   const [hours, setHours] = useState('');
-
-  const [archiveModalVisible, setArchiveModalVisible] = useState(false);
+  const [trialNotice, setTrialNotice] = useState(false); 
+  const [isTrialExpired, setIsTrialExpired] = useState(false); 
+  const [daysLeft, setDaysLeft] = useState(5);
   const [requestModalVisible, setRequestModalVisible] = useState(false);
   const [clientName, setClientName] = useState('');
-  const [clientPhone, setClientPhone] = useState('');
+  const [clientPhone, setClientPhone] = useState('+38 (');
+  const [archiveData, setArchiveData] = useState({});
 
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [isTrialExpired, setIsTrialExpired] = useState(false);
-  const [trialNotice, setTrialNotice] = useState(false);
-  const [daysLeft, setDaysLeft] = useState(0);
-
-  const t = localization[lang || 'ru'];
+  const t = translations[lang || 'ru'];
 
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 30000);
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    checkInitialLanguage();
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    checkLocalAuth();
-  }, []);
-
-  const checkLocalAuth = async () => {
+  const checkInitialLanguage = async () => {
     try {
-      const response = await fetch(`${FIREBASE_REST_URL}/tabulka_config/activeLanguage.json`);
-      const savedLang = await response.json();
-      if (savedLang) setLang(savedLang);
-
-      const passResponse = await fetch(`${FIREBASE_REST_URL}/tabulka_config/activePassword.json`);
-      const savedPass = await passResponse.json();
-      if (savedPass) {
-        setPassword(savedPass);
-        await validateLicense(savedPass);
-      } else {
-        setIsAuthChecking(false);
+      const savedLang = await AsyncStorage.getItem('@tabulka_lang');
+      if (savedLang === 'ru' || savedLang === 'uk') {
+        setLang(savedLang);
+        setIsAuthChecking(true);
+        checkSavedPassword(savedLang);
       }
     } catch (e) {
-      setIsAuthChecking(false);
+      // Экран выбора языка
     }
   };
 
-  const validateLicense = async (pass) => {
+  const getUniqueDeviceId = async () => {
     try {
-      if (pass.startsWith("TRIAL_MODE_")) {
-        const parts = pass.split("_");
-        if (parts.length === 4) {
-          const creationTimestamp = parseInt(parts[2], 10);
-          const allowedDays = parseInt(parts[3], 10);
-          const currentTimestamp = Date.now();
-          const msPassed = currentTimestamp - creationTimestamp;
-          const daysPassed = msPassed / (1000 * 60 * 60 * 24);
-          const remaining = Math.max(0, Math.ceil(allowedDays - daysPassed));
-          
-          setDaysLeft(remaining);
-
-          if (daysPassed >= allowedDays) {
-            setIsTrialExpired(true);
-            setTrialNotice(false);
-          } else {
-            setIsTrialExpired(false);
-            setTrialNotice(true);
-            setTimeout(() => setTrialNotice(false), 7000);
-          }
-        } else {
-          setIsTrialExpired(true);
-        }
-      } else {
-        setIsTrialExpired(false);
-        setTrialNotice(false);
+      let id = await AsyncStorage.getItem('@tabulka_device_id');
+      if (!id) {
+        id = 'dev_' + Math.random().toString(36).substring(2, 11) + '_' + Math.floor(Date.now() / 1000);
+        await AsyncStorage.setItem('@tabulka_device_id', id);
       }
-      fetchWorkData(pass);
-      fetchArchiveData(pass);
-    } catch (err) {
-      // Игнорируем ошибки проверки лицензии
-    } finally {
-      setIsAuthChecking(false);
+      return id;
+    } catch (e) {
+      return "DEVICE_GENERIC";
     }
   };
 
   const handleSelectLanguage = async (selectedLang) => {
-    setLang(selectedLang);
     try {
-      await fetch(`${FIREBASE_REST_URL}/tabulka_config/activeLanguage.json`, {
-        method: 'PUT',
-        body: JSON.stringify(selectedLang)
-      });
-    } catch (e) {}
-  };
-
-  const handleLogin = async () => {
-    if (!inputPassword.trim()) return;
-    const trimmedPass = inputPassword.trim().toUpperCase();
-    setIsAuthChecking(true);
-    try {
-      const response = await fetch(`${FIREBASE_REST_URL}/tabulka_users/${trimmedPass}.json`);
-      const userData = await response.json();
-      if (userData && userData.active === true) {
-        setPassword(trimmedPass);
-        await fetch(`${FIREBASE_REST_URL}/tabulka_config/activePassword.json`, {
-          method: 'PUT',
-          body: JSON.stringify(trimmedPass)
-        });
-        setInputPassword('');
-        await validateLicense(trimmedPass);
-      } else if (trimmedPass.startsWith("TRIAL_MODE_")) {
-        setPassword(trimmedPass);
-        await fetch(`${FIREBASE_REST_URL}/tabulka_config/activePassword.json`, {
-          method: 'PUT',
-          body: JSON.stringify(trimmedPass)
-        });
-        setInputPassword('');
-        await validateLicense(trimmedPass);
-      } else {
-        Alert.alert(t.errorTitle, lang === 'ru' ? 'Неверный ключ активации' : 'Невірний ключ активації');
-        setIsAuthChecking(false);
-      }
+      await AsyncStorage.setItem('@tabulka_lang', selectedLang);
+      setLang(selectedLang);
+      setIsAuthChecking(true);
+      checkSavedPassword(selectedLang);
     } catch (e) {
-      Alert.alert(t.errorTitle, t.networkSendError);
-      setIsAuthChecking(false);
+      Alert.alert("Error", "Error saving language");
     }
   };
 
-  const handleLogout = async () => {
-    setPassword(null);
-    setIsTrialExpired(false);
-    setTrialNotice(false);
-    try {
-      await fetch(`${FIREBASE_REST_URL}/tabulka_config/activePassword.json`, { method: 'DELETE' });
-    } catch (e) {}
-  };
-
-  const fetchWorkData = async (currentPass) => {
-    if (!currentPass) return;
+  const fetchWorkData = async (currentPassword) => {
+    if (!currentPassword) return;
     setIsLoadingData(true);
-    const viewYear = currentMonth.getFullYear();
-    const viewMonth = currentMonth.getMonth();
     try {
-      const response = await fetch(`${FIREBASE_REST_URL}/tabulka_lists/${currentPass}/${viewYear}_${viewMonth}.json`);
+      const viewYear = currentMonth.getFullYear();
+      const viewMonth = currentMonth.getMonth();
+      const response = await fetch(`${FIREBASE_REST_URL}/tabulka_lists/${currentPassword}/${viewYear}_${viewMonth}.json`);
       const data = await response.json();
-      setWorkData(data || {});
-    } catch (e) {
-      setWorkData({});
+      if (data) {
+        const normalized = {};
+        Object.keys(data).forEach(dateKey => {
+          const dayContent = data[dateKey];
+          if (dayContent && typeof dayContent === 'object' && dayContent.records) {
+            normalized[dateKey] = dayContent;
+          } else if (dayContent && (dayContent.rate || dayContent.hours)) {
+            normalized[dateKey] = {
+              records: [{
+                id: 'legacy_' + Date.now() + '_' + Math.random(),
+                rate: parseFloat(dayContent.rate) || 0,
+                hours: parseFloat(dayContent.hours) || 0
+              }]
+            };
+          } else {
+            normalized[dateKey] = { records: [] };
+          }
+        });
+        setWorkData(normalized);
+      } else {
+        setWorkData({});
+      }
+    } catch (error) {
+      Alert.alert(t.networkErrorTitle, t.networkErrorMsg);
     } finally {
       setIsLoadingData(false);
     }
   };
 
-  const fetchArchiveData = async (currentPass) => {
-    if (!currentPass) return;
+  const fetchArchiveData = async (currentPassword) => {
+    if (!currentPassword) return;
     try {
-      const response = await fetch(`${FIREBASE_REST_URL}/tabulka_lists/${currentPass}.json`);
-      const allMonthsData = await response.json();
-      if (allMonthsData) {
-        const processedArchive = {};
-        Object.keys(allMonthsData).forEach((monthKey) => {
-          let monthTotalSum = 0;
-          const daysData = allMonthsData[monthKey];
-          Object.keys(daysData).forEach((dayKey) => {
-            monthTotalSum += getDayTotal(daysData[dayKey]);
+      const response = await fetch(`${FIREBASE_REST_URL}/tabulka_lists/${currentPassword}.json`);
+      const allData = await response.json();
+      
+      const summary = {};
+      const today = new Date();
+      
+      for (let i = 0; i < 12; i++) {
+        const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+        const key = `${d.getFullYear()}_${d.getMonth()}`;
+        
+        let monthSum = 0;
+        const daysData = allData ? allData[key] : null;
+        if (daysData && typeof daysData === 'object') {
+          Object.keys(daysData).forEach(dayKey => {
+            const dayContent = daysData[dayKey];
+            if (dayContent && dayContent.records) {
+              monthSum += dayContent.records.reduce((sum, rec) => sum + (rec.rate * rec.hours), 0);
+            }
           });
-          processedArchive[monthKey] = monthTotalSum;
-        });
-        setArchiveData(processedArchive);
-      } else {
-        setArchiveData({});
+        }
+        summary[key] = monthSum;
       }
+      setArchiveData(summary);
     } catch (e) {
-      setArchiveData({});
+      // Тихое подавление
     }
   };
 
   useEffect(() => {
-    if (password && !isTrialExpired) {
+    if (password) {
       fetchWorkData(password);
+      fetchArchiveData(password);
+    } else {
+      setWorkData({});
     }
-  }, [currentMonth, password, isTrialExpired]);
+  }, [password, currentMonth]);
+
+  const checkSavedPassword = async (currentLang) => {
+    const localT = translations[currentLang || 'ru'];
+    try {
+      const deviceId = await getUniqueDeviceId();
+      const savedPass = await AsyncStorage.getItem('@tabulka_password');
+      
+      if (savedPass) {
+        const response = await fetch(`${FIREBASE_REST_URL}/activation_keys/${savedPass}.json`);
+        const keyData = await response.json();
+        if (keyData) {
+          if (savedPass.startsWith("FAMILY-")) {
+            const registeredDevices = keyData.devices || {};
+            if (keyData.status === "used" && registeredDevices[deviceId] === true) {
+              setPassword(savedPass);
+              setIsAuthChecking(false);
+              return;
+            }
+          } else {
+            if (keyData.status === "used" && keyData.deviceId === deviceId) {
+              setPassword(savedPass);
+              setIsAuthChecking(false);
+              return; 
+            }
+          }
+        }
+      }
+      
+      let trialStartStr = await AsyncStorage.getItem('@tabulka_trial_start');
+      let startTimestamp = trialStartStr ? parseInt(trialStartStr) : null;
+      const currentTimeSeconds = Math.floor(Date.now() / 1000);
+
+      if (!startTimestamp) {
+        const trialResponse = await fetch(`${FIREBASE_REST_URL}/trial_devices/${deviceId}.json`);
+        let trialData = await trialResponse.json();
+        
+        if (trialData && trialData.startedAt) {
+          startTimestamp = trialData.startedAt;
+        } else {
+          startTimestamp = currentTimeSeconds;
+          await fetch(`${FIREBASE_REST_URL}/trial_devices/${deviceId}.json`, {
+            method: 'PUT',
+            body: JSON.stringify({ startedAt: startTimestamp, deviceId: deviceId })
+          });
+        }
+        await AsyncStorage.setItem('@tabulka_trial_start', startTimestamp.toString());
+      }
+      
+      const timePassed = currentTimeSeconds - startTimestamp;
+      const remainingSeconds = TRIAL_DURATION_SECONDS - timePassed;
+      
+      if (remainingSeconds <= 0) {
+        setIsTrialExpired(true);
+      } else {
+        const calculatedDays = Math.ceil(remainingSeconds / (24 * 60 * 60));
+        setDaysLeft(calculatedDays);
+        setPassword("TRIAL_MODE_" + deviceId);
+        setTrialNotice(true);
+        setTimeout(() => setTrialNotice(false), 4000);
+      }
+    } catch (e) {
+      Alert.alert(localT.errorTitle, "Auth check failed");
+    } finally {
+      setIsAuthChecking(false);
+    }
+  };
+
+  const handleLogin = async () => {
+    const trimmed = inputPassword.trim();
+    if (trimmed.length < 3) {
+      Alert.alert(t.alertFormatError, t.alertFormatShort);
+      return;
+    }
+    setIsAuthChecking(true);
+    try {
+      const deviceId = await getUniqueDeviceId(); 
+      const response = await fetch(`${FIREBASE_REST_URL}/activation_keys/${trimmed}.json`);
+      const keyData = await response.json();
+      if (keyData) {
+        const currentStatus = keyData.status || "free";
+        
+        if (trimmed.startsWith("FAMILY-")) {
+          const registeredDevices = keyData.devices || {};
+          const currentDeviceCount = Object.keys(registeredDevices).length;
+          const maxAllowed = keyData.maxDevices || 5;
+
+          if (registeredDevices[deviceId] === true) {
+            await AsyncStorage.setItem('@tabulka_password', trimmed);
+            setIsTrialExpired(false);
+            setPassword(trimmed);
+            setInputPassword('');
+            return;
+          }
+
+          if (currentStatus === "blocked") {
+            Alert.alert(t.lockTitle, t.alertKeyBlock);
+            return;
+          }
+
+          if (currentDeviceCount < maxAllowed) {
+            await fetch(`${FIREBASE_REST_URL}/activation_keys/${trimmed}/devices/${deviceId}.json`, {
+              method: 'PUT',
+              body: JSON.stringify(true)
+            });
+            await fetch(`${FIREBASE_REST_URL}/activation_keys/${trimmed}.json`, {
+              method: 'PATCH',
+              body: JSON.stringify({ status: "used" })
+            });
+
+            await AsyncStorage.setItem('@tabulka_password', trimmed);
+            setIsTrialExpired(false); 
+            setPassword(trimmed);
+            setInputPassword('');
+            Alert.alert(t.alertSuccessTitle, t.alertSuccessMessage);
+          } else {
+            Alert.alert(t.activationErrorTitle, t.alertKeyUsed);
+          }
+        } else {
+          const currentDeviceId = keyData.deviceId || "";
+          if (currentStatus === "free" && currentDeviceId === "") {
+            await fetch(`${FIREBASE_REST_URL}/activation_keys/${trimmed}.json`, {
+              method: 'PATCH',
+              body: JSON.stringify({ status: "used", deviceId: deviceId })
+            });
+            await AsyncStorage.setItem('@tabulka_password', trimmed);
+            setIsTrialExpired(false); 
+            setPassword(trimmed);
+            setInputPassword('');
+            Alert.alert(t.alertSuccessTitle, t.alertSuccessMessage);
+          } else if (currentStatus === "used") {
+            if (currentDeviceId && currentDeviceId === deviceId) {
+              await AsyncStorage.setItem('@tabulka_password', trimmed);
+              setIsTrialExpired(false);
+              setPassword(trimmed);
+              setInputPassword('');
+            } else {
+              Alert.alert(t.activationErrorTitle, t.alertKeyUsed);
+            }
+          } else {
+            Alert.alert(t.lockTitle, t.alertKeyBlock);
+          }
+        }
+      } else {
+        Alert.alert(t.noticeTitle, t.alertKeyNotFound);
+      }
+    } catch (e) {
+      Alert.alert(t.networkErrorTitle, "Database connection failed");
+    } finally {
+      setIsAuthChecking(false);
+    }
+  };
+
+  const handleSendSupportRequest = async () => {
+    if (!clientName.trim() || clientPhone.trim() === '+38 (' || clientPhone.trim().length < 8) {
+      Alert.alert(t.errorTitle, t.alertFillFields);
+      return;
+    }
+    try {
+      const deviceId = await getUniqueDeviceId();
+      await fetch(`${FIREBASE_REST_URL}/support_requests/${deviceId}.json`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: clientName.trim(),
+          phone: clientPhone.trim(),
+          deviceId: deviceId,
+          createdAt: Math.floor(Date.now() / 1000)
+        })
+      });
+      const subject = encodeURIComponent("Запрос ключа активации Tabulka");
+      const body = encodeURIComponent(`Данные запроса:\n\nИмя: ${clientName.trim()}\nТелефон: ${clientPhone.trim()}\nID устройства: ${deviceId}`);
+      const mailtoUrl = `mailto:${MY_TARGET_EMAIL}?subject=${subject}&body=${body}`;
+      setRequestModalVisible(false);
+      const supported = await Linking.canOpenURL(mailtoUrl);
+      if (supported) {
+        await Linking.openURL(mailtoUrl);
+      } else {
+        Alert.alert(t.alertSuccessTitle, t.alertRequestSaved);
+      }
+    } catch (e) {
+      setRequestModalVisible(false);
+      Alert.alert(t.noticeTitle, t.alertMailError);
+    }
+  };
+
+  const handleLogout = () => {
+    Alert.alert(t.alertExitTitle, t.alertExitMessage, [
+      { text: t.alertExitCancel, style: "cancel" },
+      { 
+        text: t.btnExit, 
+        style: "destructive",
+        onPress: async () => {
+          await AsyncStorage.removeItem('@tabulka_password');
+          await AsyncStorage.removeItem('@tabulka_trial_start');
+          setIsTrialExpired(false);
+          setPassword(null);
+          await AsyncStorage.removeItem('@tabulka_lang');
+          setLang(null);
+        }
+      }
+    ]);
+  };
 
   const getDayTotal = (dayData) => {
-    if (!dayData || !dayData.records || !Array.isArray(dayData.records)) return 0;
+    if (!dayData || !dayData.records) return 0;
     return dayData.records.reduce((sum, rec) => sum + (rec.rate * rec.hours), 0);
   };
 
   const getDayHours = (dayData) => {
-    if (!dayData || !dayData.records || !Array.isArray(dayData.records)) return 0;
+    if (!dayData || !dayData.records) return 0;
     return dayData.records.reduce((sum, rec) => sum + rec.hours, 0);
   };
 
@@ -319,66 +522,30 @@ export default function App() {
   const handleAddRecord = () => {
     const numRate = parseFloat(rate);
     const numHours = parseFloat(hours);
-    if (isNaN(numRate) || isNaN(numHours) || numRate <= 0 || numHours <= 0) return;
-
+    if (!rate || !hours || isNaN(numRate) || isNaN(numHours) || numRate <= 0 || numHours <= 0) {
+      Alert.alert(t.errorTitle, t.alertInputError);
+      return;
+    }
     const currentDayData = workData[selectedDate] || { records: [] };
     const newRecord = {
-      id: Date.now().toString(),
+      id: Date.now().toString() + '_' + Math.random(),
       rate: numRate,
       hours: numHours
     };
-
-    const updatedRecords = [...(currentDayData.records || []), newRecord];
-    const updatedWorkData = {
-      ...workData,
-      [selectedDate]: { ...currentDayData, records: updatedRecords }
+    const updatedDayData = {
+      ...currentDayData,
+      records: [...(currentDayData.records || []), newRecord]
     };
-
-    setWorkData(updatedWorkData);
+    setWorkData({ ...workData, [selectedDate]: updatedDayData });
     setRate('');
     setHours('');
   };
 
   const handleDeleteRecord = (recordId) => {
-    if (!selectedDate || !workData[selectedDate]) return;
     const currentDayData = workData[selectedDate];
-    const updatedRecords = (currentDayData.records || []).filter(r => r.id !== recordId);
-    
-    const updatedWorkData = {
-      ...workData,
-      [selectedDate]: { ...currentDayData, records: updatedRecords }
-    };
-    setWorkData(updatedWorkData);
-  };
-
-  const handleSendSupportRequest = async () => {
-    if (!clientName.trim() || !clientPhone.trim()) return;
-    try {
-      const requestPayload = {
-        name: clientName.trim(),
-        phone: clientPhone.trim(),
-        timestamp: Date.now(),
-        lang: lang || 'ru',
-        currentPassword: password || 'NONE'
-      };
-      await fetch(`${FIREBASE_REST_URL}/tabulka_requests.json`, {
-        method: 'POST',
-        body: JSON.stringify(requestPayload)
-      });
-      Alert.alert("", t.noticeText);
-      setClientName('');
-      setClientPhone('');
-      setRequestModalVisible(false);
-    } catch (e) {
-      Alert.alert(t.errorTitle, t.networkSendError);
-    }
-  };
-
-  const monthSelectorRow = { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    marginBottom: 10 
+    if (!currentDayData || !currentDayData.records) return;
+    const updatedRecords = currentDayData.records.filter(rec => rec.id !== recordId);
+    setWorkData({ ...workData, [selectedDate]: { ...currentDayData, records: updatedRecords } });
   };
 
   const saveDayAndClose = async () => {
@@ -592,7 +759,7 @@ export default function App() {
           </TouchableOpacity>
         )}
 
-        <View style={monthSelectorRow}>
+        <View style={styles.monthSelectorRow}>
           <TouchableOpacity style={lang === 'ru' ? styles.langCircleRu : styles.langCircleRuDimmed} onPress={() => handleSelectLanguage('ru')}><Text style={styles.langCircleText}>Р</Text></TouchableOpacity>
           <View style={styles.monthTitleWrapper}>
             <Text style={styles.monthTitle}>{currentMonth.toLocaleString(t.locale, { month: 'long', year: 'numeric' }).toUpperCase()}</Text>
@@ -655,7 +822,7 @@ export default function App() {
               <TouchableOpacity style={styles.btnAddRecordRow} onPress={handleAddRecord}><Text style={styles.btnAddRecordRowText}>{t.btnAddRecord}</Text></TouchableOpacity>
               <View style={styles.modalButtons}>
                 <TouchableOpacity style={styles.btnSave} onPress={saveDayAndClose}><Text style={styles.btnText}>{t.btnSave}</Text></TouchableOpacity>
-                <TouchableOpacity style={styles.btnCancel} onPress={() => { setModalVisible(false); setSelectedDate(null); fetchWorkData(password); }}><Text style={styles.btnText}>{t.btnCancel}</Text></TouchableOpacity>
+                <TouchableOpacity style={[styles.btn, styles.btnCancel]} onPress={() => { setModalVisible(false); setSelectedDate(null); fetchWorkData(password); }}><Text style={styles.btnText}>{t.btnCancel}</Text></TouchableOpacity>
               </View>
             </View>
           </View>
@@ -682,7 +849,7 @@ export default function App() {
                   <Text style={styles.noRecordsText}>{t.noRecordsText}</Text>
                 )}
               </ScrollView>
-              <TouchableOpacity style={[styles.btnCancel, { width: '100%', marginTop: 10 }]} onPress={() => setArchiveModalVisible(false)}>
+              <TouchableOpacity style={[styles.btn, styles.btnCancel, { width: '100%', marginTop: 10 }]} onPress={() => setArchiveModalVisible(false)}>
                 <Text style={styles.btnText}>{t.btnClose}</Text>
               </TouchableOpacity>
             </View>
@@ -812,6 +979,7 @@ const styles = StyleSheet.create({
   btnAddRecordRow: { backgroundColor: '#0052CC', padding: 14, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 15 },
   btnAddRecordRowText: { color: '#FFF', fontWeight: 'bold', fontSize: 16, textAlign: 'center' },
   modalButtons: { flexDirection: 'row', justifyContent: 'space-between' },
+  btn: { padding: 12, borderRadius: 8, minWidth: 80, alignItems: 'center', justifyContent: 'center' },
   btnSave: { backgroundColor: '#0052CC', flex: 1, marginRight: 5, alignItems: 'center', justifyContent: 'center', padding: 12, borderRadius: 8 },
   btnCancel: { backgroundColor: '#9CA3AF', alignItems: 'center', justifyContent: 'center', padding: 12, borderRadius: 8, minWidth: 80 },
   btnText: { color: '#FFF', fontWeight: 'bold', textAlign: 'center' },
