@@ -99,7 +99,7 @@ const localization = {
     pdfColRate: 'Ставка',
     pdfColHours: 'Години',
     pdfColSum: 'Сума',
-    trialExpiredTitle: 'ТЕРМІН ДІЇ ТЕСТОВОЇ ВЕРСІЇ ЗАКІНЧИВСЯ',
+    trialExpiredTitle: 'ТЕРМІН ДІЇ ТЕСТОВОЇ ВЕРСИИ ЗАКІНЧИВСЯ',
     requestFullVersionHeader: 'Запросити повну версію',
     btnSendRequest: 'ВІДПРАВИТИ ЗАЯВКУ',
     noticeText: 'Заявку відправлено розробнику',
@@ -655,7 +655,7 @@ export default function App() {
               <TouchableOpacity style={styles.btnAddRecordRow} onPress={handleAddRecord}><Text style={styles.btnAddRecordRowText}>{t.btnAddRecord}</Text></TouchableOpacity>
               <View style={styles.modalButtons}>
                 <TouchableOpacity style={styles.btnSave} onPress={saveDayAndClose}><Text style={styles.btnText}>{t.btnSave}</Text></TouchableOpacity>
-                <TouchableOpacity style={[styles.btn, styles.btnCancel]} onPress={() => { setModalVisible(false); setSelectedDate(null); fetchWorkData(password); }}><Text style={styles.btnText}>{t.btnCancel}</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.btnCancel} onPress={() => { setModalVisible(false); setSelectedDate(null); fetchWorkData(password); }}><Text style={styles.btnText}>{t.btnCancel}</Text></TouchableOpacity>
               </View>
             </View>
           </View>
@@ -682,7 +682,7 @@ export default function App() {
                   <Text style={styles.noRecordsText}>{t.noRecordsText}</Text>
                 )}
               </ScrollView>
-              <TouchableOpacity style={[styles.btn, styles.btnCancel, { width: '100%', marginTop: 10 }]} onPress={() => setArchiveModalVisible(false)}>
+              <TouchableOpacity style={[styles.btnCancel, { width: '100%', marginTop: 10 }]} onPress={() => setArchiveModalVisible(false)}>
                 <Text style={styles.btnText}>{t.btnClose}</Text>
               </TouchableOpacity>
             </View>
@@ -812,7 +812,6 @@ const styles = StyleSheet.create({
   btnAddRecordRow: { backgroundColor: '#0052CC', padding: 14, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 15 },
   btnAddRecordRowText: { color: '#FFF', fontWeight: 'bold', fontSize: 16, textAlign: 'center' },
   modalButtons: { flexDirection: 'row', justifyContent: 'space-between' },
-  btn: { padding: 12, borderRadius: 8, minWidth: 80, alignItems: 'center', justifyContent: 'center' },
   btnSave: { backgroundColor: '#0052CC', flex: 1, marginRight: 5, alignItems: 'center', justifyContent: 'center', padding: 12, borderRadius: 8 },
   btnCancel: { backgroundColor: '#9CA3AF', alignItems: 'center', justifyContent: 'center', padding: 12, borderRadius: 8, minWidth: 80 },
   btnText: { color: '#FFF', fontWeight: 'bold', textAlign: 'center' },
