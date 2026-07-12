@@ -126,7 +126,7 @@ const translations = {
     pdfColSum: "Сума",
     alertExitTitle: "Вихід",
     alertExitMessage: "Вийти з профілю?",
-    alertExitCancel: "Зберегти",
+    alertExitCancel: "Скасувати",
     alertFormatError: "Неправильний формат",
     alertFormatShort: "Занадто короткий ключ активації.",
     alertSuccessTitle: "Успішно",
