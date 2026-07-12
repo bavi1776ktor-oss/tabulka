@@ -111,7 +111,7 @@ const translations = {
     modalDayTitle: "День",
     placeholderRate: "Ставка",
     placeholderHours: "Години",
-    btnSave: "Скасувати",
+    btnSave: "Зберегти",
     btnCancel: "Скасувати",
     btnClose: "Закрити",
     archiveEarnings: "Заробіток за місяць",
