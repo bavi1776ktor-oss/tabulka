@@ -882,35 +882,15 @@ export default function App() {
           <TouchableOpacity style={styles.authBtnActivate} onPress={handleLogin}><Text style={styles.authButtonText}>{t.btnActivate}</Text></TouchableOpacity>
         </View>
 
-                {/* ==================== МОДАЛКА ДЛЯ СООБЩЕНИЯ ОТ АДМИНИСТРАТОРА ==================== */}
-        <Modal visible={adminMessageModalVisible} transparent={true} animationType="fade">
+        <Modal visible={requestModalVisible} transparent={true} animationType="fade">
           <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, styles.adminMessageModal]}>
-              <Text style={[styles.modalTitle, { color: '#10B981' }]}>{t.messageFromAdmin}</Text>
-              <ScrollView style={styles.adminMessageScroll}>
-                <Text style={styles.adminMessageText}>{adminMessageText}</Text>
-                {adminMessageLink && adminMessageLink.trim() !== '' && (
-                  <TouchableOpacity 
-                    style={styles.adminMessageLinkBtn} 
-                    onPress={() => {
-                      const url = adminMessageLink.trim();
-                      if (url.startsWith('http://') || url.startsWith('https://')) {
-                        Linking.openURL(url).catch(() => {});
-                      } else {
-                        Alert.alert('Ошибка', 'Некорректная ссылка');
-                      }
-                    }}
-                  >
-                    <Text style={styles.adminMessageLinkText}>{t.adminMessageLink}</Text>
-                  </TouchableOpacity>
-                )}
-              </ScrollView>
-              <TouchableOpacity 
-                style={styles.adminMessageCloseBtn} 
-                onPress={markMessageAsRead}
-              >
-                <Text style={styles.adminMessageCloseBtnText}>{t.adminMessageClose}</Text>
-              </TouchableOpacity>
+            <View style={styles.modalContent}>
+              <Text style={[styles.modalTitle, { color: '#10B981' }]}>{t.requestFullVersionHeader}</Text>
+              <TextInput placeholder={t.placeholderName} style={styles.authInputMargin} value={clientName} onChangeText={setClientName} />
+              <TextInput placeholder={t.placeholderPhone} keyboardType="phone-pad" style={styles.authInputMarginLarge} value={clientPhone} onChangeText={setClientPhone} />
+              <TouchableOpacity style={styles.authBtnSend} onPress={handleSendSupportRequest}><Text style={styles.authButtonText}>{t.btnSendRequest}</Text></TouchableOpacity>
+              <View style={styles.noticeContainer}><Text style={styles.noticeSubText}>{t.noticeText}</Text></View>
+              <TouchableOpacity style={[styles.btnCancel, { width: '100%', marginTop: 12 }]} onPress={() => setRequestModalVisible(false)}><Text style={styles.btnText}>{t.btnCancel}</Text></TouchableOpacity>
             </View>
           </View>
         </Modal>
@@ -1020,7 +1000,7 @@ export default function App() {
                 style={styles.adminMessageCloseBtn} 
                 onPress={markMessageAsRead}
               >
-                <Text style={styles.adminMessageCloseBtnText}>Закрыть</Text>
+                <Text style={styles.adminMessageCloseBtnText}>{t.adminMessageClose}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1279,7 +1259,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22
   },
-  // ==================== СТИЛИ ДЛЯ СООБЩЕНИЙ ====================
   adminMessageModal: { 
     maxHeight: '85%', 
     paddingVertical: 20,
