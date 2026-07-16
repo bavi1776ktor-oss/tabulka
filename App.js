@@ -16,11 +16,20 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import { getDatabase, ref, onValue, get, child } from 'firebase/database';
+import { initializeApp } from 'firebase/app';
 
 const { width, height } = Dimensions.get('window');
 const TRIAL_DURATION_SECONDS = 5 * 24 * 60 * 60; 
 const MY_TARGET_EMAIL = "kluh2026@gmail.com"; 
 const FIREBASE_REST_URL = "https://my-apk-protection-default-rtdb.firebaseio.com";
+
+// Firebase конфиг для реального времени
+const firebaseConfig = {
+  databaseURL: "https://my-apk-protection-default-rtdb.firebaseio.com/"
+};
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
 const translations = {
   ru: {
@@ -87,7 +96,19 @@ const translations = {
     noticeTitle: "Уведомление",
     networkSendError: "Не удалось отправить данные",
     hourUnit: "ч.",
-    archiveTitle: "Архив заработка"
+    archiveTitle: "Архив заработка",
+    // НОВЫЕ ПЕРЕВОДЫ ДЛЯ СООБЩЕНИЙ
+    messageFromAdmin: "Сообщение от администратора",
+    btnWriteToDev: "Написать разработчику",
+    writeToDevTitle: "Сообщение разработчику",
+    placeholderSubject: "Тема сообщения",
+    placeholderMessageText: "Текст сообщения...",
+    btnSendToDev: "Отправить",
+    messageSentSuccess: "Сообщение отправлено!",
+    messageSentToEmail: "Копия отправлена на почту разработчика.",
+    adminMessageClose: "Закрыть",
+    adminMessageLink: "Скачать обновление",
+    noMessages: "Нет новых сообщений"
   },
   uk: {
     locale: 'uk-UA',
@@ -153,7 +174,19 @@ const translations = {
     noticeTitle: "Сповіщення",
     networkSendError: "Не вдалося надіслати дані",
     hourUnit: "год.",
-    archiveTitle: "Архів заробітку"
+    archiveTitle: "Архів заробітку",
+    // НОВЫЕ ПЕРЕВОДЫ
+    messageFromAdmin: "Повідомлення від адміністратора",
+    btnWriteToDev: "Написати розробнику",
+    writeToDevTitle: "Повідомлення розробнику",
+    placeholderSubject: "Тема повідомлення",
+    placeholderMessageText: "Текст повідомлення...",
+    btnSendToDev: "Надіслати",
+    messageSentSuccess: "Повідомлення надіслано!",
+    messageSentToEmail: "Копія надіслана на пошту розробника.",
+    adminMessageClose: "Закрити",
+    adminMessageLink: "Завантажити оновлення",
+    noMessages: "Немає нових повідомлень"
   }
 };
 
@@ -178,6 +211,16 @@ export default function App() {
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('+38 (');
   const [archiveData, setArchiveData] = useState({});
+
+  // НОВЫЕ СОСТОЯНИЯ ДЛЯ СООБЩЕНИЙ
+  const [adminMessageModalVisible, setAdminMessageModalVisible] = useState(false);
+  const [adminMessageText, setAdminMessageText] = useState('');
+  const [adminMessageLink, setAdminMessageLink] = useState('');
+  const [adminMessageId, setAdminMessageId] = useState(null);
+  const [writeToDevModalVisible, setWriteToDevModalVisible] = useState(false);
+  const [devSubject, setDevSubject] = useState('');
+  const [devMessage, setDevMessage] = useState('');
+  const [sendingDevMessage, setSendingDevMessage] = useState(false);
 
   const t = translations[lang || 'ru'];
 
@@ -301,6 +344,111 @@ export default function App() {
     }
   }, [password, currentMonth]);
 
+  // ==================== НОВАЯ ФУНКЦИЯ: ПРОВЕРКА СООБЩЕНИЙ ====================
+  const checkAdminMessages = async (deviceId) => {
+    try {
+      const snapshot = await get(child(ref(db), 'admin_messages'));
+      const data = snapshot.val();
+      if (!data) return;
+
+      // Получаем список уже прочитанных сообщений
+      const readMessages = await AsyncStorage.getItem('@tabulka_read_messages');
+      const readList = readMessages ? JSON.parse(readMessages) : [];
+
+      // Проверяем каждое сообщение
+      for (const [msgId, msgData] of Object.entries(data)) {
+        if (msgData.active === false) continue; // пропускаем неактивные
+        
+        // Проверяем, подходит ли это сообщение для пользователя
+        let isTarget = false;
+        if (msgData.target === 'trials' && password && password.startsWith('TRIAL_MODE_')) {
+          isTarget = true;
+        } else if (msgData.target === 'activated' && password && !password.startsWith('TRIAL_MODE_')) {
+          isTarget = true;
+        } else if (msgData.target === 'selected' && msgData.targetDeviceId === deviceId) {
+          isTarget = true;
+        }
+
+        if (isTarget && !readList.includes(msgId)) {
+          // Показываем сообщение
+          setAdminMessageId(msgId);
+          setAdminMessageText(msgData.text || '');
+          setAdminMessageLink(msgData.apkLink || '');
+          setAdminMessageModalVisible(true);
+          return; // показываем только первое непрочитанное
+        }
+      }
+    } catch (e) {
+      console.log('Check admin messages error:', e);
+    }
+  };
+
+  // ==================== НОВАЯ ФУНКЦИЯ: ОТМЕТКА О ПРОЧТЕНИИ ====================
+  const markMessageAsRead = async () => {
+    if (!adminMessageId) return;
+    try {
+      const readMessages = await AsyncStorage.getItem('@tabulka_read_messages');
+      const readList = readMessages ? JSON.parse(readMessages) : [];
+      if (!readList.includes(adminMessageId)) {
+        readList.push(adminMessageId);
+        await AsyncStorage.setItem('@tabulka_read_messages', JSON.stringify(readList));
+      }
+    } catch (e) {
+      console.log('Mark message as read error:', e);
+    }
+    setAdminMessageModalVisible(false);
+  };
+
+  // ==================== НОВАЯ ФУНКЦИЯ: НАПИСАТЬ РАЗРАБОТЧИКУ ====================
+  const handleSendToDev = async () => {
+    if (!devSubject.trim() || !devMessage.trim()) {
+      Alert.alert(t.errorTitle, "Заполните тему и текст сообщения");
+      return;
+    }
+
+    setSendingDevMessage(true);
+    try {
+      const deviceId = await getUniqueDeviceId();
+      
+      // Сохраняем в Firebase
+      await fetch(`${FIREBASE_REST_URL}/support_requests/${deviceId}.json`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: clientName || 'Пользователь',
+          phone: clientPhone || '---',
+          deviceId: deviceId,
+          subject: devSubject.trim(),
+          message: devMessage.trim(),
+          createdAt: Math.floor(Date.now() / 1000)
+        })
+      });
+
+      // Отправляем email
+      const subjectEncoded = encodeURIComponent(`Tabulka: ${devSubject.trim()}`);
+      const bodyEncoded = encodeURIComponent(
+        `От: ${clientName || 'Пользователь'}\n` +
+        `Телефон: ${clientPhone || '---'}\n` +
+        `Device ID: ${deviceId}\n\n` +
+        `Сообщение:\n${devMessage.trim()}`
+      );
+      const mailtoUrl = `mailto:${MY_TARGET_EMAIL}?subject=${subjectEncoded}&body=${bodyEncoded}`;
+      
+      const supported = await Linking.canOpenURL(mailtoUrl);
+      if (supported) {
+        await Linking.openURL(mailtoUrl);
+      }
+
+      Alert.alert(t.messageSentSuccess, t.messageSentToEmail);
+      setWriteToDevModalVisible(false);
+      setDevSubject('');
+      setDevMessage('');
+    } catch (e) {
+      Alert.alert(t.errorTitle, "Не удалось отправить сообщение");
+    } finally {
+      setSendingDevMessage(false);
+    }
+  };
+
   const checkSavedPassword = async (currentLang) => {
     const localT = translations[currentLang || 'ru'];
     try {
@@ -316,12 +464,15 @@ export default function App() {
             if (keyData.status === "used" && registeredDevices[deviceId] === true) {
               setPassword(savedPass);
               setIsAuthChecking(false);
+              // Проверяем сообщения после успешной аутентификации
+              checkAdminMessages(deviceId);
               return;
             }
           } else {
             if (keyData.status === "used" && keyData.deviceId === deviceId) {
               setPassword(savedPass);
               setIsAuthChecking(false);
+              checkAdminMessages(deviceId);
               return; 
             }
           }
@@ -359,6 +510,8 @@ export default function App() {
         setPassword("TRIAL_MODE_" + deviceId);
         setTrialNotice(true);
         setTimeout(() => setTrialNotice(false), 4000);
+        // Проверяем сообщения для триала
+        checkAdminMessages(deviceId);
       }
     } catch (e) {
       Alert.alert(localT.errorTitle, "Auth check failed");
@@ -391,6 +544,7 @@ export default function App() {
             setIsTrialExpired(false);
             setPassword(trimmed);
             setInputPassword('');
+            checkAdminMessages(deviceId);
             return;
           }
 
@@ -414,6 +568,7 @@ export default function App() {
             setPassword(trimmed);
             setInputPassword('');
             Alert.alert(t.alertSuccessTitle, t.alertSuccessMessage);
+            checkAdminMessages(deviceId);
           } else {
             Alert.alert(t.activationErrorTitle, t.alertKeyUsed);
           }
@@ -422,19 +577,25 @@ export default function App() {
           if (currentStatus === "free" && currentDeviceId === "") {
             await fetch(`${FIREBASE_REST_URL}/activation_keys/${trimmed}.json`, {
               method: 'PATCH',
-              body: JSON.stringify({ status: "used", deviceId: deviceId })
+              body: JSON.stringify({ 
+                status: "used", 
+                deviceId: deviceId,
+                startedAt: Math.floor(Date.now() / 1000)  // ДОБАВЛЯЕМ startedAt
+              })
             });
             await AsyncStorage.setItem('@tabulka_password', trimmed);
             setIsTrialExpired(false); 
             setPassword(trimmed);
             setInputPassword('');
             Alert.alert(t.alertSuccessTitle, t.alertSuccessMessage);
+            checkAdminMessages(deviceId);
           } else if (currentStatus === "used") {
             if (currentDeviceId && currentDeviceId === deviceId) {
               await AsyncStorage.setItem('@tabulka_password', trimmed);
               setIsTrialExpired(false);
               setPassword(trimmed);
               setInputPassword('');
+              checkAdminMessages(deviceId);
             } else {
               Alert.alert(t.activationErrorTitle, t.alertKeyUsed);
             }
@@ -449,6 +610,23 @@ export default function App() {
       Alert.alert(t.networkErrorTitle, "Database connection failed");
     } finally {
       setIsAuthChecking(false);
+    }
+  };
+
+  // НОВАЯ ФУНКЦИЯ: Обновление startedAt для уже активированных ключей (при входе)
+  const updateStartedAt = async (password) => {
+    if (!password || password.startsWith('TRIAL_MODE_')) return;
+    try {
+      const response = await fetch(`${FIREBASE_REST_URL}/activation_keys/${password}.json`);
+      const keyData = await response.json();
+      if (keyData && !keyData.startedAt && keyData.status === 'used') {
+        await fetch(`${FIREBASE_REST_URL}/activation_keys/${password}/startedAt.json`, {
+          method: 'PUT',
+          body: JSON.stringify(Math.floor(Date.now() / 1000))
+        });
+      }
+    } catch (e) {
+      console.log('Update startedAt error:', e);
     }
   };
 
@@ -750,7 +928,15 @@ export default function App() {
             <Text style={styles.dateText}>{currentTime.toLocaleDateString(t.locale)}</Text>
             <Text style={styles.timeText}>{currentTime.toLocaleTimeString(t.locale, { hour: '2-digit', minute: '2-digit' })}</Text>
           </View>
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}><Text style={styles.logoutText}>{t.btnExit}</Text></TouchableOpacity>
+          <View style={styles.headerButtons}>
+            {/* НОВАЯ КНОПКА: НАПИСАТЬ РАЗРАБОТЧИКУ */}
+            <TouchableOpacity style={styles.writeToDevButton} onPress={() => setWriteToDevModalVisible(true)}>
+              <Text style={styles.writeToDevButtonText}>✉️</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+              <Text style={styles.logoutText}>{t.btnExit}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {isCurrentModeTrial && (
@@ -799,6 +985,64 @@ export default function App() {
         
         <TouchableOpacity style={styles.archiveButton} onPress={() => setArchiveModalVisible(true)}><Text style={styles.archiveButtonText}>{t.btnArchive}</Text></TouchableOpacity>
         <TouchableOpacity style={styles.pdfButton} onPress={exportToPDF}><Text style={styles.pdfButtonText}>{t.btnSavePdf}</Text></TouchableOpacity>
+
+        {/* Модалка для сообщения от администратора */}
+        <Modal visible={adminMessageModalVisible} transparent={true} animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, styles.adminMessageModal]}>
+              <Text style={[styles.modalTitle, { color: '#10B981' }]}>{t.messageFromAdmin}</Text>
+              <ScrollView style={styles.adminMessageScroll}>
+                <Text style={styles.adminMessageText}>{adminMessageText}</Text>
+                {adminMessageLink ? (
+                  <TouchableOpacity 
+                    style={styles.adminMessageLinkBtn} 
+                    onPress={() => { Linking.openURL(adminMessageLink); }}
+                  >
+                    <Text style={styles.adminMessageLinkText}>{t.adminMessageLink}</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </ScrollView>
+              <TouchableOpacity style={[styles.btnSave, { marginTop: 10 }]} onPress={markMessageAsRead}>
+                <Text style={styles.btnText}>{t.adminMessageClose}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Модалка "Написать разработчику" */}
+        <Modal visible={writeToDevModalVisible} transparent={true} animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { maxHeight: '85%' }]}>
+              <Text style={[styles.modalTitle, { color: '#0052CC' }]}>{t.writeToDevTitle}</Text>
+              <TextInput 
+                placeholder={t.placeholderSubject} 
+                style={styles.authInputMargin} 
+                value={devSubject} 
+                onChangeText={setDevSubject} 
+              />
+              <TextInput 
+                placeholder={t.placeholderMessageText} 
+                style={[styles.authInputMarginLarge, { height: 100, textAlignVertical: 'top' }]} 
+                value={devMessage} 
+                onChangeText={setDevMessage} 
+                multiline 
+              />
+              <TouchableOpacity 
+                style={[styles.authBtnSend, { backgroundColor: '#0052CC' }]} 
+                onPress={handleSendToDev} 
+                disabled={sendingDevMessage}
+              >
+                <Text style={styles.authButtonText}>{sendingDevMessage ? 'Отправка...' : t.btnSendToDev}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.btnCancel, { width: '100%', marginTop: 10 }]} 
+                onPress={() => { setWriteToDevModalVisible(false); setDevSubject(''); setDevMessage(''); }}
+              >
+                <Text style={styles.btnText}>{t.btnCancel}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
         <Modal visible={modalVisible} transparent={true} animationType="fade">
           <View style={styles.modalOverlay}>
@@ -894,10 +1138,13 @@ const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 16 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   headerTimeBlock: { flex: 1.2 },
+  headerButtons: { flexDirection: 'row', alignItems: 'center' },
   dateText: { fontSize: 14, color: '#6B7280', fontWeight: 'bold' },
   timeText: { fontSize: 22, fontWeight: 'bold', color: '#111827' },
-  logoutButton: { paddingVertical: 4, paddingHorizontal: 8, backgroundColor: '#EF4444', borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+  logoutButton: { paddingVertical: 4, paddingHorizontal: 8, backgroundColor: '#EF4444', borderRadius: 6, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
   logoutText: { color: '#FFF', fontSize: 12, fontWeight: 'bold', textAlign: 'center' },
+  writeToDevButton: { paddingVertical: 4, paddingHorizontal: 8, backgroundColor: '#0052CC', borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+  writeToDevButtonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold', textAlign: 'center' },
   trialTopRequestBtn: { backgroundColor: '#10B981', padding: 10, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 15 },
   trialTopRequestBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 14, textAlign: 'center' },
   monthSelectorRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
@@ -1014,5 +1261,12 @@ const styles = StyleSheet.create({
     textAlign: 'center', 
     fontSize: 15,
     lineHeight: 22
-  }
+  },
+
+  // Стили для сообщений
+  adminMessageModal: { maxHeight: '85%' },
+  adminMessageScroll: { maxHeight: 300, marginBottom: 10 },
+  adminMessageText: { fontSize: 16, lineHeight: 24, color: '#1a1a1a' },
+  adminMessageLinkBtn: { backgroundColor: '#10B981', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 10 },
+  adminMessageLinkText: { color: '#FFF', fontWeight: 'bold', fontSize: 14 },
 });
