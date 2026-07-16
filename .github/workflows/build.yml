@@ -1,70 +1,56 @@
-name: Build Android APK Locally
+name: Manual Android APK Build
 
 on:
-  push:
-    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Node
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Generate Android Native Folder
+        run: npx expo prebuild --platform android --clean
+
       - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'zulu'
 
-      # Ставим базовые зависимости
-      - name: Install JS Dependencies
-        run: npm install
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
 
-      # Установка модулей Expo
-      - name: Install Missing Expo Modules
+      - name: Force Maven Central and Google repos
         run: |
-          npm install react-native-calendars
-          npx expo install expo-secure-store expo-application -- --fix
+          cat > ~/.gradle/init.gradle << 'EOF'
+          allprojects {
+              repositories {
+                  mavenCentral()
+                  google()
+                  maven { url 'https://jitpack.io' }
+              }
+          }
+          EOF
 
-      # ЖЕСТКИЙ ФИКС: Скачиваем реальные крошечные 1x1 PNG картинки, чтобы Jimp не ругался на пустой буфер
-      - name: Download Valid Dummy Assets
-        run: |
-          mkdir -p assets
-          curl -s -o assets/icon.png "https://upload.wikimedia.org/wikipedia/commons/c/ca/1x1.png"
-          curl -s -o assets/splash.png "https://upload.wikimedia.org/wikipedia/commons/c/ca/1x1.png"
-          curl -s -o assets/adaptive-icon.png "https://upload.wikimedia.org/wikipedia/commons/c/ca/1x1.png"
-
-      # Проверяем сборку JS
-      - name: Verify JS Bundle
-        run: npx expo export --platform android
-
-      # 1. Генерируем папку android с чистого листа
-      - name: Generate Android Folder
-        run: |
-          rm -rf android
-          npx expo prebuild --platform android --no-install
-
-      # 2. Лечим баг совместимости Expo + Gradle 8.8
-      - name: Patch Expo Modules Core
-        run: |
-          sed -i 's/components.release/components.findByName("release")/g' node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle
-
-      # 3. Собираем APK
-      - name: Compile APK
+      - name: Build APK via Gradle
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon
 
-      # 4. Выкатываем готовый APK
-      - name: Upload APK
+      - name: Upload Finished APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-release
+          name: app-release-apk
           path: android/app/build/outputs/apk/release/app-release.apk
