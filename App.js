@@ -16,20 +16,11 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import { getDatabase, ref, onValue, get, child } from 'firebase/database';
-import { initializeApp } from 'firebase/app';
 
 const { width, height } = Dimensions.get('window');
 const TRIAL_DURATION_SECONDS = 5 * 24 * 60 * 60; 
 const MY_TARGET_EMAIL = "kluh2026@gmail.com"; 
 const FIREBASE_REST_URL = "https://my-apk-protection-default-rtdb.firebaseio.com";
-
-// Firebase конфиг для реального времени
-const firebaseConfig = {
-  databaseURL: "https://my-apk-protection-default-rtdb.firebaseio.com/"
-};
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
 
 const translations = {
   ru: {
@@ -97,7 +88,6 @@ const translations = {
     networkSendError: "Не удалось отправить данные",
     hourUnit: "ч.",
     archiveTitle: "Архив заработка",
-    // НОВЫЕ ПЕРЕВОДЫ ДЛЯ СООБЩЕНИЙ
     messageFromAdmin: "Сообщение от администратора",
     btnWriteToDev: "Написать разработчику",
     writeToDevTitle: "Сообщение разработчику",
@@ -175,7 +165,6 @@ const translations = {
     networkSendError: "Не вдалося надіслати дані",
     hourUnit: "год.",
     archiveTitle: "Архів заробітку",
-    // НОВЫЕ ПЕРЕВОДЫ
     messageFromAdmin: "Повідомлення від адміністратора",
     btnWriteToDev: "Написати розробнику",
     writeToDevTitle: "Повідомлення розробнику",
@@ -212,7 +201,6 @@ export default function App() {
   const [clientPhone, setClientPhone] = useState('+38 (');
   const [archiveData, setArchiveData] = useState({});
 
-  // НОВЫЕ СОСТОЯНИЯ ДЛЯ СООБЩЕНИЙ
   const [adminMessageModalVisible, setAdminMessageModalVisible] = useState(false);
   const [adminMessageText, setAdminMessageText] = useState('');
   const [adminMessageLink, setAdminMessageLink] = useState('');
@@ -238,9 +226,7 @@ export default function App() {
         setIsAuthChecking(true);
         checkSavedPassword(savedLang);
       }
-    } catch (e) {
-      // Экран выбора языка
-    }
+    } catch (e) {}
   };
 
   const getUniqueDeviceId = async () => {
@@ -330,9 +316,7 @@ export default function App() {
         summary[key] = monthSum;
       }
       setArchiveData(summary);
-    } catch (e) {
-      // Тихое подавление
-    }
+    } catch (e) {}
   };
 
   useEffect(() => {
@@ -344,22 +328,19 @@ export default function App() {
     }
   }, [password, currentMonth]);
 
-  // ==================== НОВАЯ ФУНКЦИЯ: ПРОВЕРКА СООБЩЕНИЙ ====================
+  // ==================== ПРОВЕРКА СООБЩЕНИЙ ЧЕРЕЗ REST API ====================
   const checkAdminMessages = async (deviceId) => {
     try {
-      const snapshot = await get(child(ref(db), 'admin_messages'));
-      const data = snapshot.val();
+      const response = await fetch(`${FIREBASE_REST_URL}/admin_messages.json`);
+      const data = await response.json();
       if (!data) return;
 
-      // Получаем список уже прочитанных сообщений
       const readMessages = await AsyncStorage.getItem('@tabulka_read_messages');
       const readList = readMessages ? JSON.parse(readMessages) : [];
 
-      // Проверяем каждое сообщение
       for (const [msgId, msgData] of Object.entries(data)) {
-        if (msgData.active === false) continue; // пропускаем неактивные
+        if (msgData.active === false) continue;
         
-        // Проверяем, подходит ли это сообщение для пользователя
         let isTarget = false;
         if (msgData.target === 'trials' && password && password.startsWith('TRIAL_MODE_')) {
           isTarget = true;
@@ -370,12 +351,11 @@ export default function App() {
         }
 
         if (isTarget && !readList.includes(msgId)) {
-          // Показываем сообщение
           setAdminMessageId(msgId);
           setAdminMessageText(msgData.text || '');
           setAdminMessageLink(msgData.apkLink || '');
           setAdminMessageModalVisible(true);
-          return; // показываем только первое непрочитанное
+          return;
         }
       }
     } catch (e) {
@@ -383,7 +363,7 @@ export default function App() {
     }
   };
 
-  // ==================== НОВАЯ ФУНКЦИЯ: ОТМЕТКА О ПРОЧТЕНИИ ====================
+  // ==================== ОТМЕТКА О ПРОЧТЕНИИ ====================
   const markMessageAsRead = async () => {
     if (!adminMessageId) return;
     try {
@@ -399,7 +379,7 @@ export default function App() {
     setAdminMessageModalVisible(false);
   };
 
-  // ==================== НОВАЯ ФУНКЦИЯ: НАПИСАТЬ РАЗРАБОТЧИКУ ====================
+  // ==================== НАПИСАТЬ РАЗРАБОТЧИКУ ====================
   const handleSendToDev = async () => {
     if (!devSubject.trim() || !devMessage.trim()) {
       Alert.alert(t.errorTitle, "Заполните тему и текст сообщения");
@@ -410,7 +390,6 @@ export default function App() {
     try {
       const deviceId = await getUniqueDeviceId();
       
-      // Сохраняем в Firebase
       await fetch(`${FIREBASE_REST_URL}/support_requests/${deviceId}.json`, {
         method: 'PUT',
         body: JSON.stringify({
@@ -423,7 +402,6 @@ export default function App() {
         })
       });
 
-      // Отправляем email
       const subjectEncoded = encodeURIComponent(`Tabulka: ${devSubject.trim()}`);
       const bodyEncoded = encodeURIComponent(
         `От: ${clientName || 'Пользователь'}\n` +
@@ -464,7 +442,6 @@ export default function App() {
             if (keyData.status === "used" && registeredDevices[deviceId] === true) {
               setPassword(savedPass);
               setIsAuthChecking(false);
-              // Проверяем сообщения после успешной аутентификации
               checkAdminMessages(deviceId);
               return;
             }
@@ -510,7 +487,6 @@ export default function App() {
         setPassword("TRIAL_MODE_" + deviceId);
         setTrialNotice(true);
         setTimeout(() => setTrialNotice(false), 4000);
-        // Проверяем сообщения для триала
         checkAdminMessages(deviceId);
       }
     } catch (e) {
@@ -580,7 +556,7 @@ export default function App() {
               body: JSON.stringify({ 
                 status: "used", 
                 deviceId: deviceId,
-                startedAt: Math.floor(Date.now() / 1000)  // ДОБАВЛЯЕМ startedAt
+                startedAt: Math.floor(Date.now() / 1000)
               })
             });
             await AsyncStorage.setItem('@tabulka_password', trimmed);
@@ -613,7 +589,6 @@ export default function App() {
     }
   };
 
-  // НОВАЯ ФУНКЦИЯ: Обновление startedAt для уже активированных ключей (при входе)
   const updateStartedAt = async (password) => {
     if (!password || password.startsWith('TRIAL_MODE_')) return;
     try {
@@ -929,7 +904,6 @@ export default function App() {
             <Text style={styles.timeText}>{currentTime.toLocaleTimeString(t.locale, { hour: '2-digit', minute: '2-digit' })}</Text>
           </View>
           <View style={styles.headerButtons}>
-            {/* НОВАЯ КНОПКА: НАПИСАТЬ РАЗРАБОТЧИКУ */}
             <TouchableOpacity style={styles.writeToDevButton} onPress={() => setWriteToDevModalVisible(true)}>
               <Text style={styles.writeToDevButtonText}>✉️</Text>
             </TouchableOpacity>
@@ -1262,8 +1236,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22
   },
-
-  // Стили для сообщений
   adminMessageModal: { maxHeight: '85%' },
   adminMessageScroll: { maxHeight: 300, marginBottom: 10 },
   adminMessageText: { fontSize: 16, lineHeight: 24, color: '#1a1a1a' },
