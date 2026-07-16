@@ -328,8 +328,17 @@ export default function App() {
     }
   }, [password, currentMonth]);
 
-  // ==================== ПРОВЕРКА СООБЩЕНИЙ ЧЕРЕЗ REST API ====================
-  const checkAdminMessages = async (deviceId) => {
+  // ==================== ПРОВЕРКА СООБЩЕНИЙ (ИСПРАВЛЕННАЯ) ====================
+  const checkAdminMessages = async (deviceId, currentPassword) => {
+    // Если пароль не передан — пробуем взять из состояния
+    const actualPassword = currentPassword || password;
+    
+    // Если пароля нет — выходим
+    if (!actualPassword) {
+      console.log('Нет пароля, сообщения не проверяем');
+      return;
+    }
+
     try {
       const response = await fetch(`${FIREBASE_REST_URL}/admin_messages.json`);
       const data = await response.json();
@@ -338,13 +347,18 @@ export default function App() {
       const readMessages = await AsyncStorage.getItem('@tabulka_read_messages');
       const readList = readMessages ? JSON.parse(readMessages) : [];
 
+      // Определяем тип пользователя
+      const isTrial = actualPassword.startsWith('TRIAL_MODE_');
+      const isActivated = !isTrial;
+
       for (const [msgId, msgData] of Object.entries(data)) {
         if (msgData.active === false) continue;
         
         let isTarget = false;
-        if (msgData.target === 'trials' && password && password.startsWith('TRIAL_MODE_')) {
+        
+        if (msgData.target === 'trials' && isTrial) {
           isTarget = true;
-        } else if (msgData.target === 'activated' && password && !password.startsWith('TRIAL_MODE_')) {
+        } else if (msgData.target === 'activated' && isActivated) {
           isTarget = true;
         } else if (msgData.target === 'selected' && msgData.targetDeviceId === deviceId) {
           isTarget = true;
@@ -442,14 +456,15 @@ export default function App() {
             if (keyData.status === "used" && registeredDevices[deviceId] === true) {
               setPassword(savedPass);
               setIsAuthChecking(false);
-              checkAdminMessages(deviceId);
+              // После установки пароля проверяем сообщения
+              checkAdminMessages(deviceId, savedPass);
               return;
             }
           } else {
             if (keyData.status === "used" && keyData.deviceId === deviceId) {
               setPassword(savedPass);
               setIsAuthChecking(false);
-              checkAdminMessages(deviceId);
+              checkAdminMessages(deviceId, savedPass);
               return; 
             }
           }
@@ -484,10 +499,12 @@ export default function App() {
       } else {
         const calculatedDays = Math.ceil(remainingSeconds / (24 * 60 * 60));
         setDaysLeft(calculatedDays);
-        setPassword("TRIAL_MODE_" + deviceId);
+        const trialPassword = "TRIAL_MODE_" + deviceId;
+        setPassword(trialPassword);
         setTrialNotice(true);
         setTimeout(() => setTrialNotice(false), 4000);
-        checkAdminMessages(deviceId);
+        // Проверяем сообщения для триала
+        checkAdminMessages(deviceId, trialPassword);
       }
     } catch (e) {
       Alert.alert(localT.errorTitle, "Auth check failed");
@@ -520,7 +537,7 @@ export default function App() {
             setIsTrialExpired(false);
             setPassword(trimmed);
             setInputPassword('');
-            checkAdminMessages(deviceId);
+            checkAdminMessages(deviceId, trimmed);
             return;
           }
 
@@ -544,7 +561,7 @@ export default function App() {
             setPassword(trimmed);
             setInputPassword('');
             Alert.alert(t.alertSuccessTitle, t.alertSuccessMessage);
-            checkAdminMessages(deviceId);
+            checkAdminMessages(deviceId, trimmed);
           } else {
             Alert.alert(t.activationErrorTitle, t.alertKeyUsed);
           }
@@ -564,14 +581,14 @@ export default function App() {
             setPassword(trimmed);
             setInputPassword('');
             Alert.alert(t.alertSuccessTitle, t.alertSuccessMessage);
-            checkAdminMessages(deviceId);
+            checkAdminMessages(deviceId, trimmed);
           } else if (currentStatus === "used") {
             if (currentDeviceId && currentDeviceId === deviceId) {
               await AsyncStorage.setItem('@tabulka_password', trimmed);
               setIsTrialExpired(false);
               setPassword(trimmed);
               setInputPassword('');
-              checkAdminMessages(deviceId);
+              checkAdminMessages(deviceId, trimmed);
             } else {
               Alert.alert(t.activationErrorTitle, t.alertKeyUsed);
             }
