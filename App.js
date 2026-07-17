@@ -99,7 +99,6 @@ const translations = {
     adminMessageClose: "Закрыть",
     adminMessageLink: "Скачать обновление",
     noMessages: "Нет новых сообщений",
-    // Новые переводы для графика
     shiftDay: "День",
     shiftNight: "Ночь",
     shift24: "Сутки",
@@ -109,6 +108,8 @@ const translations = {
     modeTimesheet: "Табель",
     modeSchedule: "График",
     selectShift: "Выберите смену",
+    calculateYear: "Просчитать на год",
+    yearCalculated: "График просчитан на год вперёд"
   },
   uk: {
     locale: 'uk-UA',
@@ -195,6 +196,8 @@ const translations = {
     modeTimesheet: "Табель",
     modeSchedule: "Графік",
     selectShift: "Виберіть зміну",
+    calculateYear: "Порахувати на рік",
+    yearCalculated: "Графік розраховано на рік вперед"
   }
 };
 
@@ -288,7 +291,6 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         setShiftData(parsed);
-        // Восстанавливаем паттерн из первых дней текущего месяца
         extractPatternFromMonth(parsed);
       }
     } catch (e) {
@@ -340,12 +342,10 @@ export default function App() {
     const result = {};
     for (let i = 0; i < days.length; i++) {
       const dayKey = days[i];
-      // Пропускаем уже заполненные дни (чтобы не перетереть ручные правки)
       if (shiftData[dayKey]) {
         result[dayKey] = shiftData[dayKey];
         continue;
       }
-      // Берём смену по циклу из паттерна
       const patternIndex = i % pattern.length;
       result[dayKey] = pattern[patternIndex];
     }
@@ -359,7 +359,6 @@ export default function App() {
     const days = getDaysInMonth(monthDate);
     for (let i = 0; i < days.length; i++) {
       const dayKey = days[i];
-      // Не перезаписываем уже заполненные дни
       if (newData[dayKey]) continue;
       const patternIndex = i % shiftPattern.length;
       newData[dayKey] = shiftPattern[patternIndex];
@@ -367,39 +366,33 @@ export default function App() {
     saveShiftData(newData);
   };
 
-  // ==================== ПРИМЕНЕНИЕ ПАТТЕРНА К БУДУЩИМ МЕСЯЦАМ ====================
-  const applyPatternToFutureMonths = (startDate) => {
-    if (!shiftPattern || shiftPattern.length < 2) return;
-    const newData = { ...shiftData };
-    const startYear = startDate.getFullYear();
-    const startMonth = startDate.getMonth();
-    
-    // Заполняем текущий месяц
-    const currentDays = getDaysInMonth(new Date(startYear, startMonth, 1));
-    for (let i = 0; i < currentDays.length; i++) {
-      const dayKey = currentDays[i];
-      if (!newData[dayKey]) {
-        const patternIndex = i % shiftPattern.length;
-        newData[dayKey] = shiftPattern[patternIndex];
-      }
+  // ==================== РАСЧЁТ НА ГОД ====================
+  const calculateYear = async () => {
+    if (!shiftPattern || shiftPattern.length < 2) {
+      Alert.alert(t.errorTitle, "Сначала введите 2–3 смены подряд в текущем месяце");
+      return;
     }
-
-    // Заполняем следующие 12 месяцев
-    for (let m = 1; m <= 12; m++) {
+    
+    const newData = { ...shiftData };
+    const today = new Date();
+    const startYear = today.getFullYear();
+    const startMonth = today.getMonth();
+    
+    // Заполняем 24 месяца (текущий + 23 вперёд)
+    for (let m = 0; m < 24; m++) {
       const targetDate = new Date(startYear, startMonth + m, 1);
       const days = getDaysInMonth(targetDate);
-      let dayOffset = 0;
       for (let i = 0; i < days.length; i++) {
         const dayKey = days[i];
         // Если день уже заполнен — пропускаем (ручная правка)
         if (newData[dayKey]) continue;
-        // Считаем смещение от начала месяца
-        const patternIndex = (i + dayOffset) % shiftPattern.length;
+        const patternIndex = i % shiftPattern.length;
         newData[dayKey] = shiftPattern[patternIndex];
-        dayOffset++;
       }
     }
-    saveShiftData(newData);
+    
+    await saveShiftData(newData);
+    Alert.alert(t.noticeTitle, t.yearCalculated);
   };
 
   // ==================== ОЧИСТКА ГРАФИКА ====================
@@ -457,6 +450,19 @@ export default function App() {
       case 'off': return t.shiftOff;
       default: return '';
     }
+  };
+
+  // ==================== НАВИГАЦИЯ ПО МЕСЯЦАМ ====================
+  const goToPrevMonth = () => {
+    const newDate = new Date(currentMonth);
+    newDate.setMonth(newDate.getMonth() - 1);
+    setCurrentMonth(newDate);
+  };
+
+  const goToNextMonth = () => {
+    const newDate = new Date(currentMonth);
+    newDate.setMonth(newDate.getMonth() + 1);
+    setCurrentMonth(newDate);
   };
 
   // ==================== ОСТАЛЬНОЙ СУЩЕСТВУЮЩИЙ КОД ====================
@@ -1028,7 +1034,6 @@ export default function App() {
       const isWorkDay = dayTotal > 0;
       const dayNum = dateStr.split('-')[2];
       
-      // Для режима графика — используем shiftData
       let shiftColor = '#FFFFFF';
       let shiftLabel = '';
       if (activeMode === 'schedule') {
@@ -1157,18 +1162,31 @@ export default function App() {
           </TouchableOpacity>
         )}
 
+        {/* ==================== НАВИГАЦИЯ ПО МЕСЯЦАМ ==================== */}
         <View style={styles.monthSelectorRow}>
-          <TouchableOpacity style={lang === 'ru' ? styles.langCircleRu : styles.langCircleRuDimmed} onPress={() => handleSelectLanguage('ru')}><Text style={styles.langCircleText}>Р</Text></TouchableOpacity>
+          <TouchableOpacity style={lang === 'ru' ? styles.langCircleRu : styles.langCircleRuDimmed} onPress={() => handleSelectLanguage('ru')}>
+            <Text style={styles.langCircleText}>Р</Text>
+          </TouchableOpacity>
           
           <View style={styles.monthTitleWrapper}>
-            <TouchableOpacity onPress={() => setCurrentMonth(new Date())} style={styles.todayButton}>
-              <Text style={styles.todayButtonText}>{t.btnToday.toUpperCase()}</Text>
+            <TouchableOpacity onPress={goToPrevMonth} style={styles.arrowButton}>
+              <Text style={styles.arrowText}>◀</Text>
             </TouchableOpacity>
             <Text style={styles.monthTitle}>{currentMonth.toLocaleString(t.locale, { month: 'long', year: 'numeric' }).toUpperCase()}</Text>
+            <TouchableOpacity onPress={goToNextMonth} style={styles.arrowButton}>
+              <Text style={styles.arrowText}>▶</Text>
+            </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={lang === 'uk' ? styles.langCircleUk : styles.langCircleUkDimmed} onPress={() => handleSelectLanguage('uk')}><Text style={styles.langCircleText}>У</Text></TouchableOpacity>
+          <TouchableOpacity style={lang === 'uk' ? styles.langCircleUk : styles.langCircleUkDimmed} onPress={() => handleSelectLanguage('uk')}>
+            <Text style={styles.langCircleText}>У</Text>
+          </TouchableOpacity>
         </View>
+
+        {/* ==================== КНОПКА "СЕГОДНЯ" ==================== */}
+        <TouchableOpacity style={styles.todayButtonFull} onPress={() => setCurrentMonth(new Date())}>
+          <Text style={styles.todayButtonFullText}>{t.btnToday.toUpperCase()}</Text>
+        </TouchableOpacity>
 
         {/* ==================== ПЕРЕКЛЮЧАТЕЛЬ МЕЖДУ ТАБЕЛЕМ И ГРАФИКОМ ==================== */}
         <View style={styles.modeSwitchRow}>
@@ -1185,9 +1203,14 @@ export default function App() {
             <Text style={[styles.modeButtonText, activeMode === 'schedule' && styles.modeButtonTextActive]}>📅</Text>
           </TouchableOpacity>
           {activeMode === 'schedule' && (
-            <TouchableOpacity style={styles.clearScheduleButton} onPress={clearSchedule}>
-              <Text style={styles.clearScheduleButtonText}>🗑️</Text>
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity style={styles.clearScheduleButton} onPress={clearSchedule}>
+                <Text style={styles.clearScheduleButtonText}>🗑️</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.calcYearButton} onPress={calculateYear}>
+                <Text style={styles.calcYearButtonText}>📆</Text>
+              </TouchableOpacity>
+            </>
           )}
         </View>
 
@@ -1206,7 +1229,7 @@ export default function App() {
               🔄 Паттерн: {shiftPattern.map(s => getShiftLabel(s)).join(' → ')}
             </Text>
             <Text style={styles.patternInfoSubtext}>
-              Смены автоматически применяются ко всем месяцам
+              Нажмите 📆 для расчёта на год вперёд
             </Text>
           </View>
         )}
@@ -1435,11 +1458,14 @@ const styles = StyleSheet.create({
   writeToDevButtonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold', textAlign: 'center' },
   trialTopRequestBtn: { backgroundColor: '#10B981', padding: 10, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 15 },
   trialTopRequestBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 14, textAlign: 'center' },
+  // ==================== НАВИГАЦИЯ ПО МЕСЯЦАМ ====================
   monthSelectorRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   monthTitleWrapper: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
-  monthTitle: { fontSize: 16, fontWeight: 'bold', color: '#374151', textAlign: 'center', marginRight: 8 },
-  todayButton: { paddingVertical: 4, paddingHorizontal: 8, backgroundColor: '#0052CC', borderRadius: 6, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
-  todayButtonText: { color: '#FFF', fontSize: 11, fontWeight: 'bold', textAlign: 'center' },
+  monthTitle: { fontSize: 16, fontWeight: 'bold', color: '#374151', textAlign: 'center', marginHorizontal: 10 },
+  arrowButton: { paddingHorizontal: 12, paddingVertical: 4 },
+  arrowText: { fontSize: 18, color: '#0052CC', fontWeight: 'bold' },
+  todayButtonFull: { backgroundColor: '#0052CC', paddingVertical: 6, borderRadius: 8, alignItems: 'center', marginBottom: 10, marginHorizontal: 20 },
+  todayButtonFullText: { color: '#FFF', fontWeight: 'bold', fontSize: 14 },
   langCircleText: { color: '#FFF', fontSize: 14, fontWeight: 'bold', textAlign: 'center' },
   langCircleRu: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0052CC' },
   langCircleRuDimmed: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0052CC', opacity: 0.35 },
@@ -1453,6 +1479,8 @@ const styles = StyleSheet.create({
   modeButtonTextActive: { color: '#FFF' },
   clearScheduleButton: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#EF4444', marginLeft: 4 },
   clearScheduleButtonText: { fontSize: 16, color: '#FFF' },
+  calcYearButton: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#10B981', marginLeft: 4 },
+  calcYearButtonText: { fontSize: 16, color: '#FFF' },
   // ==================== СТИЛИ ДЛЯ ГРАФИКА ====================
   shiftCell: { width: (width - 32) / 7 - 8, height: 46, margin: 4, justifyContent: 'center', alignItems: 'center', borderRadius: 8, borderWidth: 1, borderColor: '#D1D5DB' },
   shiftDayText: { fontSize: 15, fontWeight: 'bold', color: '#111827', textAlign: 'center' },
