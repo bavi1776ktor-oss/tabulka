@@ -11,7 +11,10 @@ import {
   Dimensions,
   Alert,
   ActivityIndicator,
-  Linking
+  Linking,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Print from 'expo-print';
@@ -107,10 +110,23 @@ const translations = {
     scheduleCleared: "График очищен",
     modeTimesheet: "Табель",
     modeSchedule: "График",
+    modeShopping: "Список",
     selectShift: "Выберите смену",
     calculateYear: "Просчитать на год",
     yearCalculated: "График просчитан на год вперёд",
-    fillAllDays: "Заполните все дни месяца перед расчётом"
+    fillAllDays: "Заполните все дни месяца перед расчётом",
+    // Shopping translations
+    shoppingTitle: "Что купить",
+    shoppingBuy: "Купить",
+    shoppingBought: "Куплено",
+    shoppingClear: "Очистить",
+    shoppingAdd: "Добавить товар...",
+    shoppingEmpty: "Список пуст",
+    shoppingDelete: "Удалить",
+    shoppingMovedToBought: "Перемещено в купленные",
+    shoppingMovedToBuy: "Возвращено в список",
+    shoppingDeleted: "Товар удалён",
+    shoppingCleared: "Список купленных очищен"
   },
   uk: {
     locale: 'uk-UA',
@@ -196,10 +212,22 @@ const translations = {
     scheduleCleared: "Графік очищено",
     modeTimesheet: "Табель",
     modeSchedule: "Графік",
+    modeShopping: "Список",
     selectShift: "Виберіть зміну",
     calculateYear: "Порахувати на рік",
     yearCalculated: "Графік розраховано на рік вперед",
-    fillAllDays: "Заповніть всі дні місяця перед розрахунком"
+    fillAllDays: "Заповніть всі дні місяця перед розрахунком",
+    shoppingTitle: "Що купити",
+    shoppingBuy: "Купити",
+    shoppingBought: "Куплено",
+    shoppingClear: "Очистити",
+    shoppingAdd: "Додати товар...",
+    shoppingEmpty: "Список порожній",
+    shoppingDelete: "Видалити",
+    shoppingMovedToBought: "Переміщено до куплених",
+    shoppingMovedToBuy: "Повернуто до списку",
+    shoppingDeleted: "Товар видалено",
+    shoppingCleared: "Список куплених очищено"
   }
 };
 
@@ -240,6 +268,11 @@ export default function App() {
   const [shiftStartDate, setShiftStartDate] = useState(null);
   const [shiftModalVisible, setShiftModalVisible] = useState(false);
   const [selectedShiftDate, setSelectedShiftDate] = useState(null);
+
+  // ==================== СОСТОЯНИЯ ДЛЯ СПИСКА ПОКУПОК ====================
+  const [shoppingBuy, setShoppingBuy] = useState([]);
+  const [shoppingBought, setShoppingBought] = useState([]);
+  const [shoppingInput, setShoppingInput] = useState('');
 
   const t = translations[lang || 'ru'];
 
@@ -284,6 +317,91 @@ export default function App() {
     }
   };
 
+  // ==================== ЗАГРУЗКА/СОХРАНЕНИЕ СПИСКА ПОКУПОК ====================
+  const loadShoppingList = async () => {
+    if (!password) return;
+    try {
+      const key = `@shopping_${password}`;
+      const saved = await AsyncStorage.getItem(key);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setShoppingBuy(parsed.buy || []);
+        setShoppingBought(parsed.bought || []);
+      }
+    } catch (e) {
+      console.log('Load shopping error:', e);
+    }
+  };
+
+  const saveShoppingList = async (buy, bought) => {
+    if (!password) return;
+    try {
+      const key = `@shopping_${password}`;
+      await AsyncStorage.setItem(key, JSON.stringify({ buy, bought }));
+    } catch (e) {
+      console.log('Save shopping error:', e);
+    }
+  };
+
+  const addShoppingItem = () => {
+    const text = shoppingInput.trim();
+    if (!text) return;
+    const newBuy = [...shoppingBuy, { id: Date.now().toString() + '_' + Math.random().toString(36).substring(2, 6), text }];
+    setShoppingBuy(newBuy);
+    saveShoppingList(newBuy, shoppingBought);
+    setShoppingInput('');
+  };
+
+  const toggleShoppingItem = (item, isBought) => {
+    if (isBought) {
+      // Возвращаем в "Купить"
+      const newBought = shoppingBought.filter(i => i.id !== item.id);
+      const newBuy = [...shoppingBuy, item];
+      setShoppingBuy(newBuy);
+      setShoppingBought(newBought);
+      saveShoppingList(newBuy, newBought);
+    } else {
+      // Перемещаем в "Куплено"
+      const newBuy = shoppingBuy.filter(i => i.id !== item.id);
+      const newBought = [...shoppingBought, { ...item, boughtAt: Date.now() }];
+      setShoppingBuy(newBuy);
+      setShoppingBought(newBought);
+      saveShoppingList(newBuy, newBought);
+    }
+  };
+
+  const deleteShoppingItem = (item, isBought) => {
+    if (isBought) {
+      const newBought = shoppingBought.filter(i => i.id !== item.id);
+      setShoppingBought(newBought);
+      saveShoppingList(shoppingBuy, newBought);
+    } else {
+      const newBuy = shoppingBuy.filter(i => i.id !== item.id);
+      setShoppingBuy(newBuy);
+      saveShoppingList(newBuy, shoppingBought);
+    }
+  };
+
+  const clearShoppingBought = () => {
+    if (shoppingBought.length === 0) return;
+    Alert.alert(
+      "Очистка",
+      "Удалить все купленные товары?",
+      [
+        { text: "Отмена", style: "cancel" },
+        { 
+          text: "Очистить", 
+          style: "destructive",
+          onPress: async () => {
+            setShoppingBought([]);
+            saveShoppingList(shoppingBuy, []);
+          }
+        }
+      ]
+    );
+  };
+
+  // ==================== ЗАГРУЗКА ГРАФИКА ====================
   const loadShiftData = async () => {
     if (!password) return;
     try {
@@ -292,7 +410,6 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         setShiftData(parsed);
-        // НЕ ВЫЗЫВАЕМ extractPatternAndStart — только загружаем данные
       }
     } catch (e) {
       console.log('Load shift error:', e);
@@ -305,7 +422,6 @@ export default function App() {
       const key = `@shift_schedule_${password}`;
       await AsyncStorage.setItem(key, JSON.stringify(newData));
       setShiftData(newData);
-      // НЕ ВЫЗЫВАЕМ extractPatternAndStart — только сохраняем
     } catch (e) {
       console.log('Save shift error:', e);
     }
@@ -363,7 +479,6 @@ export default function App() {
 
   // ==================== РАСЧЁТ НА ГОД ====================
   const calculateYear = async () => {
-    // Сначала извлекаем паттерн из текущих данных
     const allDates = Object.keys(shiftData).sort();
     if (allDates.length === 0) {
       Alert.alert(t.errorTitle, "Сначала отметьте минимум 1 день в текущем месяце");
@@ -558,6 +673,7 @@ export default function App() {
       fetchWorkData(password);
       fetchArchiveData(password);
       loadShiftData();
+      loadShoppingList();
     } else {
       setWorkData({});
     }
@@ -1101,6 +1217,105 @@ export default function App() {
     setArchiveModalVisible(false);
   };
 
+  // ==================== РЕНДЕР СПИСКА ПОКУПОК ====================
+  const renderShoppingList = () => {
+    return (
+      <KeyboardAvoidingView 
+        style={styles.shoppingContainer} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={100}
+      >
+        <View style={styles.shoppingHeader}>
+          <Text style={styles.shoppingTitle}>{t.shoppingTitle}</Text>
+        </View>
+
+        {/* Список "Купить" */}
+        <View style={styles.shoppingSection}>
+          <View style={styles.shoppingSectionHeader}>
+            <Text style={styles.shoppingSectionTitle}>{t.shoppingBuy} ({shoppingBuy.length})</Text>
+          </View>
+          {shoppingBuy.length === 0 ? (
+            <Text style={styles.shoppingEmpty}>{t.shoppingEmpty}</Text>
+          ) : (
+            <FlatList
+              data={shoppingBuy}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <View style={styles.shoppingItem}>
+                  <TouchableOpacity 
+                    style={styles.shoppingItemTextWrap}
+                    onPress={() => toggleShoppingItem(item, false)}
+                  >
+                    <Text style={styles.shoppingItemText}>{item.text}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.shoppingDeleteBtn}
+                    onPress={() => deleteShoppingItem(item, false)}
+                  >
+                    <Text style={styles.shoppingDeleteBtnText}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              style={styles.shoppingList}
+            />
+          )}
+        </View>
+
+        {/* Список "Куплено" */}
+        <View style={styles.shoppingSection}>
+          <View style={styles.shoppingSectionHeader}>
+            <Text style={styles.shoppingSectionTitle}>{t.shoppingBought} ({shoppingBought.length})</Text>
+            {shoppingBought.length > 0 && (
+              <TouchableOpacity onPress={clearShoppingBought}>
+                <Text style={styles.shoppingClearBtn}>{t.shoppingClear}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          {shoppingBought.length === 0 ? (
+            <Text style={styles.shoppingEmpty}>{t.shoppingEmpty}</Text>
+          ) : (
+            <FlatList
+              data={shoppingBought}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <View style={[styles.shoppingItem, styles.shoppingItemBought]}>
+                  <TouchableOpacity 
+                    style={styles.shoppingItemTextWrap}
+                    onPress={() => toggleShoppingItem(item, true)}
+                  >
+                    <Text style={[styles.shoppingItemText, styles.shoppingItemTextBought]}>{item.text}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.shoppingDeleteBtn}
+                    onPress={() => deleteShoppingItem(item, true)}
+                  >
+                    <Text style={styles.shoppingDeleteBtnText}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              style={styles.shoppingList}
+            />
+          )}
+        </View>
+
+        {/* Поле ввода */}
+        <View style={styles.shoppingInputRow}>
+          <TextInput
+            style={styles.shoppingInput}
+            placeholder={t.shoppingAdd}
+            value={shoppingInput}
+            onChangeText={setShoppingInput}
+            onSubmitEditing={addShoppingItem}
+            returnKeyType="done"
+          />
+          <TouchableOpacity style={styles.shoppingAddBtn} onPress={addShoppingItem}>
+            <Text style={styles.shoppingAddBtnText}>+</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    );
+  };
+
   if (!lang) {
     return (
       <SafeAreaView style={styles.authContainer}>
@@ -1224,6 +1439,12 @@ export default function App() {
           >
             <Text style={[styles.modeButtonText, activeMode === 'schedule' && styles.modeButtonTextActive]}>📅</Text>
           </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.modeButton, activeMode === 'shopping' && styles.modeButtonActive]}
+            onPress={() => setActiveMode('shopping')}
+          >
+            <Text style={[styles.modeButtonText, activeMode === 'shopping' && styles.modeButtonTextActive]}>🛒</Text>
+          </TouchableOpacity>
           {activeMode === 'schedule' && (
             <>
               <TouchableOpacity style={styles.clearScheduleButton} onPress={clearSchedule}>
@@ -1236,30 +1457,50 @@ export default function App() {
           )}
         </View>
 
-        <View style={styles.weekDaysRow}>{t.weekDays.map((day, index) => (<Text key={index} style={(day === 'Сб' || day === 'Вс' || day === 'Нд') ? styles.weekDayTextWeekend : styles.weekDayTextNormal}>{day}</Text>))}</View>
-        
-        {isLoadingData && activeMode === 'timesheet' ? (
-          <View style={styles.centerLoading}><ActivityIndicator size="large" color="#0052CC" /></View>
-        ) : (
-          <ScrollView contentContainerStyle={styles.calendarGrid}>{renderCalendarGrid()}</ScrollView>
-        )}
-
-        {activeMode === 'timesheet' && (
-          <View style={styles.statsContainer}>
-            <Text style={styles.statsText}>{t.statsWorkDays}: {stats.workDays}</Text>
-            <Text style={styles.statsText}>{t.statsWeekendDays}: {stats.weekendDays}</Text>
-            <Text style={styles.totalText}>{t.statsTotalSum}: {stats.totalSum}</Text>
-          </View>
-        )}
-        
+        {/* ==================== РЕЖИМ "ТАБЕЛЬ" ==================== */}
         {activeMode === 'timesheet' && (
           <>
+            <View style={styles.weekDaysRow}>{t.weekDays.map((day, index) => (<Text key={index} style={(day === 'Сб' || day === 'Вс' || day === 'Нд') ? styles.weekDayTextWeekend : styles.weekDayTextNormal}>{day}</Text>))}</View>
+            
+            {isLoadingData ? (
+              <View style={styles.centerLoading}><ActivityIndicator size="large" color="#0052CC" /></View>
+            ) : (
+              <ScrollView contentContainerStyle={styles.calendarGrid}>{renderCalendarGrid()}</ScrollView>
+            )}
+
+            <View style={styles.statsContainer}>
+              <Text style={styles.statsText}>{t.statsWorkDays}: {stats.workDays}</Text>
+              <Text style={styles.statsText}>{t.statsWeekendDays}: {stats.weekendDays}</Text>
+              <Text style={styles.totalText}>{t.statsTotalSum}: {stats.totalSum}</Text>
+            </View>
+            
             <TouchableOpacity style={styles.archiveButton} onPress={() => setArchiveModalVisible(true)}><Text style={styles.archiveButtonText}>{t.btnArchive}</Text></TouchableOpacity>
             <TouchableOpacity style={styles.pdfButton} onPress={exportToPDF}><Text style={styles.pdfButtonText}>{t.btnSavePdf}</Text></TouchableOpacity>
           </>
         )}
 
-        {/* ==================== МОДАЛКА ДЛЯ ВЫБОРА СМЕНЫ ==================== */}
+        {/* ==================== РЕЖИМ "ГРАФИК" ==================== */}
+        {activeMode === 'schedule' && (
+          <>
+            <View style={styles.weekDaysRow}>{t.weekDays.map((day, index) => (<Text key={index} style={(day === 'Сб' || day === 'Вс' || day === 'Нд') ? styles.weekDayTextWeekend : styles.weekDayTextNormal}>{day}</Text>))}</View>
+            <ScrollView contentContainerStyle={styles.calendarGrid}>{renderCalendarGrid()}</ScrollView>
+            {shiftPattern.length > 0 && shiftStartDate && (
+              <View style={styles.patternInfoContainer}>
+                <Text style={styles.patternInfoText}>
+                  📋 Лента ({shiftPattern.length} дн.): {shiftPattern.map(s => getShiftLabel(s)).join(' → ')}
+                </Text>
+                <Text style={styles.patternInfoSubtext}>
+                  Старт: {shiftStartDate} · Нажмите 📆 для расчёта на год
+                </Text>
+              </View>
+            )}
+          </>
+        )}
+
+        {/* ==================== РЕЖИМ "СПИСОК ПОКУПОК" ==================== */}
+        {activeMode === 'shopping' && renderShoppingList()}
+
+        {/* ==================== МОДАЛКИ ==================== */}
         <Modal visible={shiftModalVisible} transparent={true} animationType="fade">
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
@@ -1297,7 +1538,6 @@ export default function App() {
           </View>
         </Modal>
 
-        {/* ==================== СУЩЕСТВУЮЩИЕ МОДАЛКИ ==================== */}
         <Modal visible={adminMessageModalVisible} transparent={true} animationType="fade">
           <View style={styles.modalOverlay}>
             <View style={[styles.modalContent, styles.adminMessageModal]}>
@@ -1479,6 +1719,7 @@ const styles = StyleSheet.create({
   langCircleRuDimmed: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0052CC', opacity: 0.35 },
   langCircleUk: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: '#10B981' },
   langCircleUkDimmed: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: '#10B981', opacity: 0.35 },
+  // ==================== ПЕРЕКЛЮЧАТЕЛЬ ====================
   modeSwitchRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
   modeButton: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#E5E7EB', marginHorizontal: 4 },
   modeButtonActive: { backgroundColor: '#0052CC' },
@@ -1488,12 +1729,17 @@ const styles = StyleSheet.create({
   clearScheduleButtonText: { fontSize: 16, color: '#FFF' },
   calcYearButton: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#10B981', marginLeft: 4 },
   calcYearButtonText: { fontSize: 16, color: '#FFF' },
+  // ==================== ГРАФИК ====================
   shiftCell: { width: (width - 32) / 7 - 8, height: 46, margin: 4, justifyContent: 'center', alignItems: 'center', borderRadius: 8, borderWidth: 1, borderColor: '#D1D5DB' },
   shiftDayText: { fontSize: 15, fontWeight: 'bold', color: '#111827', textAlign: 'center' },
   shiftLabelText: { fontSize: 9, fontWeight: 'bold', color: '#4B5563', textAlign: 'center', marginTop: 1 },
   shiftOptions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', marginVertical: 10 },
   shiftOption: { width: '45%', padding: 12, borderRadius: 8, alignItems: 'center', marginBottom: 8, borderWidth: 1, borderColor: '#D1D5DB' },
   shiftOptionText: { fontSize: 16, fontWeight: 'bold', color: '#111827' },
+  patternInfoContainer: { backgroundColor: '#E0F2FE', padding: 8, borderRadius: 8, marginVertical: 6 },
+  patternInfoText: { fontSize: 13, fontWeight: 'bold', color: '#0369A1', textAlign: 'center' },
+  patternInfoSubtext: { fontSize: 11, color: '#0369A1', textAlign: 'center' },
+  // ==================== КАЛЕНДАРЬ ====================
   weekDaysRow: { flexDirection: 'row', marginBottom: 8 },
   weekDayTextNormal: { width: (width - 32) / 7 - 8, marginHorizontal: 4, textAlign: 'center', fontWeight: 'bold', color: '#6B7280' },
   weekDayTextWeekend: { width: (width - 32) / 7 - 8, marginHorizontal: 4, textAlign: 'center', fontWeight: 'bold', color: '#EF4444' },
@@ -1505,40 +1751,7 @@ const styles = StyleSheet.create({
   dayText: { fontSize: 16, fontWeight: 'bold', color: '#111827', textAlign: 'center' },
   workDayText: { fontSize: 15, fontWeight: 'bold', color: '#FFF', textAlign: 'center' },
   cellSumSubtext: { fontSize: 11, color: '#A3E635', fontWeight: 'bold', marginTop: -2, textAlign: 'center' },
-  inlineActivationBlock: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'space-between', 
-    backgroundColor: '#FFF', 
-    padding: 10, 
-    borderRadius: 12, 
-    marginTop: 12, 
-    borderWidth: 1, 
-    borderColor: '#E5E7EB' 
-  },
-  inlineActivationInput: { 
-    flex: 1, 
-    borderBottomWidth: 1, 
-    borderColor: '#D1D5DB', 
-    paddingVertical: 6, 
-    paddingHorizontal: 8,
-    fontSize: 14, 
-    marginRight: 10,
-    textAlign: 'center'
-  },
-  inlineActivationBtn: { 
-    backgroundColor: '#0052CC', 
-    paddingVertical: 10, 
-    paddingHorizontal: 14, 
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  inlineActivationBtnText: { 
-    color: '#FFF', 
-    fontSize: 12, 
-    fontWeight: 'bold' 
-  },
+  // ==================== СТАТИСТИКА ====================
   statsContainer: { backgroundColor: '#FFF', padding: 14, borderRadius: 12, marginTop: 10, borderWidth: 1, borderColor: '#E5E7EB' },
   statsText: { fontSize: 14, color: '#111827', fontWeight: 'bold' },
   totalText: { fontSize: 16, fontWeight: 'bold', marginTop: 4, color: '#111827' },
@@ -1546,6 +1759,7 @@ const styles = StyleSheet.create({
   archiveButtonText: { color: '#FFF', fontWeight: 'bold', textAlign: 'center' },
   pdfButton: { backgroundColor: '#10B981', padding: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
   pdfButtonText: { color: '#FFF', fontWeight: 'bold', textAlign: 'center' },
+  // ==================== МОДАЛКИ ====================
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
   modalContent: { width: width * 0.9, backgroundColor: '#FFF', padding: 20, borderRadius: 16 },
   modalTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
@@ -1568,6 +1782,7 @@ const styles = StyleSheet.create({
   noticeContainer: { backgroundColor: '#0052CC', padding: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   noticeSubText: { fontSize: 16, fontWeight: 'bold', color: '#FFF', textAlign: 'center' },
   centerLoading: { flex: 1, justifyContent: 'center', alignItems: 'center', minHeight: 200 },
+  // ==================== ТОСТ ====================
   toastOverlay: { 
     position: 'absolute', 
     top: 0, left: 0, right: 0, bottom: 0, 
@@ -1596,6 +1811,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22
   },
+  // ==================== СООБЩЕНИЯ ОТ АДМИНА ====================
   adminMessageModal: { 
     maxHeight: '85%', 
     paddingVertical: 20,
@@ -1637,5 +1853,60 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  // ==================== СПИСОК ПОКУПОК ====================
+  shoppingContainer: { flex: 1, paddingHorizontal: 4 },
+  shoppingHeader: { marginBottom: 8 },
+  shoppingTitle: { fontSize: 20, fontWeight: 'bold', color: '#111827' },
+  shoppingSection: { flex: 1, marginBottom: 6 },
+  shoppingSectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  shoppingSectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#374151' },
+  shoppingClearBtn: { fontSize: 14, color: '#EF4444', fontWeight: 'bold' },
+  shoppingList: { maxHeight: 150 },
+  shoppingItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6, paddingHorizontal: 8, borderBottomWidth: 1, borderColor: '#E5E7EB' },
+  shoppingItemBought: { opacity: 0.7 },
+  shoppingItemTextWrap: { flex: 1 },
+  shoppingItemText: { fontSize: 16, color: '#111827' },
+  shoppingItemTextBought: { textDecorationLine: 'line-through', color: '#9CA3AF' },
+  shoppingDeleteBtn: { paddingHorizontal: 8, paddingVertical: 2 },
+  shoppingDeleteBtnText: { fontSize: 16, color: '#EF4444', fontWeight: 'bold' },
+  shoppingEmpty: { fontSize: 14, color: '#9CA3AF', textAlign: 'center', marginVertical: 6 },
+  shoppingInputRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4, marginBottom: 8 },
+  shoppingInput: { flex: 1, borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontSize: 16, backgroundColor: '#FFF' },
+  shoppingAddBtn: { backgroundColor: '#0052CC', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, marginLeft: 8 },
+  shoppingAddBtnText: { color: '#FFF', fontSize: 20, fontWeight: 'bold' },
+  inlineActivationBlock: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    backgroundColor: '#FFF', 
+    padding: 10, 
+    borderRadius: 12, 
+    marginTop: 12, 
+    borderWidth: 1, 
+    borderColor: '#E5E7EB' 
+  },
+  inlineActivationInput: { 
+    flex: 1, 
+    borderBottomWidth: 1, 
+    borderColor: '#D1D5DB', 
+    paddingVertical: 6, 
+    paddingHorizontal: 8,
+    fontSize: 14, 
+    marginRight: 10,
+    textAlign: 'center'
+  },
+  inlineActivationBtn: { 
+    backgroundColor: '#0052CC', 
+    paddingVertical: 10, 
+    paddingHorizontal: 14, 
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  inlineActivationBtnText: { 
+    color: '#FFF', 
+    fontSize: 12, 
+    fontWeight: 'bold' 
   },
 });
