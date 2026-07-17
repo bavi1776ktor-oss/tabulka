@@ -125,20 +125,22 @@ const translations = {
     shoppingMovedToBought: "Перемещено в купленные",
     shoppingMovedToBuy: "Возвращено в список",
     shoppingDeleted: "Товар удалён",
-    shoppingCleared: "Список купленных очищен"
+    shoppingCleared: "Список купленных очищен",
+    clearAll: "Очистка",
+    clearAllMessage: "Удалить все купленные товары?"
   },
   uk: {
     locale: 'uk-UA',
-    trialExpiredTitle: "Термін дії пробного періоду (5 дней) закінчився",
-    requestFullVersion: "Надіслати запит на повну версію:",
-    requestFullVersionHeader: "Запросити повну версию",
+    trialExpiredTitle: "Термін дії пробного періоду (5 днів) закінчився",
+    requestFullVersion: "Запросити повну версію:",
+    requestFullVersionHeader: "Запросити повну версію",
     placeholderName: "Ваше Ім'я",
     placeholderPhone: "Телефон",
     btnSendRequest: "Надіслати запит",
-    noticeText: "Введіть Ваше ім'я та телефон. Очікуйте, Вам зателевонують.",
-    enterKeyTitle: "Ввести ключ активації:",
-    placeholderKey: "Ключ активації (постійний)",
-    btnActivate: "Актувати",
+    noticeText: "Введіть Ваше ім'я та телефон. Очікуйте, Вам зателефонують.",
+    enterKeyTitle: "Ввести постійний ключ:",
+    placeholderKey: "Постійний ключ активації",
+    btnActivate: "Активувати",
     btnExit: "Вихід",
     weekDays: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'],
     statsWorkDays: "Робочих днів",
@@ -153,7 +155,7 @@ const translations = {
     btnCancel: "Скасувати",
     btnClose: "Закрити",
     archiveEarnings: "Заробіток за місяць",
-    toastTrialActive: "⏱ АКТИВНИЙ ТЕСТОВІЙ ПЕРІОД\n(ЗАЛИШИЛОСЯ {days} ДН.)",
+    toastTrialActive: "⏱ АКТИВНИЙ ТЕСТОВИЙ ПЕРІОД\n(ЗАЛИШИЛОСЯ {days} ДН.)",
     pdfTitle: "Звіт — {month}",
     pdfStatusWork: "Робочий",
     pdfStatusWeekend: "Вихідний",
@@ -168,21 +170,21 @@ const translations = {
     alertFormatError: "Неправильний формат",
     alertFormatShort: "Занадто короткий ключ активації.",
     alertSuccessTitle: "Успішно",
-    alertSuccessMessage: "Додаток успешно активовано!",
+    alertSuccessMessage: "Додаток успішно активовано!",
     alertKeyUsed: "Цей ключ вже заблокований або вичерпано ліміт пристроїв!",
     alertKeyBlock: "Цей ключ заблокований адміністратором.",
     alertKeyNotFound: "Ключ не знайдено в базі даних.",
     alertInputError: "Введіть коректні числа",
     alertPdfError: "Не вдалося створити PDF",
     alertRequestSaved: "Дані записані в базу. На вашому пристрої не знайдено налаштованого поштового додатка для прямої відправки.",
-    alertMailError: "Запит успешно збережено в Firebase, но не вдалося запустити поштовий додаток.",
+    alertMailError: "Запит успішно збережено в Firebase, але не вдалося запустити поштовий додаток.",
     alertFillFields: "Будь ласка, заповніть Ім'я та Телефон для зв'язку",
     btnToday: "Сьогодні",
     noRecordsText: "Немає записів за цей день",
     subSectionTitle: "Роботи за день:",
     dayTotalText: "Всього за день:",
     btnAddRecord: "+ Додати запис",
-    selectLangTitle: "Выберите язык / Оберіть мову",
+    selectLangTitle: "Виберіть мову / Оберіть мову",
     errorTitle: "Помилка",
     networkErrorTitle: "Помилка мережі",
     networkErrorMsg: "Не вдалося оновити дані з бази",
@@ -199,7 +201,7 @@ const translations = {
     placeholderMessageText: "Текст повідомлення...",
     btnSendToDev: "Надіслати",
     messageSentSuccess: "Повідомлення надіслано!",
-    messageSentToEmail: "Копія надіслана на пошту розробника.",
+    messageSentToEmail: "Копію надіслано на пошту розробника.",
     adminMessageClose: "Закрити",
     adminMessageLink: "Завантажити оновлення",
     noMessages: "Немає нових повідомлень",
@@ -213,7 +215,7 @@ const translations = {
     modeSchedule: "Графік",
     modeShopping: "Список",
     selectShift: "Виберіть зміну",
-    calculateYear: "Порахувати на рік",
+    calculateYear: "Розрахувати на рік",
     yearCalculated: "Графік розраховано на рік вперед",
     fillAllDays: "Заповніть всі дні місяця перед розрахунком",
     shoppingTitle: "Що купити",
@@ -226,7 +228,9 @@ const translations = {
     shoppingMovedToBought: "Переміщено до куплених",
     shoppingMovedToBuy: "Повернуто до списку",
     shoppingDeleted: "Товар видалено",
-    shoppingCleared: "Список куплених очищено"
+    shoppingCleared: "Список куплених очищено",
+    clearAll: "Очистка",
+    clearAllMessage: "Видалити всі куплені товари?"
   }
 };
 
@@ -380,12 +384,12 @@ export default function App() {
   const clearShoppingBought = () => {
     if (shoppingBought.length === 0) return;
     Alert.alert(
-      "Очистка",
-      "Удалить все купленные товары?",
+      t.clearAll,
+      t.clearAllMessage,
       [
-        { text: "Отмена", style: "cancel" },
+        { text: t.btnCancel, style: "cancel" },
         { 
-          text: "Очистить", 
+          text: t.shoppingClear, 
           style: "destructive",
           onPress: async () => {
             setShoppingBought([]);
@@ -528,12 +532,12 @@ export default function App() {
 
   const clearSchedule = async () => {
     Alert.alert(
-      "Очистка графика",
+      t.clearSchedule,
       "Удалить все смены во всех месяцах?",
       [
-        { text: "Отмена", style: "cancel" },
+        { text: t.btnCancel, style: "cancel" },
         { 
-          text: "Очистить", 
+          text: t.shoppingClear, 
           style: "destructive",
           onPress: async () => {
             await saveShiftData({});
@@ -1210,7 +1214,6 @@ export default function App() {
 
   // ==================== РЕНДЕР СПИСКА ПОКУПОК ====================
   const renderShoppingList = () => {
-    // Сортируем: сначала активные, потом купленные
     const sortedItems = [...shoppingBuy, ...shoppingBought];
 
     return (
@@ -1265,7 +1268,6 @@ export default function App() {
               <View style={styles.shoppingSeparator} />
             )}
             ListFooterComponent={() => {
-              // Кнопка "Очистить" разделяет активные и купленные товары
               if (shoppingBought.length === 0) return null;
               return (
                 <View style={styles.shoppingClearSection}>
@@ -1304,7 +1306,7 @@ export default function App() {
     return (
       <SafeAreaView style={styles.authContainer}>
         <View style={styles.langStartCard}>
-          <Text style={styles.langStartTitle}>Выберите язык / Оберіть мову</Text>
+          <Text style={styles.langStartTitle}>{t.selectLangTitle}</Text>
           <TouchableOpacity style={styles.langStartBtnRu} onPress={() => handleSelectLanguage('ru')}>
             <Text style={styles.authButtonText}>Русский</Text>
           </TouchableOpacity>
