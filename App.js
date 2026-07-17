@@ -115,7 +115,6 @@ const translations = {
     calculateYear: "Просчитать на год",
     yearCalculated: "График просчитан на год вперёд",
     fillAllDays: "Заполните все дни месяца перед расчётом",
-    // Shopping translations
     shoppingTitle: "Что купить",
     shoppingBuy: "Купить",
     shoppingBought: "Куплено",
@@ -269,7 +268,6 @@ export default function App() {
   const [shiftModalVisible, setShiftModalVisible] = useState(false);
   const [selectedShiftDate, setSelectedShiftDate] = useState(null);
 
-  // ==================== СОСТОЯНИЯ ДЛЯ СПИСКА ПОКУПОК ====================
   const [shoppingBuy, setShoppingBuy] = useState([]);
   const [shoppingBought, setShoppingBought] = useState([]);
   const [shoppingInput, setShoppingInput] = useState('');
@@ -317,7 +315,6 @@ export default function App() {
     }
   };
 
-  // ==================== ЗАГРУЗКА/СОХРАНЕНИЕ СПИСКА ПОКУПОК ====================
   const loadShoppingList = async () => {
     if (!password) return;
     try {
@@ -354,14 +351,12 @@ export default function App() {
 
   const toggleShoppingItem = (item, isBought) => {
     if (isBought) {
-      // Возвращаем в "Купить"
       const newBought = shoppingBought.filter(i => i.id !== item.id);
       const newBuy = [...shoppingBuy, item];
       setShoppingBuy(newBuy);
       setShoppingBought(newBought);
       saveShoppingList(newBuy, newBought);
     } else {
-      // Перемещаем в "Куплено"
       const newBuy = shoppingBuy.filter(i => i.id !== item.id);
       const newBought = [...shoppingBought, { ...item, boughtAt: Date.now() }];
       setShoppingBuy(newBuy);
@@ -401,7 +396,6 @@ export default function App() {
     );
   };
 
-  // ==================== ЗАГРУЗКА ГРАФИКА ====================
   const loadShiftData = async () => {
     if (!password) return;
     try {
@@ -427,7 +421,6 @@ export default function App() {
     }
   };
 
-  // ==================== ИЗВЛЕЧЕНИЕ ПАТТЕРНА И СТАРТОВОЙ ДАТЫ ====================
   const extractPatternAndStart = (data) => {
     const allDates = Object.keys(data).sort();
     if (allDates.length === 0) {
@@ -463,7 +456,6 @@ export default function App() {
     }
   };
 
-  // ==================== РАСЧЁТ ПО "ЛЕНТЕ БЕСКОНЕЧНОСТИ" ====================
   const calculateFromPattern = (dateStr) => {
     if (!shiftPattern || shiftPattern.length === 0 || !shiftStartDate) return null;
     
@@ -477,7 +469,6 @@ export default function App() {
     return shiftPattern[patternIndex];
   };
 
-  // ==================== РАСЧЁТ НА ГОД ====================
   const calculateYear = async () => {
     const allDates = Object.keys(shiftData).sort();
     if (allDates.length === 0) {
@@ -1219,6 +1210,8 @@ export default function App() {
 
   // ==================== РЕНДЕР СПИСКА ПОКУПОК ====================
   const renderShoppingList = () => {
+    const sortedItems = [...shoppingBuy, ...shoppingBought];
+
     return (
       <KeyboardAvoidingView 
         style={styles.shoppingContainer} 
@@ -1227,78 +1220,61 @@ export default function App() {
       >
         <View style={styles.shoppingHeader}>
           <Text style={styles.shoppingTitle}>{t.shoppingTitle}</Text>
+          <Text style={styles.shoppingCount}>Купить ({shoppingBuy.length})</Text>
         </View>
 
-        {/* Список "Купить" */}
-        <View style={styles.shoppingSection}>
-          <View style={styles.shoppingSectionHeader}>
-            <Text style={styles.shoppingSectionTitle}>{t.shoppingBuy} ({shoppingBuy.length})</Text>
-          </View>
-          {shoppingBuy.length === 0 ? (
-            <Text style={styles.shoppingEmpty}>{t.shoppingEmpty}</Text>
-          ) : (
-            <FlatList
-              data={shoppingBuy}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
+        {sortedItems.length === 0 ? (
+          <Text style={styles.shoppingEmpty}>{t.shoppingEmpty}</Text>
+        ) : (
+          <FlatList
+            data={sortedItems}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => {
+              const isBought = shoppingBought.some(i => i.id === item.id);
+              return (
                 <View style={styles.shoppingItem}>
                   <TouchableOpacity 
                     style={styles.shoppingItemTextWrap}
-                    onPress={() => toggleShoppingItem(item, false)}
+                    onPress={() => toggleShoppingItem(item, isBought)}
                   >
-                    <Text style={styles.shoppingItemText}>{item.text}</Text>
+                    <Text style={[
+                      styles.shoppingItemText,
+                      isBought && styles.shoppingItemTextBought
+                    ]}>
+                      {item.text}
+                    </Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
                     style={styles.shoppingDeleteBtn}
-                    onPress={() => deleteShoppingItem(item, false)}
+                    onPress={() => deleteShoppingItem(item, isBought)}
                   >
                     <Text style={styles.shoppingDeleteBtnText}>✕</Text>
                   </TouchableOpacity>
                 </View>
-              )}
-              style={styles.shoppingList}
-            />
-          )}
-        </View>
-
-        {/* Список "Куплено" */}
-        <View style={styles.shoppingSection}>
-          <View style={styles.shoppingSectionHeader}>
-            <Text style={styles.shoppingSectionTitle}>{t.shoppingBought} ({shoppingBought.length})</Text>
-            {shoppingBought.length > 0 && (
-              <TouchableOpacity onPress={clearShoppingBought}>
-                <Text style={styles.shoppingClearBtn}>{t.shoppingClear}</Text>
-              </TouchableOpacity>
+              );
+            }}
+            style={styles.shoppingList}
+            ItemSeparatorComponent={() => (
+              <View style={styles.shoppingSeparator} />
             )}
-          </View>
-          {shoppingBought.length === 0 ? (
-            <Text style={styles.shoppingEmpty}>{t.shoppingEmpty}</Text>
-          ) : (
-            <FlatList
-              data={shoppingBought}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <View style={[styles.shoppingItem, styles.shoppingItemBought]}>
+            ListFooterComponent={() => {
+              if (shoppingBought.length === 0) return null;
+              return (
+                <View style={styles.shoppingClearSection}>
+                  <View style={styles.shoppingDivider} />
                   <TouchableOpacity 
-                    style={styles.shoppingItemTextWrap}
-                    onPress={() => toggleShoppingItem(item, true)}
+                    style={styles.shoppingClearBtnWrap} 
+                    onPress={clearShoppingBought}
                   >
-                    <Text style={[styles.shoppingItemText, styles.shoppingItemTextBought]}>{item.text}</Text>
+                    <Text style={styles.shoppingClearBtnText}>Очистить</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.shoppingDeleteBtn}
-                    onPress={() => deleteShoppingItem(item, true)}
-                  >
-                    <Text style={styles.shoppingDeleteBtnText}>✕</Text>
-                  </TouchableOpacity>
+                  <View style={styles.shoppingDivider} />
                 </View>
-              )}
-              style={styles.shoppingList}
-            />
-          )}
-        </View>
+              );
+            }}
+          />
+        )}
 
-        {/* Поле ввода */}
         <View style={styles.shoppingInputRow}>
           <TextInput
             style={styles.shoppingInput}
@@ -1719,7 +1695,6 @@ const styles = StyleSheet.create({
   langCircleRuDimmed: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0052CC', opacity: 0.35 },
   langCircleUk: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: '#10B981' },
   langCircleUkDimmed: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: '#10B981', opacity: 0.35 },
-  // ==================== ПЕРЕКЛЮЧАТЕЛЬ ====================
   modeSwitchRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
   modeButton: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#E5E7EB', marginHorizontal: 4 },
   modeButtonActive: { backgroundColor: '#0052CC' },
@@ -1729,7 +1704,6 @@ const styles = StyleSheet.create({
   clearScheduleButtonText: { fontSize: 16, color: '#FFF' },
   calcYearButton: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#10B981', marginLeft: 4 },
   calcYearButtonText: { fontSize: 16, color: '#FFF' },
-  // ==================== ГРАФИК ====================
   shiftCell: { width: (width - 32) / 7 - 8, height: 46, margin: 4, justifyContent: 'center', alignItems: 'center', borderRadius: 8, borderWidth: 1, borderColor: '#D1D5DB' },
   shiftDayText: { fontSize: 15, fontWeight: 'bold', color: '#111827', textAlign: 'center' },
   shiftLabelText: { fontSize: 9, fontWeight: 'bold', color: '#4B5563', textAlign: 'center', marginTop: 1 },
@@ -1739,7 +1713,6 @@ const styles = StyleSheet.create({
   patternInfoContainer: { backgroundColor: '#E0F2FE', padding: 8, borderRadius: 8, marginVertical: 6 },
   patternInfoText: { fontSize: 13, fontWeight: 'bold', color: '#0369A1', textAlign: 'center' },
   patternInfoSubtext: { fontSize: 11, color: '#0369A1', textAlign: 'center' },
-  // ==================== КАЛЕНДАРЬ ====================
   weekDaysRow: { flexDirection: 'row', marginBottom: 8 },
   weekDayTextNormal: { width: (width - 32) / 7 - 8, marginHorizontal: 4, textAlign: 'center', fontWeight: 'bold', color: '#6B7280' },
   weekDayTextWeekend: { width: (width - 32) / 7 - 8, marginHorizontal: 4, textAlign: 'center', fontWeight: 'bold', color: '#EF4444' },
@@ -1751,7 +1724,6 @@ const styles = StyleSheet.create({
   dayText: { fontSize: 16, fontWeight: 'bold', color: '#111827', textAlign: 'center' },
   workDayText: { fontSize: 15, fontWeight: 'bold', color: '#FFF', textAlign: 'center' },
   cellSumSubtext: { fontSize: 11, color: '#A3E635', fontWeight: 'bold', marginTop: -2, textAlign: 'center' },
-  // ==================== СТАТИСТИКА ====================
   statsContainer: { backgroundColor: '#FFF', padding: 14, borderRadius: 12, marginTop: 10, borderWidth: 1, borderColor: '#E5E7EB' },
   statsText: { fontSize: 14, color: '#111827', fontWeight: 'bold' },
   totalText: { fontSize: 16, fontWeight: 'bold', marginTop: 4, color: '#111827' },
@@ -1759,7 +1731,6 @@ const styles = StyleSheet.create({
   archiveButtonText: { color: '#FFF', fontWeight: 'bold', textAlign: 'center' },
   pdfButton: { backgroundColor: '#10B981', padding: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
   pdfButtonText: { color: '#FFF', fontWeight: 'bold', textAlign: 'center' },
-  // ==================== МОДАЛКИ ====================
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
   modalContent: { width: width * 0.9, backgroundColor: '#FFF', padding: 20, borderRadius: 16 },
   modalTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
@@ -1782,7 +1753,6 @@ const styles = StyleSheet.create({
   noticeContainer: { backgroundColor: '#0052CC', padding: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   noticeSubText: { fontSize: 16, fontWeight: 'bold', color: '#FFF', textAlign: 'center' },
   centerLoading: { flex: 1, justifyContent: 'center', alignItems: 'center', minHeight: 200 },
-  // ==================== ТОСТ ====================
   toastOverlay: { 
     position: 'absolute', 
     top: 0, left: 0, right: 0, bottom: 0, 
@@ -1811,7 +1781,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22
   },
-  // ==================== СООБЩЕНИЯ ОТ АДМИНА ====================
   adminMessageModal: { 
     maxHeight: '85%', 
     paddingVertical: 20,
@@ -1856,57 +1825,24 @@ const styles = StyleSheet.create({
   },
   // ==================== СПИСОК ПОКУПОК ====================
   shoppingContainer: { flex: 1, paddingHorizontal: 4 },
-  shoppingHeader: { marginBottom: 8 },
+  shoppingHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   shoppingTitle: { fontSize: 20, fontWeight: 'bold', color: '#111827' },
-  shoppingSection: { flex: 1, marginBottom: 6 },
-  shoppingSectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  shoppingSectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#374151' },
-  shoppingClearBtn: { fontSize: 14, color: '#EF4444', fontWeight: 'bold' },
-  shoppingList: { maxHeight: 150 },
-  shoppingItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6, paddingHorizontal: 8, borderBottomWidth: 1, borderColor: '#E5E7EB' },
-  shoppingItemBought: { opacity: 0.7 },
+  shoppingCount: { fontSize: 16, fontWeight: 'bold', color: '#6B7280' },
+  shoppingList: { flex: 1 },
+  shoppingItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 4 },
   shoppingItemTextWrap: { flex: 1 },
   shoppingItemText: { fontSize: 16, color: '#111827' },
-  shoppingItemTextBought: { textDecorationLine: 'line-through', color: '#9CA3AF' },
+  shoppingItemTextBought: { fontSize: 16, color: '#EF4444', textDecorationLine: 'line-through' },
   shoppingDeleteBtn: { paddingHorizontal: 8, paddingVertical: 2 },
   shoppingDeleteBtnText: { fontSize: 16, color: '#EF4444', fontWeight: 'bold' },
-  shoppingEmpty: { fontSize: 14, color: '#9CA3AF', textAlign: 'center', marginVertical: 6 },
-  shoppingInputRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4, marginBottom: 8 },
+  shoppingEmpty: { fontSize: 14, color: '#9CA3AF', textAlign: 'center', marginVertical: 20 },
+  shoppingSeparator: { height: 1, backgroundColor: '#E5E7EB', marginHorizontal: 4 },
+  shoppingClearSection: { marginVertical: 8, alignItems: 'center' },
+  shoppingDivider: { height: 1, backgroundColor: '#D1D5DB', width: '100%' },
+  shoppingClearBtnWrap: { paddingVertical: 8, paddingHorizontal: 16 },
+  shoppingClearBtnText: { fontSize: 14, color: '#EF4444', fontWeight: 'bold' },
+  shoppingInputRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8, marginBottom: 8 },
   shoppingInput: { flex: 1, borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontSize: 16, backgroundColor: '#FFF' },
   shoppingAddBtn: { backgroundColor: '#0052CC', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, marginLeft: 8 },
   shoppingAddBtnText: { color: '#FFF', fontSize: 20, fontWeight: 'bold' },
-  inlineActivationBlock: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'space-between', 
-    backgroundColor: '#FFF', 
-    padding: 10, 
-    borderRadius: 12, 
-    marginTop: 12, 
-    borderWidth: 1, 
-    borderColor: '#E5E7EB' 
-  },
-  inlineActivationInput: { 
-    flex: 1, 
-    borderBottomWidth: 1, 
-    borderColor: '#D1D5DB', 
-    paddingVertical: 6, 
-    paddingHorizontal: 8,
-    fontSize: 14, 
-    marginRight: 10,
-    textAlign: 'center'
-  },
-  inlineActivationBtn: { 
-    backgroundColor: '#0052CC', 
-    paddingVertical: 10, 
-    paddingHorizontal: 14, 
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  inlineActivationBtnText: { 
-    color: '#FFF', 
-    fontSize: 12, 
-    fontWeight: 'bold' 
-  },
 });
