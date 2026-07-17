@@ -107,6 +107,7 @@ const translations = {
     shift24: "Сутки",
     shiftOff: "Выходной",
     clearSchedule: "Очистить график",
+    clearScheduleMessage: "Удалить все смены во всех месяцах?",
     scheduleCleared: "График очищен",
     modeTimesheet: "Табель",
     modeSchedule: "График",
@@ -210,6 +211,7 @@ const translations = {
     shift24: "Доба",
     shiftOff: "Вихідний",
     clearSchedule: "Очистити графік",
+    clearScheduleMessage: "Видалити всі зміни в усіх місяцях?",
     scheduleCleared: "Графік очищено",
     modeTimesheet: "Табель",
     modeSchedule: "Графік",
@@ -533,7 +535,7 @@ export default function App() {
   const clearSchedule = async () => {
     Alert.alert(
       t.clearSchedule,
-      "Удалить все смены во всех месяцах?",
+      t.clearScheduleMessage,
       [
         { text: t.btnCancel, style: "cancel" },
         { 
