@@ -128,7 +128,14 @@ const translations = {
     shoppingDeleted: "Товар удалён",
     shoppingCleared: "Список купленных очищен",
     clearAll: "Очистка",
-    clearAllMessage: "Удалить все купленные товары?"
+    clearAllMessage: "Удалить все купленные товары?",
+    // Подсказка
+    hintTitle: "Как настроить график",
+    hintText1: "1. Нажмите на любой день в календаре и выберите тип смены:\n• 🟡 День — рабочая смена\n• 🔵 Ночь — ночная смена\n• 🟣 Сутки — суточная смена\n• ⬜ Выходной — день отдыха",
+    hintText2: "2. Введите минимум 2–3 смены подряд, чтобы программа поняла ваш паттерн.\n• Важно: Первая смена должна быть рабочей (День/Ночь/Сутки), последняя — Выходной.\n• Пример: День → День → Выходной → Выходной",
+    hintText3: "3. Нажмите зелёную кнопку 📆, и ваш график автоматически просчитается на год вперёд.",
+    hintText4: "4. Листайте месяцы стрелками ◀ ▶ и проверяйте свои смены.",
+    hintButton: "Понял!"
   },
   uk: {
     locale: 'uk-UA',
@@ -232,7 +239,14 @@ const translations = {
     shoppingDeleted: "Товар видалено",
     shoppingCleared: "Список куплених очищено",
     clearAll: "Очистка",
-    clearAllMessage: "Видалити всі куплені товари?"
+    clearAllMessage: "Видалити всі куплені товари?",
+    // Подсказка
+    hintTitle: "Як налаштувати графік",
+    hintText1: "1. Натисніть на будь-який день у календарі та оберіть тип зміни:\n• 🟡 День — робоча зміна\n• 🔵 Ніч — нічна зміна\n• 🟣 Доба — добова зміна\n• ⬜ Вихідний — день відпочинку",
+    hintText2: "2. Введіть мінімум 2–3 зміни поспіль, щоб програма зрозуміла ваш патерн.\n• Важливо: Перша зміна має бути робочою (День/Ніч/Доба), остання — Вихідний.\n• Приклад: День → День → Вихідний → Вихідний",
+    hintText3: "3. Натисніть зелену кнопку 📆, і ваш графік автоматично розрахується на рік вперед.",
+    hintText4: "4. Гортайте місяці стрілками ◀ ▶ та перевіряйте свої зміни.",
+    hintButton: "Зрозумів!"
   }
 };
 
@@ -278,6 +292,9 @@ export default function App() {
   const [shoppingBought, setShoppingBought] = useState([]);
   const [shoppingInput, setShoppingInput] = useState('');
 
+  // ==================== ПОДСКАЗКА ====================
+  const [hintModalVisible, setHintModalVisible] = useState(false);
+
   const t = translations[lang || 'ru'];
 
   useEffect(() => {
@@ -318,6 +335,27 @@ export default function App() {
       checkSavedPassword(selectedLang);
     } catch (e) {
       Alert.alert("Error", "Error saving language");
+    }
+  };
+
+  // ==================== ЗАГРУЗКА СОСТОЯНИЯ ПОДСКАЗКИ ====================
+  const loadHintState = async () => {
+    try {
+      const saved = await AsyncStorage.getItem('@shift_hint_shown');
+      if (saved !== 'true') {
+        setHintModalVisible(true);
+      }
+    } catch (e) {
+      console.log('Load hint error:', e);
+    }
+  };
+
+  const closeHint = async () => {
+    try {
+      await AsyncStorage.setItem('@shift_hint_shown', 'true');
+      setHintModalVisible(false);
+    } catch (e) {
+      console.log('Save hint error:', e);
     }
   };
 
@@ -671,6 +709,7 @@ export default function App() {
       fetchArchiveData(password);
       loadShiftData();
       loadShoppingList();
+      loadHintState();
     } else {
       setWorkData({});
     }
@@ -1214,6 +1253,33 @@ export default function App() {
     setArchiveModalVisible(false);
   };
 
+  // ==================== РЕНДЕР ПОДСКАЗКИ ====================
+  const renderHintModal = () => {
+    return (
+      <Modal
+        visible={hintModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {}}
+      >
+        <View style={styles.hintOverlay}>
+          <View style={styles.hintContainer}>
+            <ScrollView style={styles.hintScroll} showsVerticalScrollIndicator={false}>
+              <Text style={styles.hintTitle}>{t.hintTitle}</Text>
+              <Text style={styles.hintText}>{t.hintText1}</Text>
+              <Text style={styles.hintText}>{t.hintText2}</Text>
+              <Text style={styles.hintText}>{t.hintText3}</Text>
+              <Text style={styles.hintText}>{t.hintText4}</Text>
+            </ScrollView>
+            <TouchableOpacity style={styles.hintButton} onPress={closeHint}>
+              <Text style={styles.hintButtonText}>{t.hintButton}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
   // ==================== РЕНДЕР СПИСКА ПОКУПОК ====================
   const renderShoppingList = () => {
     const sortedItems = [...shoppingBuy, ...shoppingBought];
@@ -1358,6 +1424,9 @@ export default function App() {
 
   const isCurrentModeTrial = password && password.startsWith("TRIAL_MODE_");
 
+  // Проверяем, есть ли смены в графике
+  const hasShiftData = Object.keys(shiftData).length > 0;
+
   return (
     <SafeAreaView style={styles.safeArea}>
       {trialNotice && (
@@ -1487,6 +1556,9 @@ export default function App() {
 
         {/* ==================== РЕЖИМ "СПИСОК ПОКУПОК" ==================== */}
         {activeMode === 'shopping' && renderShoppingList()}
+
+        {/* ==================== ПОДСКАЗКА (ПОКАЗЫВАЕТСЯ ТОЛЬКО В РЕЖИМЕ ГРАФИК И ЕСЛИ НЕТ СМЕН) ==================== */}
+        {activeMode === 'schedule' && !hasShiftData && renderHintModal()}
 
         {/* ==================== МОДАЛКИ ==================== */}
         <Modal visible={shiftModalVisible} transparent={true} animationType="fade">
@@ -1859,4 +1931,50 @@ const styles = StyleSheet.create({
   shoppingInput: { flex: 1, borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontSize: 16, backgroundColor: '#FFF' },
   shoppingAddBtn: { backgroundColor: '#0052CC', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, marginLeft: 8 },
   shoppingAddBtnText: { color: '#FFF', fontSize: 20, fontWeight: 'bold' },
+  // ==================== ПОДСКАЗКА ====================
+  hintOverlay: { 
+    flex: 1, 
+    backgroundColor: 'rgba(0,0,0,0.6)', 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  hintContainer: { 
+    width: width * 0.9, 
+    maxHeight: height * 0.85, 
+    backgroundColor: '#FFFFFF', 
+    borderRadius: 16, 
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5
+  },
+  hintScroll: { 
+    marginBottom: 16 
+  },
+  hintTitle: { 
+    fontSize: 20, 
+    fontWeight: 'bold', 
+    color: '#111827', 
+    textAlign: 'center', 
+    marginBottom: 16 
+  },
+  hintText: { 
+    fontSize: 15, 
+    lineHeight: 22, 
+    color: '#374151', 
+    marginBottom: 10 
+  },
+  hintButton: { 
+    backgroundColor: '#10B981', 
+    paddingVertical: 14, 
+    borderRadius: 10, 
+    alignItems: 'center' 
+  },
+  hintButtonText: { 
+    color: '#FFFFFF', 
+    fontSize: 16, 
+    fontWeight: 'bold' 
+  },
 });
