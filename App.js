@@ -292,7 +292,7 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         setShiftData(parsed);
-        extractPatternAndStart(parsed);
+        // НЕ ВЫЗЫВАЕМ extractPatternAndStart — только загружаем данные
       }
     } catch (e) {
       console.log('Load shift error:', e);
@@ -305,7 +305,7 @@ export default function App() {
       const key = `@shift_schedule_${password}`;
       await AsyncStorage.setItem(key, JSON.stringify(newData));
       setShiftData(newData);
-      extractPatternAndStart(newData);
+      // НЕ ВЫЗЫВАЕМ extractPatternAndStart — только сохраняем
     } catch (e) {
       console.log('Save shift error:', e);
     }
@@ -363,13 +363,40 @@ export default function App() {
 
   // ==================== РАСЧЁТ НА ГОД ====================
   const calculateYear = async () => {
-    if (!shiftPattern || shiftPattern.length === 0 || !shiftStartDate) {
+    // Сначала извлекаем паттерн из текущих данных
+    const allDates = Object.keys(shiftData).sort();
+    if (allDates.length === 0) {
       Alert.alert(t.errorTitle, "Сначала отметьте минимум 1 день в текущем месяце");
       return;
     }
 
+    const startDate = allDates[0];
+    const pattern = [];
+    
+    const startDateObj = new Date(startDate);
+    let currentDate = new Date(startDate);
+    let maxDays = 365;
+    
+    while (maxDays > 0) {
+      const dateStr = currentDate.toISOString().split('T')[0];
+      if (shiftData[dateStr]) {
+        pattern.push(shiftData[dateStr]);
+      } else {
+        break;
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
+      maxDays--;
+    }
+
+    if (pattern.length === 0) {
+      Alert.alert(t.errorTitle, "Не удалось определить паттерн");
+      return;
+    }
+
+    setShiftPattern(pattern);
+    setShiftStartDate(startDate);
+
     const newData = { ...shiftData };
-    const startDate = new Date(shiftStartDate);
     const today = new Date();
     const startYear = today.getFullYear();
     const startMonth = today.getMonth();
@@ -380,12 +407,12 @@ export default function App() {
       
       for (const dayKey of days) {
         const targetDateObj = new Date(dayKey);
-        if (targetDateObj < startDate) continue;
+        if (targetDateObj < startDateObj) continue;
         if (newData[dayKey]) continue;
         
-        const diffDays = Math.floor((targetDateObj - startDate) / (1000 * 60 * 60 * 24));
-        const patternIndex = diffDays % shiftPattern.length;
-        newData[dayKey] = shiftPattern[patternIndex];
+        const diffDays = Math.floor((targetDateObj - startDateObj) / (1000 * 60 * 60 * 24));
+        const patternIndex = diffDays % pattern.length;
+        newData[dayKey] = pattern[patternIndex];
       }
     }
 
