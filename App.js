@@ -109,7 +109,8 @@ const translations = {
     modeSchedule: "График",
     selectShift: "Выберите смену",
     calculateYear: "Просчитать на год",
-    yearCalculated: "График просчитан на год вперёд"
+    yearCalculated: "График просчитан на год вперёд",
+    fillAllDays: "Заполните все дни месяца перед расчётом"
   },
   uk: {
     locale: 'uk-UA',
@@ -197,7 +198,8 @@ const translations = {
     modeSchedule: "Графік",
     selectShift: "Виберіть зміну",
     calculateYear: "Порахувати на рік",
-    yearCalculated: "Графік розраховано на рік вперед"
+    yearCalculated: "Графік розраховано на рік вперед",
+    fillAllDays: "Заповніть всі дні місяця перед розрахунком"
   }
 };
 
@@ -234,8 +236,8 @@ export default function App() {
 
   const [activeMode, setActiveMode] = useState('timesheet');
   const [shiftData, setShiftData] = useState({});
-  const [shiftPattern, setShiftPattern] = useState([]);
-  const [shiftStartDate, setShiftStartDate] = useState(null);
+  const [shiftFullPattern, setShiftFullPattern] = useState([]);
+  const [shiftPatternStartDate, setShiftPatternStartDate] = useState(null);
   const [shiftModalVisible, setShiftModalVisible] = useState(false);
   const [selectedShiftDate, setSelectedShiftDate] = useState(null);
 
@@ -290,7 +292,7 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         setShiftData(parsed);
-        extractPatternAndStart(parsed);
+        extractFullPattern(parsed);
       }
     } catch (e) {
       console.log('Load shift error:', e);
@@ -303,81 +305,67 @@ export default function App() {
       const key = `@shift_schedule_${password}`;
       await AsyncStorage.setItem(key, JSON.stringify(newData));
       setShiftData(newData);
-      extractPatternAndStart(newData);
+      extractFullPattern(newData);
     } catch (e) {
       console.log('Save shift error:', e);
     }
   };
 
-  // ==================== ИЗВЛЕЧЕНИЕ ПАТТЕРНА И СТАРТОВОЙ ДАТЫ ====================
-  const extractPatternAndStart = (data) => {
+  // ==================== ИЗВЛЕЧЕНИЕ ПОЛНОГО ПАТТЕРНА ИЗ МЕСЯЦА ====================
+  const extractFullPattern = (data) => {
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth();
     const days = getDaysInMonth(new Date(year, month, 1));
     
-    let startDate = null;
     const pattern = [];
+    let allFilled = true;
+    let startDate = null;
     
-    // Ищем первую заполненную смену в текущем месяце
-    for (const day of days) {
-      if (data[day]) {
-        startDate = day;
-        break;
-      }
-    }
-    
-    if (!startDate) {
-      setShiftPattern([]);
-      setShiftStartDate(null);
-      return;
-    }
-    
-    // Собираем паттерн начиная с первой смены
-    const startIndex = days.indexOf(startDate);
-    for (let i = startIndex; i < days.length; i++) {
+    for (let i = 0; i < days.length; i++) {
       const dayKey = days[i];
       if (data[dayKey]) {
         pattern.push(data[dayKey]);
+        if (!startDate) startDate = dayKey;
       } else {
+        allFilled = false;
         break;
       }
     }
     
-    if (pattern.length >= 2) {
-      setShiftPattern(pattern);
-      setShiftStartDate(startDate);
+    if (allFilled && pattern.length === days.length) {
+      setShiftFullPattern(pattern);
+      setShiftPatternStartDate(startDate);
     } else {
-      setShiftPattern([]);
-      setShiftStartDate(null);
+      setShiftFullPattern([]);
+      setShiftPatternStartDate(null);
     }
   };
 
   // ==================== РАСЧЁТ ПО ПАТТЕРНУ (ОТ СТАРТОВОЙ ДАТЫ) ====================
   const calculateFromPattern = (dateStr) => {
-    if (!shiftPattern || shiftPattern.length < 2 || !shiftStartDate) return null;
+    if (!shiftFullPattern || shiftFullPattern.length === 0 || !shiftPatternStartDate) return null;
     
-    const startDate = new Date(shiftStartDate);
+    const startDate = new Date(shiftPatternStartDate);
     const targetDate = new Date(dateStr);
     
-    // Разница в днях между стартовой датой и целевой
     const diffDays = Math.floor((targetDate - startDate) / (1000 * 60 * 60 * 24));
     
-    if (diffDays < 0) return null; // Дата раньше стартовой
+    if (diffDays < 0) return null;
     
-    const patternIndex = diffDays % shiftPattern.length;
-    return shiftPattern[patternIndex];
+    const patternIndex = diffDays % shiftFullPattern.length;
+    return shiftFullPattern[patternIndex];
   };
 
   // ==================== РАСЧЁТ НА ГОД (ПРОДОЛЖЕНИЕ ПАТТЕРНА) ====================
   const calculateYear = async () => {
-    if (!shiftPattern || shiftPattern.length < 2 || !shiftStartDate) {
-      Alert.alert(t.errorTitle, "Сначала введите минимум 2 смены подряд в текущем месяце");
+    if (!shiftFullPattern || shiftFullPattern.length === 0 || !shiftPatternStartDate) {
+      Alert.alert(t.errorTitle, t.fillAllDays);
       return;
     }
 
     const newData = { ...shiftData };
-    const startDate = new Date(shiftStartDate);
+    const startDate = new Date(shiftPatternStartDate);
     const today = new Date();
     const startYear = today.getFullYear();
     const startMonth = today.getMonth();
@@ -393,10 +381,10 @@ export default function App() {
         const targetDateObj = new Date(dayKey);
         const diffDays = Math.floor((targetDateObj - startDate) / (1000 * 60 * 60 * 24));
         
-        if (diffDays < 0) continue; // Пропускаем даты до стартовой
+        if (diffDays < 0) continue;
         
-        const patternIndex = diffDays % shiftPattern.length;
-        newData[dayKey] = shiftPattern[patternIndex];
+        const patternIndex = diffDays % shiftFullPattern.length;
+        newData[dayKey] = shiftFullPattern[patternIndex];
       }
     }
 
@@ -415,8 +403,8 @@ export default function App() {
           style: "destructive",
           onPress: async () => {
             await saveShiftData({});
-            setShiftPattern([]);
-            setShiftStartDate(null);
+            setShiftFullPattern([]);
+            setShiftPatternStartDate(null);
             Alert.alert(t.noticeTitle, t.scheduleCleared);
           }
         }
@@ -1044,7 +1032,6 @@ export default function App() {
       let shiftLabel = '';
       
       if (activeMode === 'schedule') {
-        // Если смена не задана вручную — пробуем рассчитать по паттерну
         if (!shiftType) {
           shiftType = calculateFromPattern(dateStr);
         }
@@ -1229,13 +1216,13 @@ export default function App() {
           <ScrollView contentContainerStyle={styles.calendarGrid}>{renderCalendarGrid()}</ScrollView>
         )}
 
-        {activeMode === 'schedule' && shiftPattern.length >= 2 && shiftStartDate && (
+        {activeMode === 'schedule' && shiftFullPattern.length > 0 && shiftPatternStartDate && (
           <View style={styles.patternInfoContainer}>
             <Text style={styles.patternInfoText}>
-              🔄 Паттерн: {shiftPattern.map(s => getShiftLabel(s)).join(' → ')}
+              📋 Паттерн ({shiftFullPattern.length} дней): {shiftFullPattern.map(s => getShiftLabel(s)).join(' → ')}
             </Text>
             <Text style={styles.patternInfoSubtext}>
-              Начало с {shiftStartDate} · Нажмите 📆 для расчёта на год
+              Начало с {shiftPatternStartDate} · Нажмите 📆 для расчёта на год
             </Text>
           </View>
         )}
