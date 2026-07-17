@@ -219,7 +219,7 @@ const translations = {
     shoppingTitle: "Що купити",
     shoppingBuy: "Купити",
     shoppingBought: "Куплено",
-    shoppingClear: "Очистити",
+    shoppingClear: "Видалити",
     shoppingAdd: "Додати товар...",
     shoppingEmpty: "Список порожній",
     shoppingDelete: "Видалити",
@@ -1210,6 +1210,7 @@ export default function App() {
 
   // ==================== РЕНДЕР СПИСКА ПОКУПОК ====================
   const renderShoppingList = () => {
+    // Сортируем: сначала активные, потом купленные
     const sortedItems = [...shoppingBuy, ...shoppingBought];
 
     return (
@@ -1220,7 +1221,7 @@ export default function App() {
       >
         <View style={styles.shoppingHeader}>
           <Text style={styles.shoppingTitle}>{t.shoppingTitle}</Text>
-          <Text style={styles.shoppingCount}>Купить ({shoppingBuy.length})</Text>
+          <Text style={styles.shoppingCount}>{t.shoppingBuy} ({shoppingBuy.length})</Text>
         </View>
 
         {sortedItems.length === 0 ? (
@@ -1257,7 +1258,13 @@ export default function App() {
             ItemSeparatorComponent={() => (
               <View style={styles.shoppingSeparator} />
             )}
+            ListHeaderComponent={() => {
+              // Показываем разделитель только если есть купленные товары
+              if (shoppingBought.length === 0 || shoppingBuy.length === 0) return null;
+              return null;
+            }}
             ListFooterComponent={() => {
+              // Кнопка "Очистить" появляется только когда есть купленные товары
               if (shoppingBought.length === 0) return null;
               return (
                 <View style={styles.shoppingClearSection}>
@@ -1266,7 +1273,7 @@ export default function App() {
                     style={styles.shoppingClearBtnWrap} 
                     onPress={clearShoppingBought}
                   >
-                    <Text style={styles.shoppingClearBtnText}>Очистить</Text>
+                    <Text style={styles.shoppingClearBtnText}>{t.shoppingClear}</Text>
                   </TouchableOpacity>
                   <View style={styles.shoppingDivider} />
                 </View>
