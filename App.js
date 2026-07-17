@@ -313,7 +313,6 @@ export default function App() {
 
   // ==================== ИЗВЛЕЧЕНИЕ ПАТТЕРНА И СТАРТОВОЙ ДАТЫ ====================
   const extractPatternAndStart = (data) => {
-    // Ищем первый заполненный день в данных
     const allDates = Object.keys(data).sort();
     if (allDates.length === 0) {
       setShiftPattern([]);
@@ -324,10 +323,9 @@ export default function App() {
     const startDate = allDates[0];
     const pattern = [];
     
-    // Собираем все подряд идущие заполненные дни от старта
     const startDateObj = new Date(startDate);
     let currentDate = new Date(startDate);
-    let maxDays = 365; // чтобы не было бесконечного цикла
+    let maxDays = 365;
     
     while (maxDays > 0) {
       const dateStr = currentDate.toISOString().split('T')[0];
@@ -356,18 +354,14 @@ export default function App() {
     const targetDate = new Date(dateStr);
     const startDate = new Date(shiftStartDate);
     
-    // Если дата раньше старта — возвращаем null (пусто)
     if (targetDate < startDate) return null;
     
-    // Считаем разницу в днях
     const diffDays = Math.floor((targetDate - startDate) / (1000 * 60 * 60 * 24));
-    
-    // Берём остаток от деления на длину паттерна
     const patternIndex = diffDays % shiftPattern.length;
     return shiftPattern[patternIndex];
   };
 
-  // ==================== РАСЧЁТ НА ГОД (ПРОДОЛЖЕНИЕ ЛЕНТЫ) ====================
+  // ==================== РАСЧЁТ НА ГОД ====================
   const calculateYear = async () => {
     if (!shiftPattern || shiftPattern.length === 0 || !shiftStartDate) {
       Alert.alert(t.errorTitle, "Сначала отметьте минимум 1 день в текущем месяце");
@@ -380,7 +374,6 @@ export default function App() {
     const startYear = today.getFullYear();
     const startMonth = today.getMonth();
 
-    // Заполняем 24 месяца (текущий + 23 вперёд)
     for (let m = 0; m < 24; m++) {
       const targetDate = new Date(startYear, startMonth + m, 1);
       const days = getDaysInMonth(targetDate);
@@ -388,7 +381,7 @@ export default function App() {
       for (const dayKey of days) {
         const targetDateObj = new Date(dayKey);
         if (targetDateObj < startDate) continue;
-        if (newData[dayKey]) continue; // Не перезаписываем ручные правки
+        if (newData[dayKey]) continue;
         
         const diffDays = Math.floor((targetDateObj - startDate) / (1000 * 60 * 60 * 24));
         const patternIndex = diffDays % shiftPattern.length;
@@ -1224,17 +1217,6 @@ export default function App() {
           <ScrollView contentContainerStyle={styles.calendarGrid}>{renderCalendarGrid()}</ScrollView>
         )}
 
-        {activeMode === 'schedule' && shiftPattern.length > 0 && shiftStartDate && (
-          <View style={styles.patternInfoContainer}>
-            <Text style={styles.patternInfoText}>
-              📋 Лента ({shiftPattern.length} дн.): {shiftPattern.map(s => getShiftLabel(s)).join(' → ')}
-            </Text>
-            <Text style={styles.patternInfoSubtext}>
-              Старт: {shiftStartDate} · Нажмите 📆 для расчёта на год
-            </Text>
-          </View>
-        )}
-
         {activeMode === 'timesheet' && (
           <View style={styles.statsContainer}>
             <Text style={styles.statsText}>{t.statsWorkDays}: {stats.workDays}</Text>
@@ -1485,9 +1467,6 @@ const styles = StyleSheet.create({
   shiftOptions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', marginVertical: 10 },
   shiftOption: { width: '45%', padding: 12, borderRadius: 8, alignItems: 'center', marginBottom: 8, borderWidth: 1, borderColor: '#D1D5DB' },
   shiftOptionText: { fontSize: 16, fontWeight: 'bold', color: '#111827' },
-  patternInfoContainer: { backgroundColor: '#E0F2FE', padding: 8, borderRadius: 8, marginVertical: 6 },
-  patternInfoText: { fontSize: 13, fontWeight: 'bold', color: '#0369A1', textAlign: 'center' },
-  patternInfoSubtext: { fontSize: 11, color: '#0369A1', textAlign: 'center' },
   weekDaysRow: { flexDirection: 'row', marginBottom: 8 },
   weekDayTextNormal: { width: (width - 32) / 7 - 8, marginHorizontal: 4, textAlign: 'center', fontWeight: 'bold', color: '#6B7280' },
   weekDayTextWeekend: { width: (width - 32) / 7 - 8, marginHorizontal: 4, textAlign: 'center', fontWeight: 'bold', color: '#EF4444' },
