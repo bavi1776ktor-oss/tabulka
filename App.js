@@ -232,10 +232,10 @@ export default function App() {
   const [devMessage, setDevMessage] = useState('');
   const [sendingDevMessage, setSendingDevMessage] = useState(false);
 
-  // ==================== НОВЫЕ СОСТОЯНИЯ ДЛЯ ГРАФИКА ====================
-  const [activeMode, setActiveMode] = useState('timesheet'); // 'timesheet' | 'schedule'
-  const [shiftData, setShiftData] = useState({}); // { "2026-07-01": "day", "2026-07-02": "night" }
-  const [shiftPattern, setShiftPattern] = useState([]); // ["day", "night", "off", "off"]
+  const [activeMode, setActiveMode] = useState('timesheet');
+  const [shiftData, setShiftData] = useState({});
+  const [shiftPattern, setShiftPattern] = useState([]);
+  const [shiftStartDate, setShiftStartDate] = useState(null);
   const [shiftModalVisible, setShiftModalVisible] = useState(false);
   const [selectedShiftDate, setSelectedShiftDate] = useState(null);
 
@@ -282,7 +282,6 @@ export default function App() {
     }
   };
 
-  // ==================== ЗАГРУЗКА ГРАФИКА ИЗ ASYNCSTORAGE ====================
   const loadShiftData = async () => {
     if (!password) return;
     try {
@@ -291,111 +290,120 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         setShiftData(parsed);
-        extractPatternFromMonth(parsed);
+        extractPatternAndStart(parsed);
       }
     } catch (e) {
       console.log('Load shift error:', e);
     }
   };
 
-  // ==================== СОХРАНЕНИЕ ГРАФИКА В ASYNCSTORAGE ====================
   const saveShiftData = async (newData) => {
     if (!password) return;
     try {
       const key = `@shift_schedule_${password}`;
       await AsyncStorage.setItem(key, JSON.stringify(newData));
       setShiftData(newData);
-      extractPatternFromMonth(newData);
+      extractPatternAndStart(newData);
     } catch (e) {
       console.log('Save shift error:', e);
     }
   };
 
-  // ==================== ИЗВЛЕЧЕНИЕ ПАТТЕРНА ИЗ МЕСЯЦА ====================
-  const extractPatternFromMonth = (data) => {
+  // ==================== ИЗВЛЕЧЕНИЕ ПАТТЕРНА И СТАРТОВОЙ ДАТЫ ====================
+  const extractPatternAndStart = (data) => {
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth();
-    const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
-    
     const days = getDaysInMonth(new Date(year, month, 1));
+    
+    let startDate = null;
     const pattern = [];
+    
+    // Ищем первую заполненную смену в текущем месяце
     for (const day of days) {
       if (data[day]) {
-        pattern.push(data[day]);
+        startDate = day;
+        break;
+      }
+    }
+    
+    if (!startDate) {
+      setShiftPattern([]);
+      setShiftStartDate(null);
+      return;
+    }
+    
+    // Собираем паттерн начиная с первой смены
+    const startIndex = days.indexOf(startDate);
+    for (let i = startIndex; i < days.length; i++) {
+      const dayKey = days[i];
+      if (data[dayKey]) {
+        pattern.push(data[dayKey]);
       } else {
         break;
       }
     }
+    
     if (pattern.length >= 2) {
       setShiftPattern(pattern);
+      setShiftStartDate(startDate);
     } else {
       setShiftPattern([]);
+      setShiftStartDate(null);
     }
   };
 
-  // ==================== АВТО-ЗАПОЛНЕНИЕ МЕСЯЦА ПО ПАТТЕРНУ ====================
-  const autoFillMonth = (monthDate, pattern) => {
-    if (!pattern || pattern.length < 2) return {};
-
-    const days = getDaysInMonth(monthDate);
-    const result = {};
-    for (let i = 0; i < days.length; i++) {
-      const dayKey = days[i];
-      if (shiftData[dayKey]) {
-        result[dayKey] = shiftData[dayKey];
-        continue;
-      }
-      const patternIndex = i % pattern.length;
-      result[dayKey] = pattern[patternIndex];
-    }
-    return result;
+  // ==================== РАСЧЁТ ПО ПАТТЕРНУ (ОТ СТАРТОВОЙ ДАТЫ) ====================
+  const calculateFromPattern = (dateStr) => {
+    if (!shiftPattern || shiftPattern.length < 2 || !shiftStartDate) return null;
+    
+    const startDate = new Date(shiftStartDate);
+    const targetDate = new Date(dateStr);
+    
+    // Разница в днях между стартовой датой и целевой
+    const diffDays = Math.floor((targetDate - startDate) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) return null; // Дата раньше стартовой
+    
+    const patternIndex = diffDays % shiftPattern.length;
+    return shiftPattern[patternIndex];
   };
 
-  // ==================== ПРИМЕНЕНИЕ ПАТТЕРНА К ТЕКУЩЕМУ МЕСЯЦУ ====================
-  const applyPatternToMonth = (monthDate) => {
-    if (!shiftPattern || shiftPattern.length < 2) return;
-    const newData = { ...shiftData };
-    const days = getDaysInMonth(monthDate);
-    for (let i = 0; i < days.length; i++) {
-      const dayKey = days[i];
-      if (newData[dayKey]) continue;
-      const patternIndex = i % shiftPattern.length;
-      newData[dayKey] = shiftPattern[patternIndex];
-    }
-    saveShiftData(newData);
-  };
-
-  // ==================== РАСЧЁТ НА ГОД ====================
+  // ==================== РАСЧЁТ НА ГОД (ПРОДОЛЖЕНИЕ ПАТТЕРНА) ====================
   const calculateYear = async () => {
-    if (!shiftPattern || shiftPattern.length < 2) {
-      Alert.alert(t.errorTitle, "Сначала введите 2–3 смены подряд в текущем месяце");
+    if (!shiftPattern || shiftPattern.length < 2 || !shiftStartDate) {
+      Alert.alert(t.errorTitle, "Сначала введите минимум 2 смены подряд в текущем месяце");
       return;
     }
-    
+
     const newData = { ...shiftData };
+    const startDate = new Date(shiftStartDate);
     const today = new Date();
     const startYear = today.getFullYear();
     const startMonth = today.getMonth();
-    
+
     // Заполняем 24 месяца (текущий + 23 вперёд)
     for (let m = 0; m < 24; m++) {
       const targetDate = new Date(startYear, startMonth + m, 1);
       const days = getDaysInMonth(targetDate);
-      for (let i = 0; i < days.length; i++) {
-        const dayKey = days[i];
-        // Если день уже заполнен — пропускаем (ручная правка)
-        if (newData[dayKey]) continue;
-        const patternIndex = i % shiftPattern.length;
+      
+      for (const dayKey of days) {
+        if (newData[dayKey]) continue; // Не перезаписываем ручные правки
+        
+        const targetDateObj = new Date(dayKey);
+        const diffDays = Math.floor((targetDateObj - startDate) / (1000 * 60 * 60 * 24));
+        
+        if (diffDays < 0) continue; // Пропускаем даты до стартовой
+        
+        const patternIndex = diffDays % shiftPattern.length;
         newData[dayKey] = shiftPattern[patternIndex];
       }
     }
-    
+
     await saveShiftData(newData);
     Alert.alert(t.noticeTitle, t.yearCalculated);
   };
 
-  // ==================== ОЧИСТКА ГРАФИКА ====================
   const clearSchedule = async () => {
     Alert.alert(
       "Очистка графика",
@@ -408,6 +416,7 @@ export default function App() {
           onPress: async () => {
             await saveShiftData({});
             setShiftPattern([]);
+            setShiftStartDate(null);
             Alert.alert(t.noticeTitle, t.scheduleCleared);
           }
         }
@@ -415,7 +424,6 @@ export default function App() {
     );
   };
 
-  // ==================== ВЫБОР СМЕНЫ ДЛЯ ДНЯ ====================
   const handleShiftDayPress = (dateStr) => {
     if (activeMode !== 'schedule') return;
     setSelectedShiftDate(dateStr);
@@ -431,7 +439,6 @@ export default function App() {
     setSelectedShiftDate(null);
   };
 
-  // ==================== ПОЛУЧЕНИЕ ЦВЕТА ДЛЯ СМЕНЫ ====================
   const getShiftColor = (shiftType) => {
     switch (shiftType) {
       case 'day': return '#FDE047';
@@ -452,7 +459,6 @@ export default function App() {
     }
   };
 
-  // ==================== НАВИГАЦИЯ ПО МЕСЯЦАМ ====================
   const goToPrevMonth = () => {
     const newDate = new Date(currentMonth);
     newDate.setMonth(newDate.getMonth() - 1);
@@ -465,7 +471,6 @@ export default function App() {
     setCurrentMonth(newDate);
   };
 
-  // ==================== ОСТАЛЬНОЙ СУЩЕСТВУЮЩИЙ КОД ====================
   const fetchWorkData = async (currentPassword) => {
     if (!currentPassword) return;
     setIsLoadingData(true);
@@ -1034,10 +1039,15 @@ export default function App() {
       const isWorkDay = dayTotal > 0;
       const dayNum = dateStr.split('-')[2];
       
+      let shiftType = shiftData[dateStr];
       let shiftColor = '#FFFFFF';
       let shiftLabel = '';
+      
       if (activeMode === 'schedule') {
-        const shiftType = shiftData[dateStr];
+        // Если смена не задана вручную — пробуем рассчитать по паттерну
+        if (!shiftType) {
+          shiftType = calculateFromPattern(dateStr);
+        }
         shiftColor = getShiftColor(shiftType);
         shiftLabel = getShiftLabel(shiftType);
       }
@@ -1162,7 +1172,6 @@ export default function App() {
           </TouchableOpacity>
         )}
 
-        {/* ==================== НАВИГАЦИЯ ПО МЕСЯЦАМ ==================== */}
         <View style={styles.monthSelectorRow}>
           <TouchableOpacity style={lang === 'ru' ? styles.langCircleRu : styles.langCircleRuDimmed} onPress={() => handleSelectLanguage('ru')}>
             <Text style={styles.langCircleText}>Р</Text>
@@ -1183,12 +1192,10 @@ export default function App() {
           </TouchableOpacity>
         </View>
 
-        {/* ==================== КНОПКА "СЕГОДНЯ" ==================== */}
         <TouchableOpacity style={styles.todayButtonFull} onPress={() => setCurrentMonth(new Date())}>
           <Text style={styles.todayButtonFullText}>{t.btnToday.toUpperCase()}</Text>
         </TouchableOpacity>
 
-        {/* ==================== ПЕРЕКЛЮЧАТЕЛЬ МЕЖДУ ТАБЕЛЕМ И ГРАФИКОМ ==================== */}
         <View style={styles.modeSwitchRow}>
           <TouchableOpacity 
             style={[styles.modeButton, activeMode === 'timesheet' && styles.modeButtonActive]}
@@ -1222,19 +1229,17 @@ export default function App() {
           <ScrollView contentContainerStyle={styles.calendarGrid}>{renderCalendarGrid()}</ScrollView>
         )}
 
-        {/* ==================== БЛОК ДЛЯ РЕЖИМА ГРАФИКА ==================== */}
-        {activeMode === 'schedule' && shiftPattern.length >= 2 && (
+        {activeMode === 'schedule' && shiftPattern.length >= 2 && shiftStartDate && (
           <View style={styles.patternInfoContainer}>
             <Text style={styles.patternInfoText}>
               🔄 Паттерн: {shiftPattern.map(s => getShiftLabel(s)).join(' → ')}
             </Text>
             <Text style={styles.patternInfoSubtext}>
-              Нажмите 📆 для расчёта на год вперёд
+              Начало с {shiftStartDate} · Нажмите 📆 для расчёта на год
             </Text>
           </View>
         )}
 
-        {/* ==================== СТАТИСТИКА ТОЛЬКО ДЛЯ ТАБЕЛЯ ==================== */}
         {activeMode === 'timesheet' && (
           <View style={styles.statsContainer}>
             <Text style={styles.statsText}>{t.statsWorkDays}: {stats.workDays}</Text>
@@ -1458,7 +1463,6 @@ const styles = StyleSheet.create({
   writeToDevButtonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold', textAlign: 'center' },
   trialTopRequestBtn: { backgroundColor: '#10B981', padding: 10, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 15 },
   trialTopRequestBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 14, textAlign: 'center' },
-  // ==================== НАВИГАЦИЯ ПО МЕСЯЦАМ ====================
   monthSelectorRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   monthTitleWrapper: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   monthTitle: { fontSize: 16, fontWeight: 'bold', color: '#374151', textAlign: 'center', marginHorizontal: 10 },
@@ -1471,7 +1475,6 @@ const styles = StyleSheet.create({
   langCircleRuDimmed: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0052CC', opacity: 0.35 },
   langCircleUk: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: '#10B981' },
   langCircleUkDimmed: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: '#10B981', opacity: 0.35 },
-  // ==================== СТИЛИ ДЛЯ ПЕРЕКЛЮЧАТЕЛЯ ====================
   modeSwitchRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
   modeButton: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#E5E7EB', marginHorizontal: 4 },
   modeButtonActive: { backgroundColor: '#0052CC' },
@@ -1481,7 +1484,6 @@ const styles = StyleSheet.create({
   clearScheduleButtonText: { fontSize: 16, color: '#FFF' },
   calcYearButton: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#10B981', marginLeft: 4 },
   calcYearButtonText: { fontSize: 16, color: '#FFF' },
-  // ==================== СТИЛИ ДЛЯ ГРАФИКА ====================
   shiftCell: { width: (width - 32) / 7 - 8, height: 46, margin: 4, justifyContent: 'center', alignItems: 'center', borderRadius: 8, borderWidth: 1, borderColor: '#D1D5DB' },
   shiftDayText: { fontSize: 15, fontWeight: 'bold', color: '#111827', textAlign: 'center' },
   shiftLabelText: { fontSize: 9, fontWeight: 'bold', color: '#4B5563', textAlign: 'center', marginTop: 1 },
@@ -1502,7 +1504,6 @@ const styles = StyleSheet.create({
   dayText: { fontSize: 16, fontWeight: 'bold', color: '#111827', textAlign: 'center' },
   workDayText: { fontSize: 15, fontWeight: 'bold', color: '#FFF', textAlign: 'center' },
   cellSumSubtext: { fontSize: 11, color: '#A3E635', fontWeight: 'bold', marginTop: -2, textAlign: 'center' },
-  
   inlineActivationBlock: { 
     flexDirection: 'row', 
     alignItems: 'center', 
@@ -1537,7 +1538,6 @@ const styles = StyleSheet.create({
     fontSize: 12, 
     fontWeight: 'bold' 
   },
-
   statsContainer: { backgroundColor: '#FFF', padding: 14, borderRadius: 12, marginTop: 10, borderWidth: 1, borderColor: '#E5E7EB' },
   statsText: { fontSize: 14, color: '#111827', fontWeight: 'bold' },
   totalText: { fontSize: 16, fontWeight: 'bold', marginTop: 4, color: '#111827' },
@@ -1567,7 +1567,6 @@ const styles = StyleSheet.create({
   noticeContainer: { backgroundColor: '#0052CC', padding: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   noticeSubText: { fontSize: 16, fontWeight: 'bold', color: '#FFF', textAlign: 'center' },
   centerLoading: { flex: 1, justifyContent: 'center', alignItems: 'center', minHeight: 200 },
-  
   toastOverlay: { 
     position: 'absolute', 
     top: 0, left: 0, right: 0, bottom: 0, 
