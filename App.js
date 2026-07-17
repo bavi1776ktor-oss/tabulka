@@ -98,7 +98,17 @@ const translations = {
     messageSentToEmail: "Копия отправлена на почту разработчика.",
     adminMessageClose: "Закрыть",
     adminMessageLink: "Скачать обновление",
-    noMessages: "Нет новых сообщений"
+    noMessages: "Нет новых сообщений",
+    // Новые переводы для графика
+    shiftDay: "День",
+    shiftNight: "Ночь",
+    shift24: "Сутки",
+    shiftOff: "Выходной",
+    clearSchedule: "Очистить график",
+    scheduleCleared: "График очищен",
+    modeTimesheet: "Табель",
+    modeSchedule: "График",
+    selectShift: "Выберите смену",
   },
   uk: {
     locale: 'uk-UA',
@@ -175,7 +185,16 @@ const translations = {
     messageSentToEmail: "Копія надіслана на пошту розробника.",
     adminMessageClose: "Закрити",
     adminMessageLink: "Завантажити оновлення",
-    noMessages: "Немає нових повідомлень"
+    noMessages: "Немає нових повідомлень",
+    shiftDay: "День",
+    shiftNight: "Ніч",
+    shift24: "Доба",
+    shiftOff: "Вихідний",
+    clearSchedule: "Очистити графік",
+    scheduleCleared: "Графік очищено",
+    modeTimesheet: "Табель",
+    modeSchedule: "Графік",
+    selectShift: "Виберіть зміну",
   }
 };
 
@@ -209,6 +228,13 @@ export default function App() {
   const [devSubject, setDevSubject] = useState('');
   const [devMessage, setDevMessage] = useState('');
   const [sendingDevMessage, setSendingDevMessage] = useState(false);
+
+  // ==================== НОВЫЕ СОСТОЯНИЯ ДЛЯ ГРАФИКА ====================
+  const [activeMode, setActiveMode] = useState('timesheet'); // 'timesheet' | 'schedule'
+  const [shiftData, setShiftData] = useState({}); // { "2026-07-01": "day", "2026-07-02": "night" }
+  const [shiftPattern, setShiftPattern] = useState([]); // ["day", "night", "off", "off"]
+  const [shiftModalVisible, setShiftModalVisible] = useState(false);
+  const [selectedShiftDate, setSelectedShiftDate] = useState(null);
 
   const t = translations[lang || 'ru'];
 
@@ -253,6 +279,187 @@ export default function App() {
     }
   };
 
+  // ==================== ЗАГРУЗКА ГРАФИКА ИЗ ASYNCSTORAGE ====================
+  const loadShiftData = async () => {
+    if (!password) return;
+    try {
+      const key = `@shift_schedule_${password}`;
+      const saved = await AsyncStorage.getItem(key);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setShiftData(parsed);
+        // Восстанавливаем паттерн из первых дней текущего месяца
+        extractPatternFromMonth(parsed);
+      }
+    } catch (e) {
+      console.log('Load shift error:', e);
+    }
+  };
+
+  // ==================== СОХРАНЕНИЕ ГРАФИКА В ASYNCSTORAGE ====================
+  const saveShiftData = async (newData) => {
+    if (!password) return;
+    try {
+      const key = `@shift_schedule_${password}`;
+      await AsyncStorage.setItem(key, JSON.stringify(newData));
+      setShiftData(newData);
+      extractPatternFromMonth(newData);
+    } catch (e) {
+      console.log('Save shift error:', e);
+    }
+  };
+
+  // ==================== ИЗВЛЕЧЕНИЕ ПАТТЕРНА ИЗ МЕСЯЦА ====================
+  const extractPatternFromMonth = (data) => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
+    
+    const days = getDaysInMonth(new Date(year, month, 1));
+    const pattern = [];
+    for (const day of days) {
+      if (data[day]) {
+        pattern.push(data[day]);
+      } else {
+        break;
+      }
+    }
+    if (pattern.length >= 2) {
+      setShiftPattern(pattern);
+    } else {
+      setShiftPattern([]);
+    }
+  };
+
+  // ==================== АВТО-ЗАПОЛНЕНИЕ МЕСЯЦА ПО ПАТТЕРНУ ====================
+  const autoFillMonth = (monthDate, pattern) => {
+    if (!pattern || pattern.length < 2) return {};
+
+    const days = getDaysInMonth(monthDate);
+    const result = {};
+    for (let i = 0; i < days.length; i++) {
+      const dayKey = days[i];
+      // Пропускаем уже заполненные дни (чтобы не перетереть ручные правки)
+      if (shiftData[dayKey]) {
+        result[dayKey] = shiftData[dayKey];
+        continue;
+      }
+      // Берём смену по циклу из паттерна
+      const patternIndex = i % pattern.length;
+      result[dayKey] = pattern[patternIndex];
+    }
+    return result;
+  };
+
+  // ==================== ПРИМЕНЕНИЕ ПАТТЕРНА К ТЕКУЩЕМУ МЕСЯЦУ ====================
+  const applyPatternToMonth = (monthDate) => {
+    if (!shiftPattern || shiftPattern.length < 2) return;
+    const newData = { ...shiftData };
+    const days = getDaysInMonth(monthDate);
+    for (let i = 0; i < days.length; i++) {
+      const dayKey = days[i];
+      // Не перезаписываем уже заполненные дни
+      if (newData[dayKey]) continue;
+      const patternIndex = i % shiftPattern.length;
+      newData[dayKey] = shiftPattern[patternIndex];
+    }
+    saveShiftData(newData);
+  };
+
+  // ==================== ПРИМЕНЕНИЕ ПАТТЕРНА К БУДУЩИМ МЕСЯЦАМ ====================
+  const applyPatternToFutureMonths = (startDate) => {
+    if (!shiftPattern || shiftPattern.length < 2) return;
+    const newData = { ...shiftData };
+    const startYear = startDate.getFullYear();
+    const startMonth = startDate.getMonth();
+    
+    // Заполняем текущий месяц
+    const currentDays = getDaysInMonth(new Date(startYear, startMonth, 1));
+    for (let i = 0; i < currentDays.length; i++) {
+      const dayKey = currentDays[i];
+      if (!newData[dayKey]) {
+        const patternIndex = i % shiftPattern.length;
+        newData[dayKey] = shiftPattern[patternIndex];
+      }
+    }
+
+    // Заполняем следующие 12 месяцев
+    for (let m = 1; m <= 12; m++) {
+      const targetDate = new Date(startYear, startMonth + m, 1);
+      const days = getDaysInMonth(targetDate);
+      let dayOffset = 0;
+      for (let i = 0; i < days.length; i++) {
+        const dayKey = days[i];
+        // Если день уже заполнен — пропускаем (ручная правка)
+        if (newData[dayKey]) continue;
+        // Считаем смещение от начала месяца
+        const patternIndex = (i + dayOffset) % shiftPattern.length;
+        newData[dayKey] = shiftPattern[patternIndex];
+        dayOffset++;
+      }
+    }
+    saveShiftData(newData);
+  };
+
+  // ==================== ОЧИСТКА ГРАФИКА ====================
+  const clearSchedule = async () => {
+    Alert.alert(
+      "Очистка графика",
+      "Удалить все смены во всех месяцах?",
+      [
+        { text: "Отмена", style: "cancel" },
+        { 
+          text: "Очистить", 
+          style: "destructive",
+          onPress: async () => {
+            await saveShiftData({});
+            setShiftPattern([]);
+            Alert.alert(t.noticeTitle, t.scheduleCleared);
+          }
+        }
+      ]
+    );
+  };
+
+  // ==================== ВЫБОР СМЕНЫ ДЛЯ ДНЯ ====================
+  const handleShiftDayPress = (dateStr) => {
+    if (activeMode !== 'schedule') return;
+    setSelectedShiftDate(dateStr);
+    setShiftModalVisible(true);
+  };
+
+  const selectShiftType = (type) => {
+    if (!selectedShiftDate) return;
+    const newData = { ...shiftData };
+    newData[selectedShiftDate] = type;
+    saveShiftData(newData);
+    setShiftModalVisible(false);
+    setSelectedShiftDate(null);
+  };
+
+  // ==================== ПОЛУЧЕНИЕ ЦВЕТА ДЛЯ СМЕНЫ ====================
+  const getShiftColor = (shiftType) => {
+    switch (shiftType) {
+      case 'day': return '#FDE047';
+      case 'night': return '#60A5FA';
+      case '24': return '#A78BFA';
+      case 'off': return '#F3F4F6';
+      default: return '#FFFFFF';
+    }
+  };
+
+  const getShiftLabel = (shiftType) => {
+    switch (shiftType) {
+      case 'day': return t.shiftDay;
+      case 'night': return t.shiftNight;
+      case '24': return t.shift24;
+      case 'off': return t.shiftOff;
+      default: return '';
+    }
+  };
+
+  // ==================== ОСТАЛЬНОЙ СУЩЕСТВУЮЩИЙ КОД ====================
   const fetchWorkData = async (currentPassword) => {
     if (!currentPassword) return;
     setIsLoadingData(true);
@@ -323,17 +530,15 @@ export default function App() {
     if (password) {
       fetchWorkData(password);
       fetchArchiveData(password);
+      loadShiftData();
     } else {
       setWorkData({});
     }
   }, [password, currentMonth]);
 
-  // ==================== ПРОВЕРКА СООБЩЕНИЙ ====================
   const checkAdminMessages = async (deviceId, currentPassword) => {
     const actualPassword = currentPassword || password;
-    if (!actualPassword) {
-      return;
-    }
+    if (!actualPassword) return;
 
     try {
       const response = await fetch(`${FIREBASE_REST_URL}/admin_messages.json`);
@@ -350,14 +555,9 @@ export default function App() {
         if (msgData.active === false) continue;
         
         let isTarget = false;
-        
-        if (msgData.target === 'trials' && isTrial) {
-          isTarget = true;
-        } else if (msgData.target === 'activated' && isActivated) {
-          isTarget = true;
-        } else if (msgData.target === 'selected' && msgData.targetDeviceId === deviceId) {
-          isTarget = true;
-        }
+        if (msgData.target === 'trials' && isTrial) isTarget = true;
+        else if (msgData.target === 'activated' && isActivated) isTarget = true;
+        else if (msgData.target === 'selected' && msgData.targetDeviceId === deviceId) isTarget = true;
 
         if (isTarget && !readList.includes(msgId)) {
           setAdminMessageId(msgId);
@@ -372,7 +572,6 @@ export default function App() {
     }
   };
 
-  // ==================== ОТМЕТКА О ПРОЧТЕНИИ (БЕЗОПАСНАЯ) ====================
   const markMessageAsRead = async () => {
     if (!adminMessageId) {
       setAdminMessageModalVisible(false);
@@ -391,7 +590,6 @@ export default function App() {
     setAdminMessageModalVisible(false);
   };
 
-  // ==================== НАПИСАТЬ РАЗРАБОТЧИКУ ====================
   const handleSendToDev = async () => {
     if (!devSubject.trim() || !devMessage.trim()) {
       Alert.alert(t.errorTitle, "Заполните тему и текст сообщения");
@@ -679,6 +877,10 @@ export default function App() {
   };
 
   const handleDayPress = (dateStr) => {
+    if (activeMode === 'schedule') {
+      handleShiftDayPress(dateStr);
+      return;
+    }
     setSelectedDate(dateStr);
     setRate('');
     setHours('');
@@ -825,10 +1027,33 @@ export default function App() {
       const dayTotal = getDayTotal(dayData);
       const isWorkDay = dayTotal > 0;
       const dayNum = dateStr.split('-')[2];
+      
+      // Для режима графика — используем shiftData
+      let shiftColor = '#FFFFFF';
+      let shiftLabel = '';
+      if (activeMode === 'schedule') {
+        const shiftType = shiftData[dateStr];
+        shiftColor = getShiftColor(shiftType);
+        shiftLabel = getShiftLabel(shiftType);
+      }
+
       gridCells.push(
-        <TouchableOpacity key={dateStr} style={isWorkDay ? styles.workDayCell : styles.weekendCell} onPress={() => handleDayPress(dateStr)}>
-          <Text style={isWorkDay ? styles.workDayText : styles.dayText}>{parseInt(dayNum, 10)}</Text>
-          {isWorkDay && (<Text style={styles.cellSumSubtext}>{dayTotal}</Text>)}
+        <TouchableOpacity 
+          key={dateStr} 
+          style={[
+            activeMode === 'schedule' ? styles.shiftCell : (isWorkDay ? styles.workDayCell : styles.weekendCell),
+            { backgroundColor: activeMode === 'schedule' ? shiftColor : (isWorkDay ? '#0052CC' : '#FFF') }
+          ]} 
+          onPress={() => handleDayPress(dateStr)}
+        >
+          <Text style={activeMode === 'schedule' ? styles.shiftDayText : (isWorkDay ? styles.workDayText : styles.dayText)}>
+            {parseInt(dayNum, 10)}
+          </Text>
+          {activeMode === 'schedule' && shiftLabel ? (
+            <Text style={styles.shiftLabelText}>{shiftLabel}</Text>
+          ) : isWorkDay ? (
+            <Text style={styles.cellSumSubtext}>{dayTotal}</Text>
+          ) : null}
         </TouchableOpacity>
       );
     });
@@ -934,46 +1159,113 @@ export default function App() {
 
         <View style={styles.monthSelectorRow}>
           <TouchableOpacity style={lang === 'ru' ? styles.langCircleRu : styles.langCircleRuDimmed} onPress={() => handleSelectLanguage('ru')}><Text style={styles.langCircleText}>Р</Text></TouchableOpacity>
+          
           <View style={styles.monthTitleWrapper}>
+            <TouchableOpacity onPress={() => setCurrentMonth(new Date())} style={styles.todayButton}>
+              <Text style={styles.todayButtonText}>{t.btnToday.toUpperCase()}</Text>
+            </TouchableOpacity>
             <Text style={styles.monthTitle}>{currentMonth.toLocaleString(t.locale, { month: 'long', year: 'numeric' }).toUpperCase()}</Text>
-            <TouchableOpacity style={styles.todayButton} onPress={() => setCurrentMonth(new Date())}><Text style={styles.todayButtonText}>{t.btnToday.toUpperCase()}</Text></TouchableOpacity>
           </View>
+
           <TouchableOpacity style={lang === 'uk' ? styles.langCircleUk : styles.langCircleUkDimmed} onPress={() => handleSelectLanguage('uk')}><Text style={styles.langCircleText}>У</Text></TouchableOpacity>
         </View>
-        
+
+        {/* ==================== ПЕРЕКЛЮЧАТЕЛЬ МЕЖДУ ТАБЕЛЕМ И ГРАФИКОМ ==================== */}
+        <View style={styles.modeSwitchRow}>
+          <TouchableOpacity 
+            style={[styles.modeButton, activeMode === 'timesheet' && styles.modeButtonActive]}
+            onPress={() => setActiveMode('timesheet')}
+          >
+            <Text style={[styles.modeButtonText, activeMode === 'timesheet' && styles.modeButtonTextActive]}>📋</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.modeButton, activeMode === 'schedule' && styles.modeButtonActive]}
+            onPress={() => setActiveMode('schedule')}
+          >
+            <Text style={[styles.modeButtonText, activeMode === 'schedule' && styles.modeButtonTextActive]}>📅</Text>
+          </TouchableOpacity>
+          {activeMode === 'schedule' && (
+            <TouchableOpacity style={styles.clearScheduleButton} onPress={clearSchedule}>
+              <Text style={styles.clearScheduleButtonText}>🗑️</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
         <View style={styles.weekDaysRow}>{t.weekDays.map((day, index) => (<Text key={index} style={(day === 'Сб' || day === 'Вс' || day === 'Нд') ? styles.weekDayTextWeekend : styles.weekDayTextNormal}>{day}</Text>))}</View>
         
-        {isLoadingData ? (
+        {isLoadingData && activeMode === 'timesheet' ? (
           <View style={styles.centerLoading}><ActivityIndicator size="large" color="#0052CC" /></View>
         ) : (
           <ScrollView contentContainerStyle={styles.calendarGrid}>{renderCalendarGrid()}</ScrollView>
         )}
 
-        {isCurrentModeTrial && (
-          <View style={styles.inlineActivationBlock}>
-            <TextInput 
-              placeholder={t.placeholderKey} 
-              autoCapitalize="characters" 
-              style={styles.inlineActivationInput} 
-              value={inputPassword} 
-              onChangeText={setInputPassword} 
-            />
-            <TouchableOpacity style={styles.inlineActivationBtn} onPress={handleLogin}>
-              <Text style={styles.inlineActivationBtnText}>{t.btnActivate.toUpperCase()}</Text>
-            </TouchableOpacity>
+        {/* ==================== БЛОК ДЛЯ РЕЖИМА ГРАФИКА ==================== */}
+        {activeMode === 'schedule' && shiftPattern.length >= 2 && (
+          <View style={styles.patternInfoContainer}>
+            <Text style={styles.patternInfoText}>
+              🔄 Паттерн: {shiftPattern.map(s => getShiftLabel(s)).join(' → ')}
+            </Text>
+            <Text style={styles.patternInfoSubtext}>
+              Смены автоматически применяются ко всем месяцам
+            </Text>
           </View>
         )}
 
-        <View style={styles.statsContainer}>
-          <Text style={styles.statsText}>{t.statsWorkDays}: {stats.workDays}</Text>
-          <Text style={styles.statsText}>{t.statsWeekendDays}: {stats.weekendDays}</Text>
-          <Text style={styles.totalText}>{t.statsTotalSum}: {stats.totalSum}</Text>
-        </View>
+        {/* ==================== СТАТИСТИКА ТОЛЬКО ДЛЯ ТАБЕЛЯ ==================== */}
+        {activeMode === 'timesheet' && (
+          <View style={styles.statsContainer}>
+            <Text style={styles.statsText}>{t.statsWorkDays}: {stats.workDays}</Text>
+            <Text style={styles.statsText}>{t.statsWeekendDays}: {stats.weekendDays}</Text>
+            <Text style={styles.totalText}>{t.statsTotalSum}: {stats.totalSum}</Text>
+          </View>
+        )}
         
-        <TouchableOpacity style={styles.archiveButton} onPress={() => setArchiveModalVisible(true)}><Text style={styles.archiveButtonText}>{t.btnArchive}</Text></TouchableOpacity>
-        <TouchableOpacity style={styles.pdfButton} onPress={exportToPDF}><Text style={styles.pdfButtonText}>{t.btnSavePdf}</Text></TouchableOpacity>
+        {activeMode === 'timesheet' && (
+          <>
+            <TouchableOpacity style={styles.archiveButton} onPress={() => setArchiveModalVisible(true)}><Text style={styles.archiveButtonText}>{t.btnArchive}</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.pdfButton} onPress={exportToPDF}><Text style={styles.pdfButtonText}>{t.btnSavePdf}</Text></TouchableOpacity>
+          </>
+        )}
 
-        {/* ==================== МОДАЛКА ДЛЯ СООБЩЕНИЯ ОТ АДМИНИСТРАТОРА ==================== */}
+        {/* ==================== МОДАЛКА ДЛЯ ВЫБОРА СМЕНЫ ==================== */}
+        <Modal visible={shiftModalVisible} transparent={true} animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>{t.selectShift}</Text>
+              <View style={styles.shiftOptions}>
+                <TouchableOpacity 
+                  style={[styles.shiftOption, { backgroundColor: '#FDE047' }]} 
+                  onPress={() => selectShiftType('day')}
+                >
+                  <Text style={styles.shiftOptionText}>{t.shiftDay}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.shiftOption, { backgroundColor: '#60A5FA' }]} 
+                  onPress={() => selectShiftType('night')}
+                >
+                  <Text style={[styles.shiftOptionText, { color: '#FFF' }]}>{t.shiftNight}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.shiftOption, { backgroundColor: '#A78BFA' }]} 
+                  onPress={() => selectShiftType('24')}
+                >
+                  <Text style={[styles.shiftOptionText, { color: '#FFF' }]}>{t.shift24}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.shiftOption, { backgroundColor: '#F3F4F6' }]} 
+                  onPress={() => selectShiftType('off')}
+                >
+                  <Text style={styles.shiftOptionText}>{t.shiftOff}</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity style={[styles.btnCancel, { width: '100%', marginTop: 10 }]} onPress={() => setShiftModalVisible(false)}>
+                <Text style={styles.btnText}>{t.btnCancel}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* ==================== СУЩЕСТВУЮЩИЕ МОДАЛКИ ==================== */}
         <Modal visible={adminMessageModalVisible} transparent={true} animationType="fade">
           <View style={styles.modalOverlay}>
             <View style={[styles.modalContent, styles.adminMessageModal]}>
@@ -1006,7 +1298,6 @@ export default function App() {
           </View>
         </Modal>
 
-        {/* Модалка "Написать разработчику" */}
         <Modal visible={writeToDevModalVisible} transparent={true} animationType="fade">
           <View style={styles.modalOverlay}>
             <View style={[styles.modalContent, { maxHeight: '85%' }]}>
@@ -1147,13 +1438,31 @@ const styles = StyleSheet.create({
   monthSelectorRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   monthTitleWrapper: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   monthTitle: { fontSize: 16, fontWeight: 'bold', color: '#374151', textAlign: 'center', marginRight: 8 },
-  todayButton: { paddingVertical: 4, paddingHorizontal: 8, backgroundColor: '#0052CC', borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+  todayButton: { paddingVertical: 4, paddingHorizontal: 8, backgroundColor: '#0052CC', borderRadius: 6, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
   todayButtonText: { color: '#FFF', fontSize: 11, fontWeight: 'bold', textAlign: 'center' },
   langCircleText: { color: '#FFF', fontSize: 14, fontWeight: 'bold', textAlign: 'center' },
   langCircleRu: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0052CC' },
   langCircleRuDimmed: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0052CC', opacity: 0.35 },
   langCircleUk: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: '#10B981' },
   langCircleUkDimmed: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: '#10B981', opacity: 0.35 },
+  // ==================== СТИЛИ ДЛЯ ПЕРЕКЛЮЧАТЕЛЯ ====================
+  modeSwitchRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
+  modeButton: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#E5E7EB', marginHorizontal: 4 },
+  modeButtonActive: { backgroundColor: '#0052CC' },
+  modeButtonText: { fontSize: 18, color: '#6B7280' },
+  modeButtonTextActive: { color: '#FFF' },
+  clearScheduleButton: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#EF4444', marginLeft: 4 },
+  clearScheduleButtonText: { fontSize: 16, color: '#FFF' },
+  // ==================== СТИЛИ ДЛЯ ГРАФИКА ====================
+  shiftCell: { width: (width - 32) / 7 - 8, height: 46, margin: 4, justifyContent: 'center', alignItems: 'center', borderRadius: 8, borderWidth: 1, borderColor: '#D1D5DB' },
+  shiftDayText: { fontSize: 15, fontWeight: 'bold', color: '#111827', textAlign: 'center' },
+  shiftLabelText: { fontSize: 9, fontWeight: 'bold', color: '#4B5563', textAlign: 'center', marginTop: 1 },
+  shiftOptions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-around', marginVertical: 10 },
+  shiftOption: { width: '45%', padding: 12, borderRadius: 8, alignItems: 'center', marginBottom: 8, borderWidth: 1, borderColor: '#D1D5DB' },
+  shiftOptionText: { fontSize: 16, fontWeight: 'bold', color: '#111827' },
+  patternInfoContainer: { backgroundColor: '#E0F2FE', padding: 8, borderRadius: 8, marginVertical: 6 },
+  patternInfoText: { fontSize: 13, fontWeight: 'bold', color: '#0369A1', textAlign: 'center' },
+  patternInfoSubtext: { fontSize: 11, color: '#0369A1', textAlign: 'center' },
   weekDaysRow: { flexDirection: 'row', marginBottom: 8 },
   weekDayTextNormal: { width: (width - 32) / 7 - 8, marginHorizontal: 4, textAlign: 'center', fontWeight: 'bold', color: '#6B7280' },
   weekDayTextWeekend: { width: (width - 32) / 7 - 8, marginHorizontal: 4, textAlign: 'center', fontWeight: 'bold', color: '#EF4444' },
