@@ -1234,23 +1234,29 @@ export default function App() {
               const isBought = shoppingBought.some(i => i.id === item.id);
               return (
                 <View style={styles.shoppingItem}>
-                  <TouchableOpacity 
-                    style={styles.shoppingItemTextWrap}
-                    onPress={() => toggleShoppingItem(item, isBought)}
-                  >
+                  <View style={styles.shoppingItemTextWrap}>
                     <Text style={[
                       styles.shoppingItemText,
                       isBought && styles.shoppingItemTextBought
                     ]}>
                       {item.text}
                     </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.shoppingDeleteBtn}
-                    onPress={() => deleteShoppingItem(item, isBought)}
-                  >
-                    <Text style={styles.shoppingDeleteBtnText}>✕</Text>
-                  </TouchableOpacity>
+                  </View>
+                  {!isBought ? (
+                    <TouchableOpacity 
+                      style={styles.shoppingBuyBtn}
+                      onPress={() => toggleShoppingItem(item, false)}
+                    >
+                      <Text style={styles.shoppingBuyBtnText}>✅</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity 
+                      style={styles.shoppingDeleteBtn}
+                      onPress={() => deleteShoppingItem(item, true)}
+                    >
+                      <Text style={styles.shoppingDeleteBtnText}>✕</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               );
             }}
@@ -1258,13 +1264,8 @@ export default function App() {
             ItemSeparatorComponent={() => (
               <View style={styles.shoppingSeparator} />
             )}
-            ListHeaderComponent={() => {
-              // Показываем разделитель только если есть купленные товары
-              if (shoppingBought.length === 0 || shoppingBuy.length === 0) return null;
-              return null;
-            }}
             ListFooterComponent={() => {
-              // Кнопка "Очистить" появляется только когда есть купленные товары
+              // Кнопка "Очистить" разделяет активные и купленные товары
               if (shoppingBought.length === 0) return null;
               return (
                 <View style={styles.shoppingClearSection}>
@@ -1836,12 +1837,14 @@ const styles = StyleSheet.create({
   shoppingTitle: { fontSize: 20, fontWeight: 'bold', color: '#111827' },
   shoppingCount: { fontSize: 16, fontWeight: 'bold', color: '#6B7280' },
   shoppingList: { flex: 1 },
-  shoppingItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 4 },
+  shoppingItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 4 },
   shoppingItemTextWrap: { flex: 1 },
-  shoppingItemText: { fontSize: 16, color: '#111827' },
-  shoppingItemTextBought: { fontSize: 16, color: '#EF4444', textDecorationLine: 'line-through' },
-  shoppingDeleteBtn: { paddingHorizontal: 8, paddingVertical: 2 },
-  shoppingDeleteBtnText: { fontSize: 16, color: '#EF4444', fontWeight: 'bold' },
+  shoppingItemText: { fontSize: 16, fontWeight: 'bold', color: '#111827' },
+  shoppingItemTextBought: { fontSize: 16, fontWeight: 'bold', color: '#EF4444', textDecorationLine: 'line-through' },
+  shoppingBuyBtn: { paddingHorizontal: 8, paddingVertical: 4 },
+  shoppingBuyBtnText: { fontSize: 20 },
+  shoppingDeleteBtn: { paddingHorizontal: 8, paddingVertical: 4 },
+  shoppingDeleteBtnText: { fontSize: 18, color: '#EF4444', fontWeight: 'bold' },
   shoppingEmpty: { fontSize: 14, color: '#9CA3AF', textAlign: 'center', marginVertical: 20 },
   shoppingSeparator: { height: 1, backgroundColor: '#E5E7EB', marginHorizontal: 4 },
   shoppingClearSection: { marginVertical: 8, alignItems: 'center' },
