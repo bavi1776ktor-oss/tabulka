@@ -237,7 +237,8 @@ export default function App() {
   const [activeMode, setActiveMode] = useState('timesheet');
   const [shiftData, setShiftData] = useState({});
   const [shiftFullPattern, setShiftFullPattern] = useState([]);
-  const [shiftPatternStartDate, setShiftPatternStartDate] = useState(null);
+  const [shiftStartDate, setShiftStartDate] = useState(null);
+  const [shiftPatternStartWeekday, setShiftPatternStartWeekday] = useState(null);
   const [shiftModalVisible, setShiftModalVisible] = useState(false);
   const [selectedShiftDate, setSelectedShiftDate] = useState(null);
 
@@ -311,7 +312,7 @@ export default function App() {
     }
   };
 
-  // ==================== ИЗВЛЕЧЕНИЕ ПОЛНОГО ПАТТЕРНА ИЗ МЕСЯЦА ====================
+  // ==================== ИЗВЛЕЧЕНИЕ ПОЛНОГО ПАТТЕРНА ====================
   const extractFullPattern = (data) => {
     const now = new Date();
     const year = now.getFullYear();
@@ -333,39 +334,45 @@ export default function App() {
       }
     }
     
-    if (allFilled && pattern.length === days.length) {
+    if (allFilled && pattern.length === days.length && startDate) {
+      const startDay = new Date(startDate);
+      const weekday = startDay.getDay(); // 0=Вс, 1=Пн, ...
       setShiftFullPattern(pattern);
-      setShiftPatternStartDate(startDate);
+      setShiftStartDate(startDate);
+      setShiftPatternStartWeekday(weekday);
     } else {
       setShiftFullPattern([]);
-      setShiftPatternStartDate(null);
+      setShiftStartDate(null);
+      setShiftPatternStartWeekday(null);
     }
   };
 
-  // ==================== РАСЧЁТ ПО ПАТТЕРНУ (ОТ СТАРТОВОЙ ДАТЫ) ====================
+  // ==================== РАСЧЁТ ПО ПАТТЕРНУ (ПО ДНЯМ НЕДЕЛИ) ====================
   const calculateFromPattern = (dateStr) => {
-    if (!shiftFullPattern || shiftFullPattern.length === 0 || !shiftPatternStartDate) return null;
+    if (!shiftFullPattern || shiftFullPattern.length === 0 || !shiftStartDate) return null;
     
-    const startDate = new Date(shiftPatternStartDate);
     const targetDate = new Date(dateStr);
+    const startDate = new Date(shiftStartDate);
     
+    // Считаем разницу в днях между целевой датой и стартовой
     const diffDays = Math.floor((targetDate - startDate) / (1000 * 60 * 60 * 24));
     
     if (diffDays < 0) return null;
     
+    // Паттерн циклично накладывается начиная со стартовой даты
     const patternIndex = diffDays % shiftFullPattern.length;
     return shiftFullPattern[patternIndex];
   };
 
-  // ==================== РАСЧЁТ НА ГОД (ПРОДОЛЖЕНИЕ ПАТТЕРНА) ====================
+  // ==================== РАСЧЁТ НА ГОД (ПРОДОЛЖЕНИЕ ПО ДНЯМ НЕДЕЛИ) ====================
   const calculateYear = async () => {
-    if (!shiftFullPattern || shiftFullPattern.length === 0 || !shiftPatternStartDate) {
+    if (!shiftFullPattern || shiftFullPattern.length === 0 || !shiftStartDate) {
       Alert.alert(t.errorTitle, t.fillAllDays);
       return;
     }
 
     const newData = { ...shiftData };
-    const startDate = new Date(shiftPatternStartDate);
+    const startDate = new Date(shiftStartDate);
     const today = new Date();
     const startYear = today.getFullYear();
     const startMonth = today.getMonth();
@@ -404,7 +411,8 @@ export default function App() {
           onPress: async () => {
             await saveShiftData({});
             setShiftFullPattern([]);
-            setShiftPatternStartDate(null);
+            setShiftStartDate(null);
+            setShiftPatternStartWeekday(null);
             Alert.alert(t.noticeTitle, t.scheduleCleared);
           }
         }
@@ -1216,13 +1224,13 @@ export default function App() {
           <ScrollView contentContainerStyle={styles.calendarGrid}>{renderCalendarGrid()}</ScrollView>
         )}
 
-        {activeMode === 'schedule' && shiftFullPattern.length > 0 && shiftPatternStartDate && (
+        {activeMode === 'schedule' && shiftFullPattern.length > 0 && shiftStartDate && (
           <View style={styles.patternInfoContainer}>
             <Text style={styles.patternInfoText}>
               📋 Паттерн ({shiftFullPattern.length} дней): {shiftFullPattern.map(s => getShiftLabel(s)).join(' → ')}
             </Text>
             <Text style={styles.patternInfoSubtext}>
-              Начало с {shiftPatternStartDate} · Нажмите 📆 для расчёта на год
+              Начало с {shiftStartDate} · Нажмите 📆 для расчёта на год
             </Text>
           </View>
         )}
