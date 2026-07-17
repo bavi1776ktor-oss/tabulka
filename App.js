@@ -129,7 +129,6 @@ const translations = {
     shoppingCleared: "Список купленных очищен",
     clearAll: "Очистка",
     clearAllMessage: "Удалить все купленные товары?",
-    // Подсказка
     hintTitle: "Как настроить график",
     hintText1: "1. Нажмите на любой день в календаре и выберите тип смены:\n• 🟡 День — рабочая смена\n• 🔵 Ночь — ночная смена\n• 🟣 Сутки — суточная смена\n• ⬜ Выходной — день отдыха",
     hintText2: "2. Введите минимум 2–3 смены подряд, чтобы программа поняла ваш паттерн.\n• Важно: Первая смена должна быть рабочей (День/Ночь/Сутки), последняя — Выходной.\n• Пример: День → День → Выходной → Выходной",
@@ -240,7 +239,6 @@ const translations = {
     shoppingCleared: "Список куплених очищено",
     clearAll: "Очистка",
     clearAllMessage: "Видалити всі куплені товари?",
-    // Подсказка
     hintTitle: "Як налаштувати графік",
     hintText1: "1. Натисніть на будь-який день у календарі та оберіть тип зміни:\n• 🟡 День — робоча зміна\n• 🔵 Ніч — нічна зміна\n• 🟣 Доба — добова зміна\n• ⬜ Вихідний — день відпочинку",
     hintText2: "2. Введіть мінімум 2–3 зміни поспіль, щоб програма зрозуміла ваш патерн.\n• Важливо: Перша зміна має бути робочою (День/Ніч/Доба), остання — Вихідний.\n• Приклад: День → День → Вихідний → Вихідний",
@@ -339,24 +337,14 @@ export default function App() {
   };
 
   // ==================== ЗАГРУЗКА СОСТОЯНИЯ ПОДСКАЗКИ ====================
-  const loadHintState = async () => {
-    try {
-      const saved = await AsyncStorage.getItem('@shift_hint_shown');
-      if (saved !== 'true') {
-        setHintModalVisible(true);
-      }
-    } catch (e) {
-      console.log('Load hint error:', e);
-    }
+  const loadHintState = () => {
+    // Подсказка показывается всегда, когда график пуст
+    // Флаг не используется, просто показываем
+    setHintModalVisible(true);
   };
 
   const closeHint = async () => {
-    try {
-      await AsyncStorage.setItem('@shift_hint_shown', 'true');
-      setHintModalVisible(false);
-    } catch (e) {
-      console.log('Save hint error:', e);
-    }
+    setHintModalVisible(false);
   };
 
   const loadShoppingList = async () => {
@@ -709,11 +697,29 @@ export default function App() {
       fetchArchiveData(password);
       loadShiftData();
       loadShoppingList();
-      loadHintState();
+      // Проверяем, нужно ли показать подсказку
+      checkAndShowHint();
     } else {
       setWorkData({});
     }
   }, [password, currentMonth]);
+
+  // ==================== ПРОВЕРКА ПОДСКАЗКИ ====================
+  const checkAndShowHint = () => {
+    // Проверяем, есть ли смены в графике
+    const hasData = Object.keys(shiftData).length > 0;
+    // Показываем подсказку, если график пуст И активен режим "График"
+    if (!hasData && activeMode === 'schedule') {
+      setHintModalVisible(true);
+    } else {
+      setHintModalVisible(false);
+    }
+  };
+
+  // Следим за изменением activeMode
+  useEffect(() => {
+    checkAndShowHint();
+  }, [activeMode, shiftData]);
 
   const checkAdminMessages = async (deviceId, currentPassword) => {
     const actualPassword = currentPassword || password;
@@ -1260,7 +1266,7 @@ export default function App() {
         visible={hintModalVisible}
         transparent={true}
         animationType="fade"
-        onRequestClose={() => {}}
+        onRequestClose={() => setHintModalVisible(false)}
       >
         <View style={styles.hintOverlay}>
           <View style={styles.hintContainer}>
@@ -1424,9 +1430,6 @@ export default function App() {
 
   const isCurrentModeTrial = password && password.startsWith("TRIAL_MODE_");
 
-  // Проверяем, есть ли смены в графике
-  const hasShiftData = Object.keys(shiftData).length > 0;
-
   return (
     <SafeAreaView style={styles.safeArea}>
       {trialNotice && (
@@ -1557,8 +1560,8 @@ export default function App() {
         {/* ==================== РЕЖИМ "СПИСОК ПОКУПОК" ==================== */}
         {activeMode === 'shopping' && renderShoppingList()}
 
-        {/* ==================== ПОДСКАЗКА (ПОКАЗЫВАЕТСЯ ТОЛЬКО В РЕЖИМЕ ГРАФИК И ЕСЛИ НЕТ СМЕН) ==================== */}
-        {activeMode === 'schedule' && !hasShiftData && renderHintModal()}
+        {/* ==================== ПОДСКАЗКА ==================== */}
+        {renderHintModal()}
 
         {/* ==================== МОДАЛКИ ==================== */}
         <Modal visible={shiftModalVisible} transparent={true} animationType="fade">
