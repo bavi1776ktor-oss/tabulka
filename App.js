@@ -115,7 +115,7 @@ const translations = {
     selectShift: "Выберите смену",
     calculateYear: "Просчитать на год",
     yearCalculated: "График просчитан на год вперёд",
-    fillAllDays: "Заполните все дни месяца перед расчётом",
+    fillAllDays: "Сначала отметьте минимум одну полную рабочую смену с выходными в текущем месяце.",
     shoppingTitle: "Что купить",
     shoppingBuy: "Купить",
     shoppingBought: "Куплено",
@@ -225,7 +225,7 @@ const translations = {
     selectShift: "Виберіть зміну",
     calculateYear: "Розрахувати на рік",
     yearCalculated: "Графік розраховано на рік вперед",
-    fillAllDays: "Заповніть всі дні місяця перед розрахунком",
+    fillAllDays: "Спочатку відзначте щонайменше одну повну робочу зміну з вихідними у поточному місяці.",
     shoppingTitle: "Що купити",
     shoppingBuy: "Купити",
     shoppingBought: "Куплено",
@@ -290,7 +290,6 @@ export default function App() {
   const [shoppingBought, setShoppingBought] = useState([]);
   const [shoppingInput, setShoppingInput] = useState('');
 
-  // ==================== ПОДСКАЗКА ====================
   const [hintModalVisible, setHintModalVisible] = useState(false);
 
   const t = translations[lang || 'ru'];
@@ -336,10 +335,7 @@ export default function App() {
     }
   };
 
-  // ==================== ЗАГРУЗКА СОСТОЯНИЯ ПОДСКАЗКИ ====================
   const loadHintState = () => {
-    // Подсказка показывается всегда, когда график пуст
-    // Флаг не используется, просто показываем
     setHintModalVisible(true);
   };
 
@@ -504,7 +500,7 @@ export default function App() {
   const calculateYear = async () => {
     const allDates = Object.keys(shiftData).sort();
     if (allDates.length === 0) {
-      Alert.alert(t.errorTitle, "Сначала отметьте минимум 1 день в текущем месяце");
+      Alert.alert(t.errorTitle, t.fillAllDays);
       return;
     }
 
@@ -527,7 +523,7 @@ export default function App() {
     }
 
     if (pattern.length === 0) {
-      Alert.alert(t.errorTitle, "Не удалось определить паттерн");
+      Alert.alert(t.errorTitle, t.fillAllDays);
       return;
     }
 
@@ -697,18 +693,14 @@ export default function App() {
       fetchArchiveData(password);
       loadShiftData();
       loadShoppingList();
-      // Проверяем, нужно ли показать подсказку
       checkAndShowHint();
     } else {
       setWorkData({});
     }
   }, [password, currentMonth]);
 
-  // ==================== ПРОВЕРКА ПОДСКАЗКИ ====================
   const checkAndShowHint = () => {
-    // Проверяем, есть ли смены в графике
     const hasData = Object.keys(shiftData).length > 0;
-    // Показываем подсказку, если график пуст И активен режим "График"
     if (!hasData && activeMode === 'schedule') {
       setHintModalVisible(true);
     } else {
@@ -716,7 +708,6 @@ export default function App() {
     }
   };
 
-  // Следим за изменением activeMode
   useEffect(() => {
     checkAndShowHint();
   }, [activeMode, shiftData]);
