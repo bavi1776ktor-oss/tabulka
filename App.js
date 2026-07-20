@@ -92,7 +92,6 @@ const translations = {
     hourUnit: "ч.",
     archiveTitle: "Архив заработка",
     messageFromAdmin: "Сообщение от администратора",
-    adminReplyTitle: "Ответ на ваш запрос",
     btnWriteToDev: "Написать разработчику",
     writeToDevTitle: "Сообщение разработчику",
     placeholderSubject: "Тема сообщения",
@@ -101,7 +100,6 @@ const translations = {
     messageSentSuccess: "Сообщение отправлено!",
     messageSentToEmail: "Копия отправлена на почту разработчика.",
     adminMessageClose: "Закрыть",
-    adminReplyClose: "Понятно",
     adminMessageLink: "Скачать обновление",
     noMessages: "Нет новых сообщений",
     shiftDay: "День",
@@ -136,7 +134,9 @@ const translations = {
     hintText2: "2. Введите минимум 2–3 смены подряд, чтобы программа поняла ваш паттерн.\n• Важно: Первая смена должна быть рабочей (День/Ночь/Сутки), последняя — Выходной.\n• Пример: День → День → Выходной → Выходной",
     hintText3: "3. Нажмите зелёную кнопку 📆, и ваш график автоматически просчитается на год вперёд.",
     hintText4: "4. Листайте месяцы стрелками ◀ ▶ и проверяйте свои смены.",
-    hintButton: "Понял!"
+    hintButton: "Понял!",
+    supportReplyTitle: "Ответ на ваш запрос",
+    supportReplyButton: "Понятно"
   },
   uk: {
     locale: 'uk-UA',
@@ -204,7 +204,6 @@ const translations = {
     hourUnit: "год.",
     archiveTitle: "Архів заробітку",
     messageFromAdmin: "Повідомлення від адміністратора",
-    adminReplyTitle: "Відповідь на ваш запит",
     btnWriteToDev: "Написати розробнику",
     writeToDevTitle: "Повідомлення розробнику",
     placeholderSubject: "Тема повідомлення",
@@ -213,7 +212,6 @@ const translations = {
     messageSentSuccess: "Повідомлення надіслано!",
     messageSentToEmail: "Копію надіслано на пошту розробника.",
     adminMessageClose: "Закрити",
-    adminReplyClose: "Зрозуміло",
     adminMessageLink: "Завантажити оновлення",
     noMessages: "Немає нових повідомлень",
     shiftDay: "День",
@@ -248,7 +246,9 @@ const translations = {
     hintText2: "2. Введіть мінімум 2–3 зміни поспіль, щоб програма зрозуміла ваш патерн.\n• Важливо: Перша зміна має бути робочою (День/Ніч/Доба), остання — Вихідний.\n• Приклад: День → День → Вихідний → Вихідний",
     hintText3: "3. Натисніть зелену кнопку 📆, і ваш графік автоматично розрахується на рік вперед.",
     hintText4: "4. Гортайте місяці стрілками ◀ ▶ та перевіряйте свої зміни.",
-    hintButton: "Зрозумів!"
+    hintButton: "Зрозумів!",
+    supportReplyTitle: "Відповідь на ваш запит",
+    supportReplyButton: "Зрозуміло"
   }
 };
 
@@ -278,10 +278,6 @@ export default function App() {
   const [adminMessageText, setAdminMessageText] = useState('');
   const [adminMessageLink, setAdminMessageLink] = useState('');
   const [adminMessageId, setAdminMessageId] = useState(null);
-  const [adminReplyModalVisible, setAdminReplyModalVisible] = useState(false);
-  const [adminReplyText, setAdminReplyText] = useState('');
-  const [adminReplyId, setAdminReplyId] = useState(null);
-
   const [writeToDevModalVisible, setWriteToDevModalVisible] = useState(false);
   const [devSubject, setDevSubject] = useState('');
   const [devMessage, setDevMessage] = useState('');
@@ -299,6 +295,11 @@ export default function App() {
   const [shoppingInput, setShoppingInput] = useState('');
 
   const [hintModalVisible, setHintModalVisible] = useState(false);
+
+  // ===== НОВЫЙ СТЕЙТ ДЛЯ ОТВЕТА ПОДДЕРЖКИ =====
+  const [supportReplyModalVisible, setSupportReplyModalVisible] = useState(false);
+  const [supportReplyText, setSupportReplyText] = useState('');
+  const [supportReplyTimestamp, setSupportReplyTimestamp] = useState(null);
 
   const t = translations[lang || 'ru'];
 
@@ -329,6 +330,29 @@ export default function App() {
       return id;
     } catch (e) {
       return "DEVICE_GENERIC";
+    }
+  };
+
+  // ===== НОВАЯ ФУНКЦИЯ ДЛЯ ПРОВЕРКИ ОТВЕТА ПОДДЕРЖКИ =====
+  const checkSupportReply = async (deviceId) => {
+    if (!deviceId) return;
+    
+    try {
+      const response = await fetch(`${FIREBASE_REST_URL}/support_replies/${deviceId}.json`);
+      const replyData = await response.json();
+      
+      if (replyData && replyData.message) {
+        setSupportReplyText(replyData.message);
+        setSupportReplyTimestamp(replyData.timestamp || null);
+        setSupportReplyModalVisible(true);
+        
+        // Опционально: удалить ответ после прочтения
+        // await fetch(`${FIREBASE_REST_URL}/support_replies/${deviceId}.json`, {
+        //   method: 'DELETE'
+        // });
+      }
+    } catch (e) {
+      console.log('Check support reply error:', e);
     }
   };
 
@@ -720,40 +744,6 @@ export default function App() {
     checkAndShowHint();
   }, [activeMode, shiftData]);
 
-  const checkAdminReply = async (deviceId) => {
-    try {
-      const response = await fetch(`${FIREBASE_REST_URL}/support_replies/${deviceId}.json`);
-      const data = await response.json();
-      if (!data) return;
-
-      const readReplies = await AsyncStorage.getItem('@tabulka_read_replies');
-      const readList = readReplies ? JSON.parse(readReplies) : [];
-
-      if (data.text && !readList.includes(deviceId)) {
-        setAdminReplyText(data.text || '');
-        setAdminReplyId(deviceId);
-        setAdminReplyModalVisible(true);
-      }
-    } catch (e) {
-      console.log('Check admin reply error:', e);
-    }
-  };
-
-  const markReplyAsRead = async () => {
-    if (!adminReplyId) return;
-    try {
-      const readReplies = await AsyncStorage.getItem('@tabulka_read_replies');
-      const readList = readReplies ? JSON.parse(readReplies) : [];
-      if (!readList.includes(adminReplyId)) {
-        readList.push(adminReplyId);
-        await AsyncStorage.setItem('@tabulka_read_replies', JSON.stringify(readList));
-      }
-    } catch (e) {
-      console.log('Mark reply as read error:', e);
-    }
-    setAdminReplyModalVisible(false);
-  };
-
   const checkAdminMessages = async (deviceId, currentPassword) => {
     const actualPassword = currentPassword || password;
     if (!actualPassword) return;
@@ -859,6 +849,10 @@ export default function App() {
     const localT = translations[currentLang || 'ru'];
     try {
       const deviceId = await getUniqueDeviceId();
+      
+      // Проверяем ответ поддержки ДО проверки пароля
+      await checkSupportReply(deviceId);
+      
       const savedPass = await AsyncStorage.getItem('@tabulka_password');
       
       if (savedPass) {
@@ -871,7 +865,6 @@ export default function App() {
               setPassword(savedPass);
               setIsAuthChecking(false);
               checkAdminMessages(deviceId, savedPass);
-              checkAdminReply(deviceId);
               return;
             }
           } else {
@@ -879,7 +872,6 @@ export default function App() {
               setPassword(savedPass);
               setIsAuthChecking(false);
               checkAdminMessages(deviceId, savedPass);
-              checkAdminReply(deviceId);
               return; 
             }
           }
@@ -919,7 +911,6 @@ export default function App() {
         setTrialNotice(true);
         setTimeout(() => setTrialNotice(false), 4000);
         checkAdminMessages(deviceId, trialPassword);
-        checkAdminReply(deviceId);
       }
     } catch (e) {
       Alert.alert(localT.errorTitle, "Auth check failed");
@@ -953,7 +944,6 @@ export default function App() {
             setPassword(trimmed);
             setInputPassword('');
             checkAdminMessages(deviceId, trimmed);
-            checkAdminReply(deviceId);
             return;
           }
 
@@ -978,7 +968,6 @@ export default function App() {
             setInputPassword('');
             Alert.alert(t.alertSuccessTitle, t.alertSuccessMessage);
             checkAdminMessages(deviceId, trimmed);
-            checkAdminReply(deviceId);
           } else {
             Alert.alert(t.activationErrorTitle, t.alertKeyUsed);
           }
@@ -999,7 +988,6 @@ export default function App() {
             setInputPassword('');
             Alert.alert(t.alertSuccessTitle, t.alertSuccessMessage);
             checkAdminMessages(deviceId, trimmed);
-            checkAdminReply(deviceId);
           } else if (currentStatus === "used") {
             if (currentDeviceId && currentDeviceId === deviceId) {
               await AsyncStorage.setItem('@tabulka_password', trimmed);
@@ -1007,7 +995,6 @@ export default function App() {
               setPassword(trimmed);
               setInputPassword('');
               checkAdminMessages(deviceId, trimmed);
-              checkAdminReply(deviceId);
             } else {
               Alert.alert(t.activationErrorTitle, t.alertKeyUsed);
             }
@@ -1299,6 +1286,7 @@ export default function App() {
     setArchiveModalVisible(false);
   };
 
+  // ==================== РЕНДЕР ПОДСКАЗКИ ====================
   const renderHintModal = () => {
     return (
       <Modal
@@ -1325,6 +1313,7 @@ export default function App() {
     );
   };
 
+  // ==================== РЕНДЕР СПИСКА ПОКУПОК ====================
   const renderShoppingList = () => {
     const sortedItems = [...shoppingBuy, ...shoppingBought];
 
@@ -1414,6 +1403,42 @@ export default function App() {
     );
   };
 
+  // ==================== РЕНДЕР МОДАЛКИ ОТВЕТА ПОДДЕРЖКИ ====================
+  const renderSupportReplyModal = () => {
+    return (
+      <Modal
+        visible={supportReplyModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setSupportReplyModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, styles.supportReplyModal]}>
+            <Text style={[styles.modalTitle, { color: '#10B981' }]}>
+              {t.supportReplyTitle}
+            </Text>
+            
+            <ScrollView style={styles.supportReplyScroll}>
+              <Text style={styles.supportReplyText}>{supportReplyText}</Text>
+              {supportReplyTimestamp && (
+                <Text style={styles.supportReplyDate}>
+                  {new Date(supportReplyTimestamp).toLocaleString(t.locale)}
+                </Text>
+              )}
+            </ScrollView>
+
+            <TouchableOpacity 
+              style={styles.supportReplyButton}
+              onPress={() => setSupportReplyModalVisible(false)}
+            >
+              <Text style={styles.supportReplyButtonText}>{t.supportReplyButton}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
   if (!lang) {
     return (
       <SafeAreaView style={styles.authContainer}>
@@ -1462,6 +1487,8 @@ export default function App() {
             </View>
           </View>
         </Modal>
+
+        {renderSupportReplyModal()}
       </SafeAreaView>
     );
   }
@@ -1555,6 +1582,7 @@ export default function App() {
           )}
         </View>
 
+        {/* ==================== РЕЖИМ "ТАБЕЛЬ" ==================== */}
         {activeMode === 'timesheet' && (
           <>
             <View style={styles.weekDaysRow}>{t.weekDays.map((day, index) => (<Text key={index} style={(day === 'Сб' || day === 'Вс' || day === 'Нд') ? styles.weekDayTextWeekend : styles.weekDayTextNormal}>{day}</Text>))}</View>
@@ -1576,6 +1604,7 @@ export default function App() {
           </>
         )}
 
+        {/* ==================== РЕЖИМ "ГРАФИК" ==================== */}
         {activeMode === 'schedule' && (
           <>
             <View style={styles.weekDaysRow}>{t.weekDays.map((day, index) => (<Text key={index} style={(day === 'Сб' || day === 'Вс' || day === 'Нд') ? styles.weekDayTextWeekend : styles.weekDayTextNormal}>{day}</Text>))}</View>
@@ -1593,9 +1622,49 @@ export default function App() {
           </>
         )}
 
+        {/* ==================== РЕЖИМ "СПИСОК ПОКУПОК" ==================== */}
         {activeMode === 'shopping' && renderShoppingList()}
 
+        {/* ==================== ПОДСКАЗКА ==================== */}
         {renderHintModal()}
+
+        {/* ==================== МОДАЛКИ ==================== */}
+        <Modal visible={shiftModalVisible} transparent={true} animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>{t.selectShift}</Text>
+              <View style={styles.shiftOptions}>
+                <TouchableOpacity 
+                  style={[styles.shiftOption, { backgroundColor: '#FDE047' }]} 
+                  onPress={() => selectShiftType('day')}
+                >
+                  <Text style={styles.shiftOptionText}>{t.shiftDay}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.shiftOption, { backgroundColor: '#60A5FA' }]} 
+                  onPress={() => selectShiftType('night')}
+                >
+                  <Text style={[styles.shiftOptionText, { color: '#FFF' }]}>{t.shiftNight}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.shiftOption, { backgroundColor: '#A78BFA' }]} 
+                  onPress={() => selectShiftType('24')}
+                >
+                  <Text style={[styles.shiftOptionText, { color: '#FFF' }]}>{t.shift24}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.shiftOption, { backgroundColor: '#F3F4F6' }]} 
+                  onPress={() => selectShiftType('off')}
+                >
+                  <Text style={styles.shiftOptionText}>{t.shiftOff}</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity style={[styles.btnCancel, { width: '100%', marginTop: 10 }]} onPress={() => setShiftModalVisible(false)}>
+                <Text style={styles.btnText}>{t.btnCancel}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
         <Modal visible={adminMessageModalVisible} transparent={true} animationType="fade">
           <View style={styles.modalOverlay}>
@@ -1624,23 +1693,6 @@ export default function App() {
                 onPress={markMessageAsRead}
               >
                 <Text style={styles.adminMessageCloseBtnText}>{t.adminMessageClose}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-
-        <Modal visible={adminReplyModalVisible} transparent={true} animationType="fade">
-          <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, styles.adminMessageModal]}>
-              <Text style={[styles.modalTitle, { color: '#0052CC' }]}>{t.adminReplyTitle}</Text>
-              <ScrollView style={styles.adminMessageScroll}>
-                <Text style={styles.adminMessageText}>{adminReplyText}</Text>
-              </ScrollView>
-              <TouchableOpacity 
-                style={[styles.adminMessageCloseBtn, { backgroundColor: '#0052CC' }]} 
-                onPress={markReplyAsRead}
-              >
-                <Text style={styles.adminMessageCloseBtnText}>{t.adminReplyClose}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1748,6 +1800,9 @@ export default function App() {
             </View>
           </View>
         </Modal>
+
+        {/* ==================== МОДАЛКА ОТВЕТА ПОДДЕРЖКИ ==================== */}
+        {renderSupportReplyModal()}
       </View>
     </SafeAreaView>
   );
@@ -1911,7 +1966,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   adminMessageCloseBtn: {
-    backgroundColor: '#10B981',
+    backgroundColor: '#0052CC',
     padding: 14,
     borderRadius: 10,
     alignItems: 'center',
@@ -1923,6 +1978,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
+  // ==================== СПИСОК ПОКУПОК ====================
   shoppingContainer: { flex: 1, paddingHorizontal: 4 },
   shoppingHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   shoppingTitle: { fontSize: 20, fontWeight: 'bold', color: '#111827' },
@@ -1946,6 +2002,7 @@ const styles = StyleSheet.create({
   shoppingInput: { flex: 1, borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontSize: 16, backgroundColor: '#FFF' },
   shoppingAddBtn: { backgroundColor: '#0052CC', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, marginLeft: 8 },
   shoppingAddBtnText: { color: '#FFF', fontSize: 20, fontWeight: 'bold' },
+  // ==================== ПОДСКАЗКА ====================
   hintOverlay: { 
     flex: 1, 
     backgroundColor: 'rgba(0,0,0,0.6)', 
@@ -1990,5 +2047,41 @@ const styles = StyleSheet.create({
     color: '#FFFFFF', 
     fontSize: 16, 
     fontWeight: 'bold' 
+  },
+  // ==================== ОТВЕТ ПОДДЕРЖКИ ====================
+  supportReplyModal: {
+    maxHeight: '85%',
+    paddingVertical: 20,
+    paddingHorizontal: 20
+  },
+  supportReplyScroll: {
+    maxHeight: 350,
+    marginBottom: 15,
+    marginTop: 5,
+  },
+  supportReplyText: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#1a1a1a',
+    paddingBottom: 10,
+  },
+  supportReplyDate: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'right',
+    marginTop: 5,
+  },
+  supportReplyButton: {
+    backgroundColor: '#10B981',
+    padding: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 5,
+  },
+  supportReplyButtonText: {
+    color: '#FFF',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });
