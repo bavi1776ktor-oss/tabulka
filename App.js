@@ -296,7 +296,6 @@ export default function App() {
 
   const [hintModalVisible, setHintModalVisible] = useState(false);
 
-  // ===== НОВЫЙ СТЕЙТ ДЛЯ ОТВЕТА ПОДДЕРЖКИ =====
   const [supportReplyModalVisible, setSupportReplyModalVisible] = useState(false);
   const [supportReplyText, setSupportReplyText] = useState('');
   const [supportReplyTimestamp, setSupportReplyTimestamp] = useState(null);
@@ -333,7 +332,6 @@ export default function App() {
     }
   };
 
-  // ===== НОВАЯ ФУНКЦИЯ ДЛЯ ПРОВЕРКИ ОТВЕТА ПОДДЕРЖКИ =====
   const checkSupportReply = async (deviceId) => {
     if (!deviceId) return;
     
@@ -345,11 +343,6 @@ export default function App() {
         setSupportReplyText(replyData.message);
         setSupportReplyTimestamp(replyData.timestamp || null);
         setSupportReplyModalVisible(true);
-        
-        // Опционально: удалить ответ после прочтения
-        // await fetch(`${FIREBASE_REST_URL}/support_replies/${deviceId}.json`, {
-        //   method: 'DELETE'
-        // });
       }
     } catch (e) {
       console.log('Check support reply error:', e);
@@ -850,7 +843,6 @@ export default function App() {
     try {
       const deviceId = await getUniqueDeviceId();
       
-      // Проверяем ответ поддержки ДО проверки пароля
       await checkSupportReply(deviceId);
       
       const savedPass = await AsyncStorage.getItem('@tabulka_password');
@@ -1286,7 +1278,6 @@ export default function App() {
     setArchiveModalVisible(false);
   };
 
-  // ==================== РЕНДЕР ПОДСКАЗКИ ====================
   const renderHintModal = () => {
     return (
       <Modal
@@ -1313,7 +1304,6 @@ export default function App() {
     );
   };
 
-  // ==================== РЕНДЕР СПИСКА ПОКУПОК ====================
   const renderShoppingList = () => {
     const sortedItems = [...shoppingBuy, ...shoppingBought];
 
@@ -1403,7 +1393,6 @@ export default function App() {
     );
   };
 
-  // ==================== РЕНДЕР МОДАЛКИ ОТВЕТА ПОДДЕРЖКИ ====================
   const renderSupportReplyModal = () => {
     return (
       <Modal
@@ -1582,7 +1571,6 @@ export default function App() {
           )}
         </View>
 
-        {/* ==================== РЕЖИМ "ТАБЕЛЬ" ==================== */}
         {activeMode === 'timesheet' && (
           <>
             <View style={styles.weekDaysRow}>{t.weekDays.map((day, index) => (<Text key={index} style={(day === 'Сб' || day === 'Вс' || day === 'Нд') ? styles.weekDayTextWeekend : styles.weekDayTextNormal}>{day}</Text>))}</View>
@@ -1604,7 +1592,6 @@ export default function App() {
           </>
         )}
 
-        {/* ==================== РЕЖИМ "ГРАФИК" ==================== */}
         {activeMode === 'schedule' && (
           <>
             <View style={styles.weekDaysRow}>{t.weekDays.map((day, index) => (<Text key={index} style={(day === 'Сб' || day === 'Вс' || day === 'Нд') ? styles.weekDayTextWeekend : styles.weekDayTextNormal}>{day}</Text>))}</View>
@@ -1622,13 +1609,10 @@ export default function App() {
           </>
         )}
 
-        {/* ==================== РЕЖИМ "СПИСОК ПОКУПОК" ==================== */}
         {activeMode === 'shopping' && renderShoppingList()}
 
-        {/* ==================== ПОДСКАЗКА ==================== */}
         {renderHintModal()}
 
-        {/* ==================== МОДАЛКИ ==================== */}
         <Modal visible={shiftModalVisible} transparent={true} animationType="fade">
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
@@ -1801,7 +1785,6 @@ export default function App() {
           </View>
         </Modal>
 
-        {/* ==================== МОДАЛКА ОТВЕТА ПОДДЕРЖКИ ==================== */}
         {renderSupportReplyModal()}
       </View>
     </SafeAreaView>
@@ -1978,7 +1961,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
-  // ==================== СПИСОК ПОКУПОК ====================
   shoppingContainer: { flex: 1, paddingHorizontal: 4 },
   shoppingHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   shoppingTitle: { fontSize: 20, fontWeight: 'bold', color: '#111827' },
@@ -2002,7 +1984,6 @@ const styles = StyleSheet.create({
   shoppingInput: { flex: 1, borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontSize: 16, backgroundColor: '#FFF' },
   shoppingAddBtn: { backgroundColor: '#0052CC', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, marginLeft: 8 },
   shoppingAddBtnText: { color: '#FFF', fontSize: 20, fontWeight: 'bold' },
-  // ==================== ПОДСКАЗКА ====================
   hintOverlay: { 
     flex: 1, 
     backgroundColor: 'rgba(0,0,0,0.6)', 
@@ -2048,7 +2029,6 @@ const styles = StyleSheet.create({
     fontSize: 16, 
     fontWeight: 'bold' 
   },
-  // ==================== ОТВЕТ ПОДДЕРЖКИ ====================
   supportReplyModal: {
     maxHeight: '85%',
     paddingVertical: 20,
@@ -2085,3 +2065,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 });
+
+export default App;
