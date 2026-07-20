@@ -115,7 +115,7 @@ const translations = {
     selectShift: "Выберите смену",
     calculateYear: "Просчитать на год",
     yearCalculated: "График просчитан на год вперёд",
-    fillAllDays: "Сначала отметьте минимум одну полную рабочую смену с выходными в текущем месяце.",
+    fillAllDays: "Заполните все дни месяца перед расчётом",
     shoppingTitle: "Что купить",
     shoppingBuy: "Купить",
     shoppingBought: "Куплено",
@@ -134,9 +134,7 @@ const translations = {
     hintText2: "2. Введите минимум 2–3 смены подряд, чтобы программа поняла ваш паттерн.\n• Важно: Первая смена должна быть рабочей (День/Ночь/Сутки), последняя — Выходной.\n• Пример: День → День → Выходной → Выходной",
     hintText3: "3. Нажмите зелёную кнопку 📆, и ваш график автоматически просчитается на год вперёд.",
     hintText4: "4. Листайте месяцы стрелками ◀ ▶ и проверяйте свои смены.",
-    hintButton: "Понял!",
-    supportReplyTitle: "Ответ на ваш запрос",
-    supportReplyButton: "Понятно"
+    hintButton: "Понял!"
   },
   uk: {
     locale: 'uk-UA',
@@ -227,7 +225,7 @@ const translations = {
     selectShift: "Виберіть зміну",
     calculateYear: "Розрахувати на рік",
     yearCalculated: "Графік розраховано на рік вперед",
-    fillAllDays: "Спочатку відзначте щонайменше одну повну робочу зміну з вихідними у поточному місяці.",
+    fillAllDays: "Заповніть всі дні місяця перед розрахунком",
     shoppingTitle: "Що купити",
     shoppingBuy: "Купити",
     shoppingBought: "Куплено",
@@ -246,9 +244,7 @@ const translations = {
     hintText2: "2. Введіть мінімум 2–3 зміни поспіль, щоб програма зрозуміла ваш патерн.\n• Важливо: Перша зміна має бути робочою (День/Ніч/Доба), остання — Вихідний.\n• Приклад: День → День → Вихідний → Вихідний",
     hintText3: "3. Натисніть зелену кнопку 📆, і ваш графік автоматично розрахується на рік вперед.",
     hintText4: "4. Гортайте місяці стрілками ◀ ▶ та перевіряйте свої зміни.",
-    hintButton: "Зрозумів!",
-    supportReplyTitle: "Відповідь на ваш запит",
-    supportReplyButton: "Зрозуміло"
+    hintButton: "Зрозумів!"
   }
 };
 
@@ -294,12 +290,8 @@ export default function App() {
   const [shoppingBought, setShoppingBought] = useState([]);
   const [shoppingInput, setShoppingInput] = useState('');
 
+  // ==================== ПОДСКАЗКА ====================
   const [hintModalVisible, setHintModalVisible] = useState(false);
-
-  // НОВЫЕ СОСТОЯНИЯ ДЛЯ ОТВЕТА ПОДДЕРЖКИ
-  const [supportReplyModalVisible, setSupportReplyModalVisible] = useState(false);
-  const [supportReplyText, setSupportReplyText] = useState('');
-  const [supportReplyTimestamp, setSupportReplyTimestamp] = useState(null);
 
   const t = translations[lang || 'ru'];
 
@@ -333,24 +325,6 @@ export default function App() {
     }
   };
 
-  // НОВАЯ ФУНКЦИЯ ДЛЯ ПРОВЕРКИ ОТВЕТА ПОДДЕРЖКИ
-  const checkSupportReply = async (deviceId) => {
-    if (!deviceId) return;
-    
-    try {
-      const response = await fetch(`${FIREBASE_REST_URL}/support_replies/${deviceId}.json`);
-      const replyData = await response.json();
-      
-      if (replyData && replyData.message) {
-        setSupportReplyText(replyData.message);
-        setSupportReplyTimestamp(replyData.timestamp || null);
-        setSupportReplyModalVisible(true);
-      }
-    } catch (e) {
-      console.log('Check support reply error:', e);
-    }
-  };
-
   const handleSelectLanguage = async (selectedLang) => {
     try {
       await AsyncStorage.setItem('@tabulka_lang', selectedLang);
@@ -362,7 +336,10 @@ export default function App() {
     }
   };
 
+  // ==================== ЗАГРУЗКА СОСТОЯНИЯ ПОДСКАЗКИ ====================
   const loadHintState = () => {
+    // Подсказка показывается всегда, когда график пуст
+    // Флаг не используется, просто показываем
     setHintModalVisible(true);
   };
 
@@ -527,7 +504,7 @@ export default function App() {
   const calculateYear = async () => {
     const allDates = Object.keys(shiftData).sort();
     if (allDates.length === 0) {
-      Alert.alert(t.errorTitle, t.fillAllDays);
+      Alert.alert(t.errorTitle, "Сначала отметьте минимум 1 день в текущем месяце");
       return;
     }
 
@@ -550,7 +527,7 @@ export default function App() {
     }
 
     if (pattern.length === 0) {
-      Alert.alert(t.errorTitle, t.fillAllDays);
+      Alert.alert(t.errorTitle, "Не удалось определить паттерн");
       return;
     }
 
@@ -720,14 +697,18 @@ export default function App() {
       fetchArchiveData(password);
       loadShiftData();
       loadShoppingList();
+      // Проверяем, нужно ли показать подсказку
       checkAndShowHint();
     } else {
       setWorkData({});
     }
   }, [password, currentMonth]);
 
+  // ==================== ПРОВЕРКА ПОДСКАЗКИ ====================
   const checkAndShowHint = () => {
+    // Проверяем, есть ли смены в графике
     const hasData = Object.keys(shiftData).length > 0;
+    // Показываем подсказку, если график пуст И активен режим "График"
     if (!hasData && activeMode === 'schedule') {
       setHintModalVisible(true);
     } else {
@@ -735,6 +716,7 @@ export default function App() {
     }
   };
 
+  // Следим за изменением activeMode
   useEffect(() => {
     checkAndShowHint();
   }, [activeMode, shiftData]);
@@ -844,10 +826,6 @@ export default function App() {
     const localT = translations[currentLang || 'ru'];
     try {
       const deviceId = await getUniqueDeviceId();
-      
-      // ДОБАВЛЯЕМ ПРОВЕРКУ ОТВЕТА ПОДДЕРЖКИ
-      await checkSupportReply(deviceId);
-      
       const savedPass = await AsyncStorage.getItem('@tabulka_password');
       
       if (savedPass) {
@@ -1281,6 +1259,7 @@ export default function App() {
     setArchiveModalVisible(false);
   };
 
+  // ==================== РЕНДЕР ПОДСКАЗКИ ====================
   const renderHintModal = () => {
     return (
       <Modal
@@ -1307,6 +1286,7 @@ export default function App() {
     );
   };
 
+  // ==================== РЕНДЕР СПИСКА ПОКУПОК ====================
   const renderShoppingList = () => {
     const sortedItems = [...shoppingBuy, ...shoppingBought];
 
@@ -1396,42 +1376,6 @@ export default function App() {
     );
   };
 
-  // НОВАЯ ФУНКЦИЯ ДЛЯ РЕНДЕРА МОДАЛКИ ОТВЕТА ПОДДЕРЖКИ
-  const renderSupportReplyModal = () => {
-    return (
-      <Modal
-        visible={supportReplyModalVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setSupportReplyModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, styles.supportReplyModal]}>
-            <Text style={[styles.modalTitle, { color: '#10B981' }]}>
-              {t.supportReplyTitle}
-            </Text>
-            
-            <ScrollView style={styles.supportReplyScroll}>
-              <Text style={styles.supportReplyText}>{supportReplyText}</Text>
-              {supportReplyTimestamp && (
-                <Text style={styles.supportReplyDate}>
-                  {new Date(supportReplyTimestamp).toLocaleString(t.locale)}
-                </Text>
-              )}
-            </ScrollView>
-
-            <TouchableOpacity 
-              style={styles.supportReplyButton}
-              onPress={() => setSupportReplyModalVisible(false)}
-            >
-              <Text style={styles.supportReplyButtonText}>{t.supportReplyButton}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-    );
-  };
-
   if (!lang) {
     return (
       <SafeAreaView style={styles.authContainer}>
@@ -1480,8 +1424,6 @@ export default function App() {
             </View>
           </View>
         </Modal>
-
-        {renderSupportReplyModal()}
       </SafeAreaView>
     );
   }
@@ -1575,6 +1517,7 @@ export default function App() {
           )}
         </View>
 
+        {/* ==================== РЕЖИМ "ТАБЕЛЬ" ==================== */}
         {activeMode === 'timesheet' && (
           <>
             <View style={styles.weekDaysRow}>{t.weekDays.map((day, index) => (<Text key={index} style={(day === 'Сб' || day === 'Вс' || day === 'Нд') ? styles.weekDayTextWeekend : styles.weekDayTextNormal}>{day}</Text>))}</View>
@@ -1596,6 +1539,7 @@ export default function App() {
           </>
         )}
 
+        {/* ==================== РЕЖИМ "ГРАФИК" ==================== */}
         {activeMode === 'schedule' && (
           <>
             <View style={styles.weekDaysRow}>{t.weekDays.map((day, index) => (<Text key={index} style={(day === 'Сб' || day === 'Вс' || day === 'Нд') ? styles.weekDayTextWeekend : styles.weekDayTextNormal}>{day}</Text>))}</View>
@@ -1613,10 +1557,13 @@ export default function App() {
           </>
         )}
 
+        {/* ==================== РЕЖИМ "СПИСОК ПОКУПОК" ==================== */}
         {activeMode === 'shopping' && renderShoppingList()}
 
+        {/* ==================== ПОДСКАЗКА ==================== */}
         {renderHintModal()}
 
+        {/* ==================== МОДАЛКИ ==================== */}
         <Modal visible={shiftModalVisible} transparent={true} animationType="fade">
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
@@ -1788,9 +1735,6 @@ export default function App() {
             </View>
           </View>
         </Modal>
-
-        {/* МОДАЛКА ОТВЕТА ПОДДЕРЖКИ */}
-        {renderSupportReplyModal()}
       </View>
     </SafeAreaView>
   );
@@ -1966,6 +1910,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
+  // ==================== СПИСОК ПОКУПОК ====================
   shoppingContainer: { flex: 1, paddingHorizontal: 4 },
   shoppingHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   shoppingTitle: { fontSize: 20, fontWeight: 'bold', color: '#111827' },
@@ -1989,6 +1934,7 @@ const styles = StyleSheet.create({
   shoppingInput: { flex: 1, borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontSize: 16, backgroundColor: '#FFF' },
   shoppingAddBtn: { backgroundColor: '#0052CC', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, marginLeft: 8 },
   shoppingAddBtnText: { color: '#FFF', fontSize: 20, fontWeight: 'bold' },
+  // ==================== ПОДСКАЗКА ====================
   hintOverlay: { 
     flex: 1, 
     backgroundColor: 'rgba(0,0,0,0.6)', 
@@ -2034,41 +1980,4 @@ const styles = StyleSheet.create({
     fontSize: 16, 
     fontWeight: 'bold' 
   },
-  supportReplyModal: {
-    maxHeight: '85%',
-    paddingVertical: 20,
-    paddingHorizontal: 20
-  },
-  supportReplyScroll: {
-    maxHeight: 350,
-    marginBottom: 15,
-    marginTop: 5,
-  },
-  supportReplyText: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#1a1a1a',
-    paddingBottom: 10,
-  },
-  supportReplyDate: {
-    fontSize: 12,
-    color: '#6B7280',
-    textAlign: 'right',
-    marginTop: 5,
-  },
-  supportReplyButton: {
-    backgroundColor: '#10B981',
-    padding: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 5,
-  },
-  supportReplyButtonText: {
-    color: '#FFF',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
 });
-
-export default App;
