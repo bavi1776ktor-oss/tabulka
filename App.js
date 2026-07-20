@@ -723,39 +723,35 @@ export default function App() {
   }, [activeMode, shiftData]);
 
   // ==================== ПРОВЕРКА ОТВЕТОВ АДМИНИСТРАТОРА ====================
-  const checkAdminReply = async (deviceId) => {
-    try {
-      const response = await fetch(`${FIREBASE_REST_URL}/support_replies/${deviceId}.json`);
-      const data = await response.json();
-      if (!data) return;
-
-      const readReplies = await AsyncStorage.getItem('@tabulka_read_replies');
-      const readList = readReplies ? JSON.parse(readReplies) : [];
-
-      if (data.text && !readList.includes(deviceId)) {
-        setAdminReplyText(data.text || '');
-        setAdminReplyId(deviceId);
-        setAdminReplyModalVisible(true);
-      }
-    } catch (e) {
-      console.log('Check admin reply error:', e);
+const checkAdminReply = async (deviceId) => {
+  try {
+    const response = await fetch(`${FIREBASE_REST_URL}/support_replies/${deviceId}.json`);
+    const data = await response.json();
+    
+    if (data && data.text) {
+      setAdminReplyText(data.text || '');
+      setAdminReplyId(deviceId);
+      setAdminReplyModalVisible(true);
     }
-  };
+  } catch (e) {
+    console.log('Check admin reply error:', e);
+  }
+};
 
   const markReplyAsRead = async () => {
-    if (!adminReplyId) return;
-    try {
-      const readReplies = await AsyncStorage.getItem('@tabulka_read_replies');
-      const readList = readReplies ? JSON.parse(readReplies) : [];
-      if (!readList.includes(adminReplyId)) {
-        readList.push(adminReplyId);
-        await AsyncStorage.setItem('@tabulka_read_replies', JSON.stringify(readList));
-      }
-    } catch (e) {
-      console.log('Mark reply as read error:', e);
-    }
-    setAdminReplyModalVisible(false);
-  };
+  if (!adminReplyId) return;
+  
+  try {
+    // Удаляем сообщение из Firebase после прочтения
+    await fetch(`${FIREBASE_REST_URL}/support_replies/${adminReplyId}.json`, {
+      method: 'DELETE'
+    });
+  } catch (e) {
+    console.log('Delete reply error:', e);
+  }
+  
+  setAdminReplyModalVisible(false);
+};
 
   // ==================== ПРОВЕРКА РАССЫЛОК ====================
   const checkAdminMessages = async (deviceId, currentPassword) => {
