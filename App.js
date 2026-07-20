@@ -92,6 +92,7 @@ const translations = {
     hourUnit: "ч.",
     archiveTitle: "Архив заработка",
     messageFromAdmin: "Сообщение от администратора",
+    adminReplyTitle: "Ответ на ваш запрос",
     btnWriteToDev: "Написать разработчику",
     writeToDevTitle: "Сообщение разработчику",
     placeholderSubject: "Тема сообщения",
@@ -100,6 +101,7 @@ const translations = {
     messageSentSuccess: "Сообщение отправлено!",
     messageSentToEmail: "Копия отправлена на почту разработчика.",
     adminMessageClose: "Закрыть",
+    adminReplyClose: "Понятно",
     adminMessageLink: "Скачать обновление",
     noMessages: "Нет новых сообщений",
     shiftDay: "День",
@@ -115,7 +117,7 @@ const translations = {
     selectShift: "Выберите смену",
     calculateYear: "Просчитать на год",
     yearCalculated: "График просчитан на год вперёд",
-    fillAllDays: "Заполните все дни месяца перед расчётом",
+    fillAllDays: "Сначала отметьте минимум одну полную рабочую смену с выходными в текущем месяце.",
     shoppingTitle: "Что купить",
     shoppingBuy: "Купить",
     shoppingBought: "Куплено",
@@ -202,6 +204,7 @@ const translations = {
     hourUnit: "год.",
     archiveTitle: "Архів заробітку",
     messageFromAdmin: "Повідомлення від адміністратора",
+    adminReplyTitle: "Відповідь на ваш запит",
     btnWriteToDev: "Написати розробнику",
     writeToDevTitle: "Повідомлення розробнику",
     placeholderSubject: "Тема повідомлення",
@@ -210,6 +213,7 @@ const translations = {
     messageSentSuccess: "Повідомлення надіслано!",
     messageSentToEmail: "Копію надіслано на пошту розробника.",
     adminMessageClose: "Закрити",
+    adminReplyClose: "Зрозуміло",
     adminMessageLink: "Завантажити оновлення",
     noMessages: "Немає нових повідомлень",
     shiftDay: "День",
@@ -225,7 +229,7 @@ const translations = {
     selectShift: "Виберіть зміну",
     calculateYear: "Розрахувати на рік",
     yearCalculated: "Графік розраховано на рік вперед",
-    fillAllDays: "Заповніть всі дні місяця перед розрахунком",
+    fillAllDays: "Спочатку відзначте щонайменше одну повну робочу зміну з вихідними у поточному місяці.",
     shoppingTitle: "Що купити",
     shoppingBuy: "Купити",
     shoppingBought: "Куплено",
@@ -270,10 +274,16 @@ export default function App() {
   const [clientPhone, setClientPhone] = useState('+38 (');
   const [archiveData, setArchiveData] = useState({});
 
+  // ==================== СООБЩЕНИЯ ====================
   const [adminMessageModalVisible, setAdminMessageModalVisible] = useState(false);
   const [adminMessageText, setAdminMessageText] = useState('');
   const [adminMessageLink, setAdminMessageLink] = useState('');
   const [adminMessageId, setAdminMessageId] = useState(null);
+  // ==================== ОТВЕТЫ ====================
+  const [adminReplyModalVisible, setAdminReplyModalVisible] = useState(false);
+  const [adminReplyText, setAdminReplyText] = useState('');
+  const [adminReplyId, setAdminReplyId] = useState(null);
+
   const [writeToDevModalVisible, setWriteToDevModalVisible] = useState(false);
   const [devSubject, setDevSubject] = useState('');
   const [devMessage, setDevMessage] = useState('');
@@ -290,7 +300,6 @@ export default function App() {
   const [shoppingBought, setShoppingBought] = useState([]);
   const [shoppingInput, setShoppingInput] = useState('');
 
-  // ==================== ПОДСКАЗКА ====================
   const [hintModalVisible, setHintModalVisible] = useState(false);
 
   const t = translations[lang || 'ru'];
@@ -336,10 +345,7 @@ export default function App() {
     }
   };
 
-  // ==================== ЗАГРУЗКА СОСТОЯНИЯ ПОДСКАЗКИ ====================
   const loadHintState = () => {
-    // Подсказка показывается всегда, когда график пуст
-    // Флаг не используется, просто показываем
     setHintModalVisible(true);
   };
 
@@ -504,7 +510,7 @@ export default function App() {
   const calculateYear = async () => {
     const allDates = Object.keys(shiftData).sort();
     if (allDates.length === 0) {
-      Alert.alert(t.errorTitle, "Сначала отметьте минимум 1 день в текущем месяце");
+      Alert.alert(t.errorTitle, t.fillAllDays);
       return;
     }
 
@@ -527,7 +533,7 @@ export default function App() {
     }
 
     if (pattern.length === 0) {
-      Alert.alert(t.errorTitle, "Не удалось определить паттерн");
+      Alert.alert(t.errorTitle, t.fillAllDays);
       return;
     }
 
@@ -697,18 +703,14 @@ export default function App() {
       fetchArchiveData(password);
       loadShiftData();
       loadShoppingList();
-      // Проверяем, нужно ли показать подсказку
       checkAndShowHint();
     } else {
       setWorkData({});
     }
   }, [password, currentMonth]);
 
-  // ==================== ПРОВЕРКА ПОДСКАЗКИ ====================
   const checkAndShowHint = () => {
-    // Проверяем, есть ли смены в графике
     const hasData = Object.keys(shiftData).length > 0;
-    // Показываем подсказку, если график пуст И активен режим "График"
     if (!hasData && activeMode === 'schedule') {
       setHintModalVisible(true);
     } else {
@@ -716,11 +718,46 @@ export default function App() {
     }
   };
 
-  // Следим за изменением activeMode
   useEffect(() => {
     checkAndShowHint();
   }, [activeMode, shiftData]);
 
+  // ==================== ПРОВЕРКА ОТВЕТОВ АДМИНИСТРАТОРА ====================
+  const checkAdminReply = async (deviceId) => {
+    try {
+      const response = await fetch(`${FIREBASE_REST_URL}/support_replies/${deviceId}.json`);
+      const data = await response.json();
+      if (!data) return;
+
+      const readReplies = await AsyncStorage.getItem('@tabulka_read_replies');
+      const readList = readReplies ? JSON.parse(readReplies) : [];
+
+      if (data.text && !readList.includes(deviceId)) {
+        setAdminReplyText(data.text || '');
+        setAdminReplyId(deviceId);
+        setAdminReplyModalVisible(true);
+      }
+    } catch (e) {
+      console.log('Check admin reply error:', e);
+    }
+  };
+
+  const markReplyAsRead = async () => {
+    if (!adminReplyId) return;
+    try {
+      const readReplies = await AsyncStorage.getItem('@tabulka_read_replies');
+      const readList = readReplies ? JSON.parse(readReplies) : [];
+      if (!readList.includes(adminReplyId)) {
+        readList.push(adminReplyId);
+        await AsyncStorage.setItem('@tabulka_read_replies', JSON.stringify(readList));
+      }
+    } catch (e) {
+      console.log('Mark reply as read error:', e);
+    }
+    setAdminReplyModalVisible(false);
+  };
+
+  // ==================== ПРОВЕРКА РАССЫЛОК ====================
   const checkAdminMessages = async (deviceId, currentPassword) => {
     const actualPassword = currentPassword || password;
     if (!actualPassword) return;
@@ -838,6 +875,7 @@ export default function App() {
               setPassword(savedPass);
               setIsAuthChecking(false);
               checkAdminMessages(deviceId, savedPass);
+              checkAdminReply(deviceId);
               return;
             }
           } else {
@@ -845,6 +883,7 @@ export default function App() {
               setPassword(savedPass);
               setIsAuthChecking(false);
               checkAdminMessages(deviceId, savedPass);
+              checkAdminReply(deviceId);
               return; 
             }
           }
@@ -884,6 +923,7 @@ export default function App() {
         setTrialNotice(true);
         setTimeout(() => setTrialNotice(false), 4000);
         checkAdminMessages(deviceId, trialPassword);
+        checkAdminReply(deviceId);
       }
     } catch (e) {
       Alert.alert(localT.errorTitle, "Auth check failed");
@@ -917,6 +957,7 @@ export default function App() {
             setPassword(trimmed);
             setInputPassword('');
             checkAdminMessages(deviceId, trimmed);
+            checkAdminReply(deviceId);
             return;
           }
 
@@ -941,6 +982,7 @@ export default function App() {
             setInputPassword('');
             Alert.alert(t.alertSuccessTitle, t.alertSuccessMessage);
             checkAdminMessages(deviceId, trimmed);
+            checkAdminReply(deviceId);
           } else {
             Alert.alert(t.activationErrorTitle, t.alertKeyUsed);
           }
@@ -961,6 +1003,7 @@ export default function App() {
             setInputPassword('');
             Alert.alert(t.alertSuccessTitle, t.alertSuccessMessage);
             checkAdminMessages(deviceId, trimmed);
+            checkAdminReply(deviceId);
           } else if (currentStatus === "used") {
             if (currentDeviceId && currentDeviceId === deviceId) {
               await AsyncStorage.setItem('@tabulka_password', trimmed);
@@ -968,6 +1011,7 @@ export default function App() {
               setPassword(trimmed);
               setInputPassword('');
               checkAdminMessages(deviceId, trimmed);
+              checkAdminReply(deviceId);
             } else {
               Alert.alert(t.activationErrorTitle, t.alertKeyUsed);
             }
@@ -1563,44 +1607,7 @@ export default function App() {
         {/* ==================== ПОДСКАЗКА ==================== */}
         {renderHintModal()}
 
-        {/* ==================== МОДАЛКИ ==================== */}
-        <Modal visible={shiftModalVisible} transparent={true} animationType="fade">
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>{t.selectShift}</Text>
-              <View style={styles.shiftOptions}>
-                <TouchableOpacity 
-                  style={[styles.shiftOption, { backgroundColor: '#FDE047' }]} 
-                  onPress={() => selectShiftType('day')}
-                >
-                  <Text style={styles.shiftOptionText}>{t.shiftDay}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.shiftOption, { backgroundColor: '#60A5FA' }]} 
-                  onPress={() => selectShiftType('night')}
-                >
-                  <Text style={[styles.shiftOptionText, { color: '#FFF' }]}>{t.shiftNight}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.shiftOption, { backgroundColor: '#A78BFA' }]} 
-                  onPress={() => selectShiftType('24')}
-                >
-                  <Text style={[styles.shiftOptionText, { color: '#FFF' }]}>{t.shift24}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.shiftOption, { backgroundColor: '#F3F4F6' }]} 
-                  onPress={() => selectShiftType('off')}
-                >
-                  <Text style={styles.shiftOptionText}>{t.shiftOff}</Text>
-                </TouchableOpacity>
-              </View>
-              <TouchableOpacity style={[styles.btnCancel, { width: '100%', marginTop: 10 }]} onPress={() => setShiftModalVisible(false)}>
-                <Text style={styles.btnText}>{t.btnCancel}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-
+        {/* ==================== МОДАЛКА РАССЫЛКИ ==================== */}
         <Modal visible={adminMessageModalVisible} transparent={true} animationType="fade">
           <View style={styles.modalOverlay}>
             <View style={[styles.modalContent, styles.adminMessageModal]}>
@@ -1628,6 +1635,24 @@ export default function App() {
                 onPress={markMessageAsRead}
               >
                 <Text style={styles.adminMessageCloseBtnText}>{t.adminMessageClose}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* ==================== МОДАЛКА ОТВЕТА ==================== */}
+        <Modal visible={adminReplyModalVisible} transparent={true} animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, styles.adminMessageModal]}>
+              <Text style={[styles.modalTitle, { color: '#0052CC' }]}>{t.adminReplyTitle}</Text>
+              <ScrollView style={styles.adminMessageScroll}>
+                <Text style={styles.adminMessageText}>{adminReplyText}</Text>
+              </ScrollView>
+              <TouchableOpacity 
+                style={[styles.adminMessageCloseBtn, { backgroundColor: '#0052CC' }]} 
+                onPress={markReplyAsRead}
+              >
+                <Text style={styles.adminMessageCloseBtnText}>{t.adminReplyClose}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1898,7 +1923,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   adminMessageCloseBtn: {
-    backgroundColor: '#0052CC',
+    backgroundColor: '#10B981',
     padding: 14,
     borderRadius: 10,
     alignItems: 'center',
