@@ -296,6 +296,7 @@ export default function App() {
 
   const [hintModalVisible, setHintModalVisible] = useState(false);
 
+  // НОВЫЕ СОСТОЯНИЯ ДЛЯ ОТВЕТА ПОДДЕРЖКИ
   const [supportReplyModalVisible, setSupportReplyModalVisible] = useState(false);
   const [supportReplyText, setSupportReplyText] = useState('');
   const [supportReplyTimestamp, setSupportReplyTimestamp] = useState(null);
@@ -332,6 +333,7 @@ export default function App() {
     }
   };
 
+  // НОВАЯ ФУНКЦИЯ ДЛЯ ПРОВЕРКИ ОТВЕТА ПОДДЕРЖКИ
   const checkSupportReply = async (deviceId) => {
     if (!deviceId) return;
     
@@ -843,6 +845,7 @@ export default function App() {
     try {
       const deviceId = await getUniqueDeviceId();
       
+      // ДОБАВЛЯЕМ ПРОВЕРКУ ОТВЕТА ПОДДЕРЖКИ
       await checkSupportReply(deviceId);
       
       const savedPass = await AsyncStorage.getItem('@tabulka_password');
@@ -1393,6 +1396,7 @@ export default function App() {
     );
   };
 
+  // НОВАЯ ФУНКЦИЯ ДЛЯ РЕНДЕРА МОДАЛКИ ОТВЕТА ПОДДЕРЖКИ
   const renderSupportReplyModal = () => {
     return (
       <Modal
@@ -1785,6 +1789,7 @@ export default function App() {
           </View>
         </Modal>
 
+        {/* МОДАЛКА ОТВЕТА ПОДДЕРЖКИ */}
         {renderSupportReplyModal()}
       </View>
     </SafeAreaView>
