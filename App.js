@@ -1102,15 +1102,16 @@ const checkAdminReply = async (deviceId) => {
   };
 
   const handleDayPress = (dateStr) => {
-    if (activeMode === 'schedule') {
-      handleShiftDayPress(dateStr);
-      return;
-    }
-    setSelectedDate(dateStr);
-    setRate('');
-    setHours('');
-    setModalVisible(true);
-  };
+  if (activeMode === 'schedule') {
+    setSelectedShiftDate(dateStr);
+    setShiftModalVisible(true);
+    return;
+  }
+  setSelectedDate(dateStr);
+  setRate('');
+  setHours('');
+  setModalVisible(true);
+};
 
   const handleAddRecord = () => {
     const numRate = parseFloat(rate);
