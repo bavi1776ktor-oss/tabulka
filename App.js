@@ -1101,17 +1101,18 @@ const checkAdminReply = async (deviceId) => {
     return dayData.records.reduce((sum, rec) => sum + rec.hours, 0);
   };
 
+  // ==================== ИСПРАВЛЕННАЯ ФУНКЦИЯ handleDayPress ====================
   const handleDayPress = (dateStr) => {
-  if (activeMode === 'schedule') {
-    setSelectedShiftDate(dateStr);
-    setShiftModalVisible(true);
-    return;
-  }
-  setSelectedDate(dateStr);
-  setRate('');
-  setHours('');
-  setModalVisible(true);
-};
+    if (activeMode === 'schedule') {
+      setSelectedShiftDate(dateStr);
+      setShiftModalVisible(true);
+      return;
+    }
+    setSelectedDate(dateStr);
+    setRate('');
+    setHours('');
+    setModalVisible(true);
+  };
 
   const handleAddRecord = () => {
     const numRate = parseFloat(rate);
@@ -1650,6 +1651,44 @@ const checkAdminReply = async (deviceId) => {
                 onPress={markReplyAsRead}
               >
                 <Text style={styles.adminMessageCloseBtnText}>{t.adminReplyClose}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* ==================== МОДАЛКА ВЫБОРА СМЕНЫ ==================== */}
+        <Modal visible={shiftModalVisible} transparent={true} animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>{t.selectShift}</Text>
+              <View style={styles.shiftOptions}>
+                <TouchableOpacity 
+                  style={[styles.shiftOption, { backgroundColor: '#FDE047' }]} 
+                  onPress={() => selectShiftType('day')}
+                >
+                  <Text style={styles.shiftOptionText}>{t.shiftDay}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.shiftOption, { backgroundColor: '#60A5FA' }]} 
+                  onPress={() => selectShiftType('night')}
+                >
+                  <Text style={[styles.shiftOptionText, { color: '#FFF' }]}>{t.shiftNight}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.shiftOption, { backgroundColor: '#A78BFA' }]} 
+                  onPress={() => selectShiftType('24')}
+                >
+                  <Text style={[styles.shiftOptionText, { color: '#FFF' }]}>{t.shift24}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.shiftOption, { backgroundColor: '#F3F4F6' }]} 
+                  onPress={() => selectShiftType('off')}
+                >
+                  <Text style={styles.shiftOptionText}>{t.shiftOff}</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity style={[styles.btnCancel, { width: '100%', marginTop: 10 }]} onPress={() => setShiftModalVisible(false)}>
+                <Text style={styles.btnText}>{t.btnCancel}</Text>
               </TouchableOpacity>
             </View>
           </View>
