@@ -928,6 +928,7 @@ const checkAdminReply = async (deviceId) => {
     }
   };
 
+  // ==================== ОБНОВЛЕННАЯ ФУНКЦИЯ handleLogin С ПЕРЕНОСОМ ====================
   const handleLogin = async () => {
     const trimmed = inputPassword.trim();
     if (trimmed.length < 3) {
@@ -963,6 +964,32 @@ const checkAdminReply = async (deviceId) => {
           }
 
           if (currentDeviceCount < maxAllowed) {
+            // ==================== ПЕРЕНОС ДАННЫХ ИЗ ТРИАЛА ====================
+            const trialPassword = await AsyncStorage.getItem('@tabulka_password');
+            if (trialPassword && trialPassword.startsWith('TRIAL_MODE_')) {
+              try {
+                const trialResponse = await fetch(`${FIREBASE_REST_URL}/tabulka_lists/${trialPassword}.json`);
+                const trialData = await trialResponse.json();
+                
+                if (trialData) {
+                  for (const [monthKey, monthData] of Object.entries(trialData)) {
+                    await fetch(`${FIREBASE_REST_URL}/tabulka_lists/${trimmed}/${monthKey}.json`, {
+                      method: 'PUT',
+                      body: JSON.stringify(monthData)
+                    });
+                  }
+                  
+                  await fetch(`${FIREBASE_REST_URL}/tabulka_lists/${trialPassword}.json`, {
+                    method: 'DELETE'
+                  });
+                  
+                  console.log('✅ Данные триала перенесены и удалены');
+                }
+              } catch (e) {
+                console.log('Ошибка переноса данных:', e);
+              }
+            }
+
             await fetch(`${FIREBASE_REST_URL}/activation_keys/${trimmed}/devices/${deviceId}.json`, {
               method: 'PUT',
               body: JSON.stringify(true)
@@ -985,6 +1012,32 @@ const checkAdminReply = async (deviceId) => {
         } else {
           const currentDeviceId = keyData.deviceId || "";
           if (currentStatus === "free" && currentDeviceId === "") {
+            // ==================== ПЕРЕНОС ДАННЫХ ИЗ ТРИАЛА ====================
+            const trialPassword = await AsyncStorage.getItem('@tabulka_password');
+            if (trialPassword && trialPassword.startsWith('TRIAL_MODE_')) {
+              try {
+                const trialResponse = await fetch(`${FIREBASE_REST_URL}/tabulka_lists/${trialPassword}.json`);
+                const trialData = await trialResponse.json();
+                
+                if (trialData) {
+                  for (const [monthKey, monthData] of Object.entries(trialData)) {
+                    await fetch(`${FIREBASE_REST_URL}/tabulka_lists/${trimmed}/${monthKey}.json`, {
+                      method: 'PUT',
+                      body: JSON.stringify(monthData)
+                    });
+                  }
+                  
+                  await fetch(`${FIREBASE_REST_URL}/tabulka_lists/${trialPassword}.json`, {
+                    method: 'DELETE'
+                  });
+                  
+                  console.log('✅ Данные триала перенесены и удалены');
+                }
+              } catch (e) {
+                console.log('Ошибка переноса данных:', e);
+              }
+            }
+
             await fetch(`${FIREBASE_REST_URL}/activation_keys/${trimmed}.json`, {
               method: 'PATCH',
               body: JSON.stringify({ 
@@ -1101,7 +1154,6 @@ const checkAdminReply = async (deviceId) => {
     return dayData.records.reduce((sum, rec) => sum + rec.hours, 0);
   };
 
-  // ==================== ИСПРАВЛЕННАЯ ФУНКЦИЯ handleDayPress ====================
   const handleDayPress = (dateStr) => {
     if (activeMode === 'schedule') {
       setSelectedShiftDate(dateStr);
