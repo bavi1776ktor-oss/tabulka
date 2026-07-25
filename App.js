@@ -1551,9 +1551,25 @@ const checkAdminReply = async (deviceId) => {
         </View>
 
         {isCurrentModeTrial && (
-          <TouchableOpacity style={styles.trialTopRequestBtn} onPress={() => setRequestModalVisible(true)}>
-            <Text style={styles.trialTopRequestBtnText}>{t.requestFullVersionHeader.toUpperCase()}</Text>
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity style={styles.trialTopRequestBtn} onPress={() => setRequestModalVisible(true)}>
+              <Text style={styles.trialTopRequestBtnText}>{t.requestFullVersionHeader.toUpperCase()}</Text>
+            </TouchableOpacity>
+            
+            <View style={styles.trialKeyInputContainer}>
+              <Text style={styles.trialKeyInputTitle}>{t.enterKeyTitle}</Text>
+              <TextInput
+                placeholder={t.placeholderKey}
+                autoCapitalize="characters"
+                style={styles.trialKeyInput}
+                value={inputPassword}
+                onChangeText={setInputPassword}
+              />
+              <TouchableOpacity style={styles.trialKeyActivateBtn} onPress={handleLogin}>
+                <Text style={styles.trialKeyActivateBtnText}>{t.btnActivate}</Text>
+              </TouchableOpacity>
+            </View>
+          </>
         )}
 
         <View style={styles.monthSelectorRow}>
@@ -1883,6 +1899,41 @@ const styles = StyleSheet.create({
   writeToDevButtonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold', textAlign: 'center' },
   trialTopRequestBtn: { backgroundColor: '#10B981', padding: 10, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 15 },
   trialTopRequestBtnText: { color: '#FFF', fontWeight: 'bold', fontSize: 14, textAlign: 'center' },
+  trialKeyInputContainer: {
+    backgroundColor: '#FFF',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  trialKeyInputTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#4B5563',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  trialKeyInput: {
+    borderBottomWidth: 1,
+    borderColor: '#D1D5DB',
+    paddingVertical: 6,
+    fontSize: 16,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  trialKeyActivateBtn: {
+    backgroundColor: '#0052CC',
+    padding: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  trialKeyActivateBtnText: {
+    color: '#FFF',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
   monthSelectorRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   monthTitleWrapper: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   monthTitle: { fontSize: 16, fontWeight: 'bold', color: '#374151', textAlign: 'center', marginHorizontal: 10 },
