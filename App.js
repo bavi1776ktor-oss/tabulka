@@ -48,6 +48,7 @@ const translations = {
     modalDayTitle: "День",
     placeholderRate: "Ставка",
     placeholderHours: "Часы",
+    placeholderCategory: "Категория",
     btnSave: "Сохранить",
     btnCancel: "Отмена",
     btnClose: "Закрыть",
@@ -136,7 +137,8 @@ const translations = {
     hintText2: "2. Введите минимум 2–3 смены подряд, чтобы программа поняла ваш паттерн.\n• Важно: Первая смена должна быть рабочей (День/Ночь/Сутки), последняя — Выходной.\n• Пример: День → День → Выходной → Выходной",
     hintText3: "3. Нажмите зелёную кнопку 📆, и ваш график автоматически просчитается на год вперёд.",
     hintText4: "4. Листайте месяцы стрелками ◀ ▶ и проверяйте свои смены.",
-    hintButton: "Понял!"
+    hintButton: "Понял!",
+    categoryFilterTitle: "Категории для подсчёта суммы"
   },
   uk: {
     locale: 'uk-UA',
@@ -160,6 +162,7 @@ const translations = {
     modalDayTitle: "День",
     placeholderRate: "Ставка",
     placeholderHours: "Години",
+    placeholderCategory: "Категорія",
     btnSave: "Зберегти",
     btnCancel: "Скасувати",
     btnClose: "Закрити",
@@ -248,7 +251,8 @@ const translations = {
     hintText2: "2. Введіть мінімум 2–3 зміни поспіль, щоб програма зрозуміла ваш патерн.\n• Важливо: Перша зміна має бути робочою (День/Ніч/Доба), остання — Вихідний.\n• Приклад: День → День → Вихідний → Вихідний",
     hintText3: "3. Натисніть зелену кнопку 📆, і ваш графік автоматично розрахується на рік вперед.",
     hintText4: "4. Гортайте місяці стрілками ◀ ▶ та перевіряйте свої зміни.",
-    hintButton: "Зрозумів!"
+    hintButton: "Зрозумів!",
+    categoryFilterTitle: "Категорії для підрахунку суми"
   }
 };
 
@@ -266,6 +270,7 @@ export default function App() {
   const [archiveModalVisible, setArchiveModalVisible] = useState(false); 
   const [rate, setRate] = useState('');
   const [hours, setHours] = useState('');
+  const [category, setCategory] = useState('');
   const [trialNotice, setTrialNotice] = useState(false); 
   const [isTrialExpired, setIsTrialExpired] = useState(false); 
   const [daysLeft, setDaysLeft] = useState(5);
@@ -273,6 +278,10 @@ export default function App() {
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('+38 (');
   const [archiveData, setArchiveData] = useState({});
+
+  // ==================== КАТЕГОРИИ ====================
+  const [categoryFilterModalVisible, setCategoryFilterModalVisible] = useState(false);
+  const [selectedCategories, setSelectedCategories] = useState({});
 
   // ==================== СООБЩЕНИЯ ====================
   const [adminMessageModalVisible, setAdminMessageModalVisible] = useState(false);
@@ -307,8 +316,105 @@ export default function App() {
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     checkInitialLanguage();
+    loadCategoryFilter();
     return () => clearInterval(timer);
   }, []);
+
+  const loadCategoryFilter = async () => {
+    try {
+      const saved = await AsyncStorage.getItem('@tabulka_category_filter');
+      if (saved) {
+        setSelectedCategories(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.log('Load category filter error:', e);
+    }
+  };
+
+  const saveCategoryFilter = async (newFilter) => {
+    try {
+      await AsyncStorage.setItem('@tabulka_category_filter', JSON.stringify(newFilter));
+      setSelectedCategories(newFilter);
+    } catch (e) {
+      console.log('Save category filter error:', e);
+    }
+  };
+
+  const getAllCategoriesForMonth = () => {
+    const days = getDaysInMonth(currentMonth);
+    const allCategories = new Set();
+    
+    days.forEach(day => {
+      const dayData = workData[day];
+      if (dayData && dayData.records) {
+        dayData.records.forEach(rec => {
+          if (rec.category !== undefined && rec.category !== null && rec.category !== '') {
+            allCategories.add(String(rec.category));
+          }
+        });
+      }
+    });
+    
+    return Array.from(allCategories).sort((a, b) => Number(a) - Number(b));
+  };
+
+  const toggleCategory = (cat) => {
+    const newFilter = { ...selectedCategories };
+    newFilter[cat] = !newFilter[cat];
+    saveCategoryFilter(newFilter);
+  };
+
+  const getFilteredDayTotal = (dayData) => {
+    if (!dayData || !dayData.records) return 0;
+    
+    // Если нет выбранных категорий, показываем все
+    const hasSelected = Object.values(selectedCategories).some(v => v === true);
+    if (!hasSelected) {
+      return dayData.records.reduce((sum, rec) => sum + (rec.rate * rec.hours), 0);
+    }
+    
+    return dayData.records.reduce((sum, rec) => {
+      const cat = String(rec.category || '');
+      if (selectedCategories[cat] === true) {
+        return sum + (rec.rate * rec.hours);
+      }
+      return sum;
+    }, 0);
+  };
+
+  const getFilteredStatsForPeriod = (daysList) => {
+    let wDays = 0; 
+    let wkDays = 0; 
+    let tSum = 0;
+    const today = new Date(); 
+    today.setHours(0, 0, 0, 0);
+    const activeWorkDaysInMonth = daysList.filter(day => workData[day] && getFilteredDayTotal(workData[day]) > 0);
+    if (activeWorkDaysInMonth.length === 0) {
+      return { workDays: 0, weekendDays: 0, totalSum: 0 };
+    }
+    const firstWorkDayNum = Math.min(...activeWorkDaysInMonth.map(d => parseInt(d.split('-')[2])));
+    let lastWorkDayNum = Math.max(...activeWorkDaysInMonth.map(d => parseInt(d.split('-')[2])));
+    const sampleDay = daysList[0]; 
+    const [viewYear, viewMonth] = sampleDay.split('-').map(Number);
+    if (viewYear === today.getFullYear() && (viewMonth - 1) === today.getMonth()) {
+      if (today.getDate() > lastWorkDayNum) {
+        lastWorkDayNum = today.getDate();
+      }
+    }
+    daysList.forEach(day => {
+      const dayNum = parseInt(day.split('-')[2]);
+      const dayTotal = getFilteredDayTotal(workData[day]);
+      if (dayTotal > 0) { 
+        wDays++; 
+        tSum += dayTotal; 
+      } else { 
+        if (dayNum >= firstWorkDayNum && dayNum <= lastWorkDayNum) {
+          wkDays++; 
+        }
+      }
+    });
+    return { workDays: wDays, weekendDays: wkDays, totalSum: tSum };
+  };
 
   const checkInitialLanguage = async () => {
     try {
@@ -742,7 +848,6 @@ const checkAdminReply = async (deviceId) => {
   if (!adminReplyId) return;
   
   try {
-    // Удаляем сообщение из Firebase после прочтения
     await fetch(`${FIREBASE_REST_URL}/support_replies/${adminReplyId}.json`, {
       method: 'DELETE'
     });
@@ -928,7 +1033,6 @@ const checkAdminReply = async (deviceId) => {
     }
   };
 
-  // ==================== ОБНОВЛЕННАЯ ФУНКЦИЯ handleLogin С ПЕРЕНОСОМ ====================
   const handleLogin = async () => {
     const trimmed = inputPassword.trim();
     if (trimmed.length < 3) {
@@ -964,7 +1068,6 @@ const checkAdminReply = async (deviceId) => {
           }
 
           if (currentDeviceCount < maxAllowed) {
-            // ==================== ПЕРЕНОС ДАННЫХ ИЗ ТРИАЛА ====================
             const trialPassword = await AsyncStorage.getItem('@tabulka_password');
             if (trialPassword && trialPassword.startsWith('TRIAL_MODE_')) {
               try {
@@ -1012,7 +1115,6 @@ const checkAdminReply = async (deviceId) => {
         } else {
           const currentDeviceId = keyData.deviceId || "";
           if (currentStatus === "free" && currentDeviceId === "") {
-            // ==================== ПЕРЕНОС ДАННЫХ ИЗ ТРИАЛА ====================
             const trialPassword = await AsyncStorage.getItem('@tabulka_password');
             if (trialPassword && trialPassword.startsWith('TRIAL_MODE_')) {
               try {
@@ -1163,22 +1265,31 @@ const checkAdminReply = async (deviceId) => {
     setSelectedDate(dateStr);
     setRate('');
     setHours('');
+    setCategory('');
     setModalVisible(true);
   };
 
   const handleAddRecord = () => {
     const numRate = parseFloat(rate);
     const numHours = parseFloat(hours);
+    const numCategory = category.trim() !== '' ? category.trim() : '';
+    
     if (!rate || !hours || isNaN(numRate) || isNaN(numHours) || numRate <= 0 || numHours <= 0) {
       Alert.alert(t.errorTitle, t.alertInputError);
       return;
     }
+    
     const currentDayData = workData[selectedDate] || { records: [] };
     const newRecord = {
       id: Date.now().toString() + '_' + Math.random(),
       rate: numRate,
       hours: numHours
     };
+    
+    if (numCategory !== '') {
+      newRecord.category = numCategory;
+    }
+    
     const updatedDayData = {
       ...currentDayData,
       records: [...(currentDayData.records || []), newRecord]
@@ -1186,6 +1297,7 @@ const checkAdminReply = async (deviceId) => {
     setWorkData({ ...workData, [selectedDate]: updatedDayData });
     setRate('');
     setHours('');
+    setCategory('');
   };
 
   const handleDeleteRecord = (recordId) => {
@@ -1265,6 +1377,7 @@ const checkAdminReply = async (deviceId) => {
   };
 
   const stats = calculateStatsForPeriod(getDaysInMonth(currentMonth));
+  const filteredStats = getFilteredStatsForPeriod(getDaysInMonth(currentMonth));
 
   const exportToPDF = async () => {
     const days = getDaysInMonth(currentMonth);
@@ -1303,7 +1416,7 @@ const checkAdminReply = async (deviceId) => {
     }
     days.forEach((dateStr) => {
       const dayData = workData[dateStr];
-      const dayTotal = getDayTotal(dayData);
+      const dayTotal = getFilteredDayTotal(dayData);
       const isWorkDay = dayTotal > 0;
       const dayNum = dateStr.split('-')[2];
       
@@ -1639,9 +1752,11 @@ const checkAdminReply = async (deviceId) => {
             )}
 
             <View style={styles.statsContainer}>
-              <Text style={styles.statsText}>{t.statsWorkDays}: {stats.workDays}</Text>
-              <Text style={styles.statsText}>{t.statsWeekendDays}: {stats.weekendDays}</Text>
-              <Text style={styles.totalText}>{t.statsTotalSum}: {stats.totalSum}</Text>
+              <Text style={styles.statsText}>{t.statsWorkDays}: {filteredStats.workDays}</Text>
+              <Text style={styles.statsText}>{t.statsWeekendDays}: {filteredStats.weekendDays}</Text>
+              <TouchableOpacity onPress={() => setCategoryFilterModalVisible(true)}>
+                <Text style={styles.totalText}>{t.statsTotalSum}: {filteredStats.totalSum}</Text>
+              </TouchableOpacity>
             </View>
             
             <TouchableOpacity style={styles.archiveButton} onPress={() => setArchiveModalVisible(true)}><Text style={styles.archiveButtonText}>{t.btnArchive}</Text></TouchableOpacity>
@@ -1672,6 +1787,39 @@ const checkAdminReply = async (deviceId) => {
 
         {/* ==================== ПОДСКАЗКА ==================== */}
         {renderHintModal()}
+
+        {/* ==================== МОДАЛКА КАТЕГОРИЙ ==================== */}
+        <Modal visible={categoryFilterModalVisible} transparent={true} animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, { maxHeight: '70%' }]}>
+              <Text style={[styles.modalTitle, { color: '#0052CC' }]}>{t.categoryFilterTitle}</Text>
+              <ScrollView style={styles.categoryFilterScroll}>
+                {getAllCategoriesForMonth().length === 0 ? (
+                  <Text style={styles.noRecordsText}>Нет категорий</Text>
+                ) : (
+                  getAllCategoriesForMonth().map(cat => (
+                    <TouchableOpacity 
+                      key={cat} 
+                      style={styles.categoryFilterItem}
+                      onPress={() => toggleCategory(cat)}
+                    >
+                      <Text style={styles.categoryFilterText}>Категория {cat}</Text>
+                      <Text style={styles.categoryFilterCheck}>
+                        {selectedCategories[cat] === true ? '☑️' : '⬜'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))
+                )}
+              </ScrollView>
+              <TouchableOpacity 
+                style={[styles.authBtnSend, { backgroundColor: '#0052CC' }]} 
+                onPress={() => setCategoryFilterModalVisible(false)}
+              >
+                <Text style={styles.authButtonText}>Готово</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
         {/* ==================== МОДАЛКА РАССЫЛКИ ==================== */}
         <Modal visible={adminMessageModalVisible} transparent={true} animationType="fade">
@@ -1805,15 +1953,21 @@ const checkAdminReply = async (deviceId) => {
                 {workData[selectedDate]?.records && workData[selectedDate].records.length > 0 ? (
                   workData[selectedDate].records.map((rec) => (
                     <View key={rec.id} style={styles.miniRecordRow}>
-                      <Text style={styles.miniRecordText}>{rec.rate} × {rec.hours} {t.hourUnit} = {rec.rate * rec.hours}</Text>
-                      <TouchableOpacity onPress={() => handleDeleteRecord(rec.id)} style={styles.miniDeleteBtn}><Text style={styles.miniDeleteBtnText}>🗑</Text></TouchableOpacity>
+                      <Text style={styles.miniRecordText}>
+                        {rec.rate} × {rec.hours} {t.hourUnit} = {rec.rate * rec.hours}
+                        {rec.category ? ` (кат. ${rec.category})` : ''}
+                      </Text>
+                      <TouchableOpacity onPress={() => handleDeleteRecord(rec.id)} style={styles.miniDeleteBtn}>
+                        <Text style={styles.miniDeleteBtnText}>🗑</Text>
+                      </TouchableOpacity>
                     </View>
                   ))
                 ) : (<Text style={styles.noRecordsText}>{t.noRecordsText}</Text>)}
               </ScrollView>
               <View style={styles.inputGroupRow}>
-                <TextInput placeholder={t.placeholderRate} keyboardType="numeric" style={[styles.inputInline, { marginRight: 15 }]} value={rate} onChangeText={setRate} />
-                <TextInput placeholder={t.placeholderHours} keyboardType="numeric" style={styles.inputInline} value={hours} onChangeText={setHours} />
+                <TextInput placeholder={t.placeholderRate} keyboardType="numeric" style={[styles.inputInline, { marginRight: 10 }]} value={rate} onChangeText={setRate} />
+                <TextInput placeholder={t.placeholderHours} keyboardType="numeric" style={[styles.inputInline, { marginRight: 10 }]} value={hours} onChangeText={setHours} />
+                <TextInput placeholder={t.placeholderCategory} keyboardType="numeric" style={styles.inputInlineCategory} value={category} onChangeText={setCategory} />
               </View>
               <TouchableOpacity style={styles.btnAddRecordRow} onPress={handleAddRecord}><Text style={styles.btnAddRecordRowText}>{t.btnAddRecord}</Text></TouchableOpacity>
               <View style={styles.modalButtons}>
@@ -1977,7 +2131,7 @@ const styles = StyleSheet.create({
   cellSumSubtext: { fontSize: 11, color: '#A3E635', fontWeight: 'bold', marginTop: -2, textAlign: 'center' },
   statsContainer: { backgroundColor: '#FFF', padding: 14, borderRadius: 12, marginTop: 10, borderWidth: 1, borderColor: '#E5E7EB' },
   statsText: { fontSize: 14, color: '#111827', fontWeight: 'bold' },
-  totalText: { fontSize: 16, fontWeight: 'bold', marginTop: 4, color: '#111827' },
+  totalText: { fontSize: 16, fontWeight: 'bold', marginTop: 4, color: '#0052CC' },
   archiveButton: { backgroundColor: '#0052CC', padding: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
   archiveButtonText: { color: '#FFF', fontWeight: 'bold', textAlign: 'center' },
   pdfButton: { backgroundColor: '#10B981', padding: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
@@ -1994,6 +2148,7 @@ const styles = StyleSheet.create({
   noRecordsText: { fontSize: 13, color: '#9CA3AF', textAlign: 'center', marginVertical: 10, fontWeight: 'bold' },
   inputGroupRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
   inputInline: { flex: 1, borderBottomWidth: 1, borderColor: '#0052CC', paddingVertical: 10, fontSize: 16, textAlign: 'center' },
+  inputInlineCategory: { flex: 0.6, borderBottomWidth: 1, borderColor: '#0052CC', paddingVertical: 10, fontSize: 16, textAlign: 'center' },
   btnAddRecordRow: { backgroundColor: '#0052CC', padding: 14, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 15 },
   btnAddRecordRowText: { color: '#FFF', fontWeight: 'bold', fontSize: 16, textAlign: 'center' },
   modalButtons: { flexDirection: 'row', justifyContent: 'space-between' },
@@ -2074,6 +2229,26 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
+  categoryFilterScroll: {
+    maxHeight: 400,
+    marginBottom: 10,
+  },
+  categoryFilterItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  categoryFilterText: {
+    fontSize: 16,
+    color: '#111827',
+  },
+  categoryFilterCheck: {
+    fontSize: 20,
+  },
   // ==================== СПИСОК ПОКУПОК ====================
   shoppingContainer: { flex: 1, paddingHorizontal: 4 },
   shoppingHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
@@ -2145,3 +2320,5 @@ const styles = StyleSheet.create({
     fontWeight: 'bold' 
   },
 });
+
+export default App;
