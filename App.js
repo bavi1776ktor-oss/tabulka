@@ -25,6 +25,26 @@ const TRIAL_DURATION_SECONDS = 5 * 24 * 60 * 60;
 const MY_TARGET_EMAIL = "kluh2026@gmail.com"; 
 const FIREBASE_REST_URL = "https://my-apk-protection-default-rtdb.firebaseio.com";
 
+// ===== Утилиты для времени =====
+const parseTimeToMinutes = (str) => {
+  if (!str || typeof str !== 'string') return null;
+  const m = str.trim().match(/^(\d{1,2})[:.](\d{2})$/);
+  if (!m) return null;
+  const h = parseInt(m[1], 10);
+  const mi = parseInt(m[2], 10);
+  if (isNaN(h) || isNaN(mi) || h < 0 || h > 23 || mi < 0 || mi > 59) return null;
+  return h * 60 + mi;
+};
+
+const calculateDurationHours = (startStr, endStr) => {
+  const s = parseTimeToMinutes(startStr);
+  const e = parseTimeToMinutes(endStr);
+  if (s === null || e === null) return null;
+  let diff = e - s;
+  if (diff < 0) diff += 24 * 60;
+  return diff / 60;
+};
+
 const translations = {
   ru: {
     locale: 'ru-RU',
@@ -49,8 +69,8 @@ const translations = {
     modalDayTitle: "День",
     placeholderRate: "Ставка",
     placeholderHours: "Часы",
-    placeholderStartTime: "Начало (чч:мм)",
-    placeholderEndTime: "Конец (чч:мм)",
+    placeholderStartTime: "Начало (08:00)",
+    placeholderEndTime: "Конец (17:00)",
     btnSave: "Сохранить",
     btnCancel: "Отмена",
     btnClose: "Закрыть",
@@ -88,11 +108,11 @@ const translations = {
     selectLangTitle: "Выберите язык / Оберіть мову",
     errorTitle: "Ошибка",
     networkErrorTitle: "Ошибка сети",
-    networkErrorMsg: "Не удалось обновить данные из базы",
+    networkErrorMsg: "Не удалось загрузить данные",
     activationErrorTitle: "Ошибка активации",
     lockTitle: "Блокировка",
     noticeTitle: "Уведомление",
-    networkSendError: "Не удалось отправить данные",
+    networkSendError: "Не удалось сохранить данные",
     hourUnit: "ч.",
     archiveTitle: "Архив заработка",
     messageFromAdmin: "Сообщение от администратора",
@@ -142,9 +162,13 @@ const translations = {
     hintText3: "3. Нажмите зелёную кнопку 📆, и ваш график автоматически просчитается на год вперёд.",
     hintText4: "4. Листайте месяцы стрелками ◀ ▶ и проверяйте свои смены.",
     hintButton: "Понял!",
-    clockTitle: "Учёт отработанных часов",
-    clockEmpty: "Нет записей времени",
-    clockTotalMonth: "Часов за месяц"
+    clockModalTitle: "Время работы",
+    clockStartLabel: "Начало работы",
+    clockEndLabel: "Конец работы",
+    clockAddInterval: "+ Добавить интервал",
+    clockTotalDay: "Итого за день",
+    clockTotalMonth: "Часов за месяц",
+    clockEmpty: "Нет записей времени"
   },
   uk: {
     locale: 'uk-UA',
@@ -169,8 +193,8 @@ const translations = {
     modalDayTitle: "День",
     placeholderRate: "Ставка",
     placeholderHours: "Години",
-    placeholderStartTime: "Початок (гг:хх)",
-    placeholderEndTime: "Кінець (гг:хх)",
+    placeholderStartTime: "Початок (08:00)",
+    placeholderEndTime: "Кінець (17:00)",
     btnSave: "Зберегти",
     btnCancel: "Скасувати",
     btnClose: "Закрити",
@@ -208,11 +232,11 @@ const translations = {
     selectLangTitle: "Виберіть мову / Оберіть мову",
     errorTitle: "Помилка",
     networkErrorTitle: "Помилка мережі",
-    networkErrorMsg: "Не вдалося оновити дані з бази",
+    networkErrorMsg: "Не вдалося завантажити дані",
     activationErrorTitle: "Помилка активації",
     lockTitle: "Блокування",
     noticeTitle: "Сповіщення",
-    networkSendError: "Не вдалося надіслати дані",
+    networkSendError: "Не вдалося зберегти дані",
     hourUnit: "год.",
     archiveTitle: "Архів заробітку",
     messageFromAdmin: "Повідомлення від адміністратора",
@@ -262,31 +286,14 @@ const translations = {
     hintText3: "3. Натисніть зелену кнопку 📆, і ваш графік автоматично розрахується на рік вперед.",
     hintText4: "4. Гортайте місяці стрілками ◀ ▶ та перевіряйте свої зміни.",
     hintButton: "Зрозумів!",
-    clockTitle: "Облік відпрацьованих годин",
-    clockEmpty: "Немає записів часу",
-    clockTotalMonth: "Годин за місяць"
+    clockModalTitle: "Час роботи",
+    clockStartLabel: "Початок роботи",
+    clockEndLabel: "Кінець роботи",
+    clockAddInterval: "+ Додати інтервал",
+    clockTotalDay: "Разом за день",
+    clockTotalMonth: "Годин за місяць",
+    clockEmpty: "Немає записів часу"
   }
-};
-
-// Парсинг времени "HH:MM" -> минуты от начала суток
-const parseTimeToMinutes = (str) => {
-  if (!str || typeof str !== 'string') return null;
-  const m = str.trim().match(/^(\d{1,2})[:.](\d{2})$/);
-  if (!m) return null;
-  const h = parseInt(m[1], 10);
-  const mi = parseInt(m[2], 10);
-  if (isNaN(h) || isNaN(mi) || h < 0 || h > 23 || mi < 0 || mi > 59) return null;
-  return h * 60 + mi;
-};
-
-// Длительность между двумя временами (в часах, с учётом перехода через полночь)
-const calculateDurationHours = (startStr, endStr) => {
-  const s = parseTimeToMinutes(startStr);
-  const e = parseTimeToMinutes(endStr);
-  if (s === null || e === null) return null;
-  let diff = e - s;
-  if (diff < 0) diff += 24 * 60; // через полночь
-  return diff / 60;
 };
 
 export default function App() {
@@ -311,8 +318,8 @@ export default function App() {
   const [clientPhone, setClientPhone] = useState('+38 (');
   const [archiveData, setArchiveData] = useState({});
 
-  // ==================== ЧАСЫ (НОВЫЙ РЕЖИМ) ====================
-  const [clockData, setClockData] = useState({}); 
+  // ==================== ЧАСЫ ====================
+  const [clockData, setClockData] = useState({});
   const [clockModalVisible, setClockModalVisible] = useState(false);
   const [selectedClockDate, setSelectedClockDate] = useState(null);
   const [startTimeInput, setStartTimeInput] = useState('');
@@ -354,6 +361,19 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    if (password) {
+      fetchWorkData(password);
+      fetchArchiveData(password);
+      loadShiftData();
+      loadShoppingList();
+      loadClockData();
+      checkAndShowHint();
+    } else {
+      setWorkData({});
+    }
+  }, [password, currentMonth]);
+
   const checkInitialLanguage = async () => {
     try {
       const savedLang = await AsyncStorage.getItem('@tabulka_lang');
@@ -389,14 +409,20 @@ export default function App() {
     }
   };
 
-  const loadHintState = () => {
-    setHintModalVisible(true);
-  };
-
   const closeHint = async () => {
     setHintModalVisible(false);
   };
 
+  const checkAndShowHint = () => {
+    const hasData = Object.keys(shiftData).length > 0;
+    if (!hasData && activeMode === 'schedule') {
+      setHintModalVisible(true);
+    } else {
+      setHintModalVisible(false);
+    }
+  };
+
+  // ==================== СПИСОК ПОКУПОК ====================
   const loadShoppingList = async () => {
     if (!password) return;
     try {
@@ -478,7 +504,7 @@ export default function App() {
     );
   };
 
-  // ==================== ГРАФИК (AsyncStorage) ====================
+  // ==================== ГРАФИК ====================
   const loadShiftData = async () => {
     if (!password) return;
     try {
@@ -501,72 +527,6 @@ export default function App() {
       setShiftData(newData);
     } catch (e) {
       console.log('Save shift error:', e);
-    }
-  };
-
-  // ==================== ЧАСЫ (AsyncStorage) ====================
-  const getClockStorageKey = () => {
-    const y = currentMonth.getFullYear();
-    const m = currentMonth.getMonth();
-    return `@clock_data_${password}_${y}_${m}`;
-  };
-
-  const loadClockData = async () => {
-    if (!password) return;
-    try {
-      const saved = await AsyncStorage.getItem(getClockStorageKey());
-      if (saved) {
-        setClockData(JSON.parse(saved));
-      } else {
-        setClockData({});
-      }
-    } catch (e) {
-      console.log('Load clock error:', e);
-    }
-  };
-
-  const saveClockData = async (newData) => {
-    if (!password) return;
-    try {
-      await AsyncStorage.setItem(getClockStorageKey(), JSON.stringify(newData));
-      setClockData(newData);
-    } catch (e) {
-      console.log('Save clock error:', e);
-    }
-  };
-
-  const extractPatternAndStart = (data) => {
-    const allDates = Object.keys(data).sort();
-    if (allDates.length === 0) {
-      setShiftPattern([]);
-      setShiftStartDate(null);
-      return;
-    }
-
-    const startDate = allDates[0];
-    const pattern = [];
-    
-    const startDateObj = new Date(startDate);
-    let currentDate = new Date(startDate);
-    let maxDays = 365;
-    
-    while (maxDays > 0) {
-      const dateStr = currentDate.toISOString().split('T')[0];
-      if (data[dateStr]) {
-        pattern.push(data[dateStr]);
-      } else {
-        break;
-      }
-      currentDate.setDate(currentDate.getDate() + 1);
-      maxDays--;
-    }
-
-    if (pattern.length > 0) {
-      setShiftPattern(pattern);
-      setShiftStartDate(startDate);
-    } else {
-      setShiftPattern([]);
-      setShiftStartDate(null);
     }
   };
 
@@ -660,12 +620,6 @@ export default function App() {
     );
   };
 
-  const handleShiftDayPress = (dateStr) => {
-    if (activeMode !== 'schedule') return;
-    setSelectedShiftDate(dateStr);
-    setShiftModalVisible(true);
-  };
-
   const selectShiftType = (type) => {
     if (!selectedShiftDate) return;
     const newData = { ...shiftData };
@@ -707,13 +661,7 @@ export default function App() {
     setCurrentMonth(newDate);
   };
 
-  // ==================== ТАБЕЛЬ — ЛОКАЛЬНОЕ ХРАНЕНИЕ ====================
-  const getWorkStorageKey = () => {
-    const y = currentMonth.getFullYear();
-    const m = currentMonth.getMonth();
-    return `@tabulka_work_${password}_${y}_${m}`;
-  };
-
+  // ==================== ТАБЕЛЬ — LOCAL STORAGE ====================
   const fetchWorkData = async (currentPassword) => {
     if (!currentPassword) return;
     setIsLoadingData(true);
@@ -734,13 +682,11 @@ export default function App() {
     }
   };
 
-  // Архив — считаем по локальным данным
   const fetchArchiveData = async (currentPassword) => {
     if (!currentPassword) return;
     try {
       const summary = {};
       const today = new Date();
-      
       for (let i = 0; i < 12; i++) {
         const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
         const key = `@tabulka_work_${currentPassword}_${d.getFullYear()}_${d.getMonth()}`;
@@ -758,4 +704,54 @@ export default function App() {
         summary[`${d.getFullYear()}_${d.getMonth()}`] = monthSum;
       }
       setArchiveData(summary);
-    } catch (
+    } catch (e) {}
+  };
+
+  // ==================== ЧАСЫ — LOCAL STORAGE ====================
+  const getClockStorageKey = () => {
+    const y = currentMonth.getFullYear();
+    const m = currentMonth.getMonth();
+    return `@clock_data_${password}_${y}_${m}`;
+  };
+
+  const loadClockData = async () => {
+    if (!password) return;
+    try {
+      const saved = await AsyncStorage.getItem(getClockStorageKey());
+      if (saved) {
+        setClockData(JSON.parse(saved));
+      } else {
+        setClockData({});
+      }
+    } catch (e) {
+      console.log('Load clock error:', e);
+    }
+  };
+
+  const saveClockData = async (newData) => {
+    if (!password) return;
+    try {
+      await AsyncStorage.setItem(getClockStorageKey(), JSON.stringify(newData));
+      setClockData(newData);
+    } catch (e) {
+      console.log('Save clock error:', e);
+    }
+  };
+
+  const getClockDayTotal = (dayData) => {
+    if (!dayData || !Array.isArray(dayData.intervals)) return 0;
+    return dayData.intervals.reduce((sum, iv) => sum + (iv.hours || 0), 0);
+  };
+
+  const getClockMonthTotal = () => {
+    let total = 0;
+    Object.keys(clockData).forEach(day => {
+      total += getClockDayTotal(clockData[day]);
+    });
+    return total;
+  };
+
+  const handleClockDayPress = (dateStr) => {
+    setSelectedClockDate(dateStr);
+    setStartTimeInput('');
+    set
